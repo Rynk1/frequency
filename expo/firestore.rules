@@ -1,0 +1,107 @@
+// ── Firestore Security Rules for HarmonyFrequency ──
+// Deploy with: firebase deploy --only firestore:rules
+//
+// Security model:
+//   - Curated content (frequencies, curatedPrograms, articles): public read, admin-only write
+//   - User profiles: authenticated owner read/write
+//   - User sessions: authenticated owner read/write (scoped by userId)
+//   - User progress/stats: authenticated owner read/write
+//   - User reminders: authenticated owner read/write
+
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ── Helper functions ──
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isAdmin() {
+      return isAuthenticated() && request.auth.token.admin == true;
+    }
+
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    // ── Curated content: frequencies ──
+    // Anyone can read; only admins can write
+    match /frequencies/{docId} {
+      allow read: if true;
+      allow create, update, delete: if isAdmin();
+    }
+
+    // ── Curated content: curated programs ──
+    match /curatedPrograms/{docId} {
+      allow read: if true;
+      allow create, update, delete: if isAdmin();
+    }
+
+    // ── Curated content: articles ──
+    match /articles/{docId} {
+      allow read: if true;
+      allow create, update, delete: if isAdmin();
+    }
+
+    // ── User profiles ──
+    // Only the owning user can read/write their own profile.
+    // Subscription fields are SERVER-ONLY: they are written by the Stripe
+    // webhook (firebase-admin) and must NEVER be mutated by the client.
+    // The rules below allow the client to update only non-subscription fields.
+    match /users/{userId} {
+      allow read: if isOwner(userId);
+      allow create: if isOwner(userId)
+        // On initial create, subscriptionStatus must be 'free'
+        && request.resource.data.subscriptionStatus == 'free'
+        && !('subscriptionType' in request.resource.data || request.resource.data.subscriptionType == null)
+        && !('subscriptionEndsAt' in request.resource.data || request.resource.data.subscriptionEndsAt == null)
+        && !('trialEndsAt' in request.resource.data || request.resource.data.trialEndsAt == null)
+        && !('stripeCustomerId' in request.resource.data)
+        && !('stripeSubscriptionId' in request.resource.data)
+        && !('cancelAtPeriodEnd' in request.resource.data);
+      allow update: if isOwner(userId)
+        // Client cannot change any subscription-related field
+        && request.resource.data.subscriptionStatus == resource.data.subscriptionStatus
+        && request.resource.data.subscriptionType == resource.data.subscriptionType
+        && request.resource.data.subscriptionEndsAt == resource.data.subscriptionEndsAt
+        && request.resource.data.trialEndsAt == resource.data.trialEndsAt
+        && request.resource.data.stripeCustomerId == resource.data.stripeCustomerId
+        && request.resource.data.stripeSubscriptionId == resource.data.stripeSubscriptionId
+        && request.resource.data.cancelAtPeriodEnd == resource.data.cancelAtPeriodEnd;
+      // Server-side writes (firebase-admin service account) bypass these rules.
+    }
+
+    // ── User sessions (personal schedule/progress) ──
+    // Only the owning user can read/write their sessions
+    match /userSessions/{userId}/sessions/{sessionId} {
+      allow read, write: if isOwner(userId);
+    }
+
+    // ── User reminders ──
+    match /userReminders/{userId}/reminders/{reminderId} {
+      allow read, write: if isOwner(userId);
+    }
+
+    // ── User stats / progress ──
+    match /userStats/{userId} {
+      allow read, write: if isOwner(userId);
+    }
+
+    // ── User achievements ──
+    match /userAchievements/{userId} {
+      allow read, write: if isOwner(userId);
+    }
+
+    // ── Audit logs (admin-only) ──
+    match /auditLogs/{logId} {
+      allow read: if isAdmin();
+      allow write: if false; // Audit logs are append-only, written server-side
+    }
+
+    // ── Default deny ──
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
