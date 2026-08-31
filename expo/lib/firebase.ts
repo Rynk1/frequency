@@ -42,7 +42,7 @@ try {
     app = getApps()[0];
     console.log('✅ Using existing Firebase app');
   }
-  
+
   db = getFirestore(app);
 
   // On native platforms (iOS/Android), use AsyncStorage-backed persistence

@@ -15,12 +15,11 @@
     },
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "app.rork.harmonyfrequency-your-spiritual-soundscape",
+      "bundleIdentifier": "com.harmonyfrequency.app",
       "infoPlist": {
         "UIBackgroundModes": [
           "audio"
-        ],
-        "NSMicrophoneUsageDescription": "Allow $(PRODUCT_NAME) to access your microphone"
+        ]
       }
     },
     "android": {
@@ -28,11 +27,9 @@
         "foregroundImage": "./assets/images/adaptive-icon.png",
         "backgroundColor": "#ffffff"
       },
-      "package": "app.rork.harmonyfrequency-your-spiritual-soundscape",
+      "package": "com.harmonyfrequency.app",
+      "versionCode": 1,
       "permissions": [
-        "RECORD_AUDIO",
-        "READ_EXTERNAL_STORAGE",
-        "WRITE_EXTERNAL_STORAGE",
         "INTERNET"
       ]
     },
@@ -43,13 +40,13 @@
       [
         "expo-router",
         {
-          "origin": "https://rork.com/"
+          "origin": "https://harmonyfrequency.app/"
         }
       ],
       [
         "expo-av",
         {
-          "microphonePermission": "Allow $(PRODUCT_NAME) to access your microphone"
+          "microphonePermission": false
         }
       ]
     ],
