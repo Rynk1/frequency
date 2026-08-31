@@ -104,13 +104,13 @@ export default function SetupPage() {
     setErrorMessage('');
 
     try {
-      const res = await fetch(`${url}/admin/setup`, {
+      const res = await fetch(`${url.replace(/\/$/, '')}/setAdminClaim`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${key}`,
         },
-        body: JSON.stringify({ email: currentUser.email }),
+        body: JSON.stringify({ email: currentUser.email, claims: { admin: true } }),
       });
 
       const data = await res.json();

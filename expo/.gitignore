@@ -46,6 +46,8 @@ rork-eslint.config.js
 core
 node_modules
 .expo
-# Backend local data stores
+
+# functions build output & local data
+functions/lib/
 backend/data.json
 backend/audit.json

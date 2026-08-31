@@ -15,7 +15,7 @@ import { getIdToken } from 'firebase/auth';
  * NEVER mutates subscription fields — only the server does.
  */
 
-const API_BASE = process.env.EXPO_PUBLIC_API_BASE_URL || '';
+const API_BASE = process.env.EXPO_PUBLIC_API_BASE_URL || process.env.EXPO_PUBLIC_RORK_API_BASE_URL || '';
 
 export type Plan = 'monthly' | 'yearly';
 
