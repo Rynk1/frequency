@@ -2,6 +2,7 @@ import React from "react";
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import { AlertTriangle, RefreshCw, Bug } from "lucide-react-native";
+import { logError } from "@/lib/monitoring";
 
 type ErrorBoundaryProps = {
   children: React.ReactNode;
@@ -30,9 +31,10 @@ export class ErrorBoundary extends React.PureComponent<ErrorBoundaryProps, Error
     };
   }
 
-  componentDidCatch(error: unknown) {
+  componentDidCatch(error: unknown, info: React.ErrorInfo) {
     const message = error instanceof Error ? error.message : String(error);
     console.error("🧯 Unhandled UI error:", message);
+    logError(error, { componentStack: info.componentStack || "" });
   }
 
   private handleReset = () => {

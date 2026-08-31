@@ -151,8 +151,10 @@ export const deleteAccount = onRequest({ cors: true }, async (req, res) => {
 
     const uid = user.uid;
 
-    // 1. Delete Firestore user document
+    // 1. Delete Firestore user documents & stats
     await db.collection('users').doc(uid).delete().catch(() => {});
+    await db.collection('userStats').doc(uid).delete().catch(() => {});
+    await db.collection('userAchievements').doc(uid).delete().catch(() => {});
 
     // 2. Delete Firestore user sessions
     const sessionsSnap = await db.collection('userSessions').where('userId', '==', uid).get().catch(() => null);
