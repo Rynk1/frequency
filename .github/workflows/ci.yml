@@ -1,0 +1,54 @@
+name: CI
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+
+jobs:
+  validate:
+    name: Typecheck, Lint & Test
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: 'npm'
+          cache-dependency-path: expo/package-lock.json
+
+      - name: Install Mobile App Dependencies
+        run: |
+          cd expo
+          npm install --legacy-peer-deps
+
+      - name: Install Cloud Functions Dependencies
+        run: |
+          cd expo/functions
+          npm install --legacy-peer-deps
+
+      - name: Run Cloud Functions Build
+        run: |
+          cd expo/functions
+          npm run build
+
+      - name: Run Cloud Functions Tests
+        run: |
+          cd expo/functions
+          npx --package=typescript --package=tsx tsx __tests__/functions-regression.ts
+
+      - name: Run Unit Tests
+        run: |
+          cd expo
+          npm test
+
+      - name: Run ESLint
+        run: |
+          cd expo
+          npm run lint
+        continue-on-error: true # Non-blocking for pre-existing ESLint warnings
