@@ -633,9 +633,9 @@ app.get('/admin/status', async (c) => {
  * POST /admin/setup
  * Bootstrap the FIRST admin account.
  * Protected by ADMIN_SECRET_KEY (not Firebase claims — no admin exists yet).
- * 
+ *
  * Body: { email: string }
- * 
+ *
  * Sets the Firebase custom claim { admin: true } on the user identified by email.
  * After this endpoint succeeds, the user MUST sign out and sign back in
  * to receive a fresh ID token with the admin claim.
@@ -698,9 +698,9 @@ app.post('/admin/setup', setupKeyAuth, async (c) => {
 /**
  * POST /admin/users/:uid/claims
  * Manage custom claims for any user. Requires Firebase admin auth.
- * 
+ *
  * Body: { claims: Record<string, any> }
- * 
+ *
  * Merges the provided claims with existing claims.
  * Set a claim to null to remove it.
  */
@@ -916,7 +916,7 @@ app.post('/api/subscription/checkout', userAuth, async (c) => {
   const trialEnabled = body.trialEnabled !== false; // default true
 
   // Frontend URL for redirects (must be set in Stripe dashboard as allowed)
-  const appUrl = process.env.EXPO_PUBLIC_APP_URL || process.env.EXPO_PUBLIC_RORK_APP_URL || 'https://ctm3aav51lzn5l4xdanzg-expo.rork.live';
+  const appUrl = process.env.EXPO_PUBLIC_APP_URL || 'http://localhost:8081';
 
   try {
     const stripe = getStripe();
@@ -973,7 +973,7 @@ app.post('/api/subscription/portal', userAuth, async (c) => {
     return c.json({ error: 'Subscriptions not configured' }, 503);
   }
 
-  const appUrl = process.env.EXPO_PUBLIC_APP_URL || process.env.EXPO_PUBLIC_RORK_APP_URL || 'https://ctm3aav51lzn5l4xdanzg-expo.rork.live';
+  const appUrl = process.env.EXPO_PUBLIC_APP_URL || 'http://localhost:8081';
 
   try {
     const stripe = getStripe();
