@@ -194,31 +194,5 @@ export const authService = {
     } catch {
       return null;
     }
-  },
-
-  async deleteAccount(): Promise<void> {
-    const user = auth.currentUser;
-    if (!user) throw new Error('Not signed in.');
-
-    const token = await user.getIdToken(true);
-    const functionsUrl = process.env.EXPO_PUBLIC_FUNCTIONS_URL || process.env.EXPO_PUBLIC_API_BASE_URL || '';
-
-    if (functionsUrl) {
-      const res = await fetch(`${functionsUrl.replace(/\/$/, '')}/deleteAccount`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
-      });
-
-      if (!res.ok) {
-        const body = await res.json().catch(() => ({}));
-        throw new Error(body.error || 'Failed to delete account on server.');
-      }
-      await signOut(auth).catch(() => {});
-    } else {
-      await user.delete();
-    }
   }
 };

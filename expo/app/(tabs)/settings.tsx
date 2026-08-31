@@ -33,12 +33,10 @@ import {
   TrendingUp,
   Sun,
   Moon,
-  Trash2,
 } from 'lucide-react-native';
 import { useSettings } from '@/hooks/useSettings';
 import { useFavorites } from '@/hooks/useFavorites';
 import { useAuth } from '@/hooks/useAuth';
-import { authService } from '@/lib/firebase-auth';
 import { useTheme } from '@/hooks/useTheme';
 import { PremiumModal } from '@/components/PremiumModal';
 import { DataModeIndicator } from '@/components/DataModeIndicator';
@@ -280,40 +278,6 @@ export default function SettingsScreen() {
               <View style={styles.islandText}>
                 <Text style={[styles.islandRowTitle, { color: '#F87171' }]}>Sign Out</Text>
                 <Text style={[styles.islandRowSub, { color: colors.textMuted }]}>Sign out of your account</Text>
-              </View>
-              <ChevronRight color={colors.textMuted} size={16} />
-            </TouchableOpacity>
-            <View style={[styles.islandSep, { backgroundColor: colors.divider }]} />
-            <TouchableOpacity
-              style={styles.islandRow}
-              onPress={() => {
-                Alert.alert(
-                  'Delete Account',
-                  'Are you sure you want to permanently delete your account and all associated listening history? This action cannot be undone.',
-                  [
-                    { text: 'Cancel', style: 'cancel' },
-                    {
-                      text: 'Delete Permanently',
-                      style: 'destructive',
-                      onPress: async () => {
-                        try {
-                          await authService.deleteAccount();
-                          Alert.alert('Account Deleted', 'Your account has been permanently deleted.');
-                        } catch (err: any) {
-                          Alert.alert('Deletion Error', err?.message || 'Failed to delete account.');
-                        }
-                      },
-                    },
-                  ]
-                );
-              }}
-            >
-              <View style={[styles.islandIcon, islandIconBg('#EF4444')]}>
-                <Trash2 color="#EF4444" size={18} />
-              </View>
-              <View style={styles.islandText}>
-                <Text style={[styles.islandRowTitle, { color: '#EF4444' }]}>Delete Account</Text>
-                <Text style={[styles.islandRowSub, { color: colors.textMuted }]}>Permanently remove account & data</Text>
               </View>
               <ChevronRight color={colors.textMuted} size={16} />
             </TouchableOpacity>
