@@ -59,7 +59,7 @@ export const authService = {
     try {
       const userCredential = await createUserWithEmailAndPassword(auth, email, password);
       const user = userCredential.user;
-      
+
       return {
         uid: user.uid,
         email: user.email,
@@ -74,7 +74,7 @@ export const authService = {
     try {
       const userCredential = await signInWithEmailAndPassword(auth, email, password);
       const user = userCredential.user;
-      
+
       return {
         uid: user.uid,
         email: user.email,
@@ -127,7 +127,7 @@ export const authService = {
    */
   async isAdmin(user: User | null, forceRefresh = true): Promise<boolean> {
     if (!user) return false;
-    
+
     try {
       // forceRefresh=true ensures we get fresh claims from Firebase Auth server.
       // Without this, newly-set admin claims won't appear until sign-out/sign-in.
@@ -156,7 +156,7 @@ export const authService = {
       // Force fresh token to get current admin claim status
       const idTokenResult = await getIdTokenResult(user, true);
       const isAdmin = idTokenResult.claims.admin === true;
-      
+
       return {
         uid: user.uid,
         email: user.email,
@@ -188,7 +188,7 @@ export const authService = {
 
   async getIdToken(user: User | null): Promise<string | null> {
     if (!user) return null;
-    
+
     try {
       return await user.getIdToken();
     } catch {

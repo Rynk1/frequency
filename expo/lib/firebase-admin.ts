@@ -4,18 +4,18 @@ import admin from 'firebase-admin';
 if (!admin.apps.length) {
   try {
     const serviceAccountKey = process.env.FIREBASE_ADMIN_SERVICE_ACCOUNT_KEY;
-    
+
     if (!serviceAccountKey) {
       throw new Error('FIREBASE_ADMIN_SERVICE_ACCOUNT_KEY environment variable is not set');
     }
-    
+
     const serviceAccount = JSON.parse(serviceAccountKey);
-    
+
     admin.initializeApp({
       credential: admin.credential.cert(serviceAccount),
       projectId: process.env.EXPO_PUBLIC_FIREBASE_PROJECT_ID,
     });
-    
+
     console.log('Firebase Admin SDK initialized successfully');
   } catch (error) {
     console.error('Error initializing Firebase Admin SDK:', error);
@@ -56,10 +56,10 @@ export const adminService = {
     try {
       const userRecord = await this.getUserByEmail(email);
       await this.setCustomClaims(userRecord.uid, { admin: true });
-      
+
       console.log(`User ${email} (${userRecord.uid}) is now an admin`);
-      return { 
-        success: true, 
+      return {
+        success: true,
         user: {
           uid: userRecord.uid,
           email: userRecord.email,
@@ -77,10 +77,10 @@ export const adminService = {
     try {
       const userRecord = await this.getUserByEmail(email);
       await this.setCustomClaims(userRecord.uid, { admin: false });
-      
+
       console.log(`Admin privileges removed from ${email} (${userRecord.uid})`);
-      return { 
-        success: true, 
+      return {
+        success: true,
         user: {
           uid: userRecord.uid,
           email: userRecord.email,
@@ -98,7 +98,7 @@ export const adminService = {
     try {
       const decodedToken = await adminAuth.verifyIdToken(idToken);
       const isAdmin = decodedToken.admin === true;
-      
+
       return {
         uid: decodedToken.uid,
         email: decodedToken.email,
