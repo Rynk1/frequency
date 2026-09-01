@@ -16,6 +16,7 @@ import {
 import { db } from '@/lib/firebase';
 import { useAuth } from './useAuth';
 import { useDataMode } from './useDataMode';
+import { getDailyChallenge, getLocalDateString } from '@/lib/recommendation';
 
 interface Frequency {
   hz: number;
@@ -136,10 +137,10 @@ const generateDailyChallenge = (): DailyChallenge => {
     { title: 'Sleep Preparation', description: 'Prepare for rest with 2 Hz Delta waves', frequency: 2, duration: 25, reward: '70 XP + Sleep tracker' },
     { title: 'Energy Boost', description: 'Energize with 741 Hz Awakening Intuition', frequency: 741, duration: 15, reward: '55 XP + Energy badge' },
   ];
-  
+
   const today = new Date().toISOString().split('T')[0];
   const randomChallenge = challenges[Math.floor(Math.random() * challenges.length)];
-  
+
   return {
     id: `challenge-${today}`,
     ...randomChallenge,
@@ -179,7 +180,7 @@ export const [SessionManagerProvider, useSessionManager] = createContextHook(() 
     weeklyGoal: 300,
     weeklyProgress: 0,
   });
-  const [dailyChallenge, setDailyChallenge] = useState<DailyChallenge>(generateDailyChallenge());
+  const [dailyChallenge, setDailyChallenge] = useState<DailyChallenge>(() => getDailyChallenge(userId, getLocalDateString()));
   const [reminders, setReminders] = useState<Reminder[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -266,18 +267,22 @@ export const [SessionManagerProvider, useSessionManager] = createContextHook(() 
         await loadLocalOnly();
       }
 
-      // Daily challenge (always local, date-scoped) — fire-and-forget
+      // Daily challenge (stable for the day, time-aware)
+      const dateKey = getLocalDateString();
       AsyncStorage.getItem(STORAGE_KEYS.DAILY_CHALLENGES).then((challengeData) => {
         if (challengeData) {
           const challenge = JSON.parse(challengeData);
-          const today = new Date().toISOString().split('T')[0];
-          if (challenge.date !== today) {
-            const newChallenge = generateDailyChallenge();
+          if (challenge.date !== dateKey) {
+            const newChallenge = getDailyChallenge(currentUserId, dateKey);
             setDailyChallenge(newChallenge);
             AsyncStorage.setItem(STORAGE_KEYS.DAILY_CHALLENGES, JSON.stringify(newChallenge)).catch(() => {});
           } else {
             setDailyChallenge(challenge);
           }
+        } else {
+          const newChallenge = getDailyChallenge(currentUserId, dateKey);
+          setDailyChallenge(newChallenge);
+          AsyncStorage.setItem(STORAGE_KEYS.DAILY_CHALLENGES, JSON.stringify(newChallenge)).catch(() => {});
         }
       }).catch(() => {});
     } catch (error) {
@@ -394,10 +399,10 @@ export const [SessionManagerProvider, useSessionManager] = createContextHook(() 
   // Smart duration allocation algorithm
   const allocateSessionDuration = useCallback((frequencies: Frequency[], totalDuration: number, method: 'equal' | 'priority' | 'custom' | 'smart' = 'smart'): Frequency[] => {
     if (frequencies.length === 0) return [];
-    
+
     const allocatedFrequencies = [...frequencies];
     const totalMinutes = totalDuration;
-    
+
     switch (method) {
       case 'equal': {
         const equalDuration = Math.floor(totalMinutes / frequencies.length);
@@ -461,7 +466,7 @@ export const [SessionManagerProvider, useSessionManager] = createContextHook(() 
         break;
       }
     }
-    
+
     return allocatedFrequencies;
   }, []);
 
@@ -582,11 +587,11 @@ export const [SessionManagerProvider, useSessionManager] = createContextHook(() 
 
   const createSession = useCallback(async (sessionData: Omit<Session, 'id' | 'createdAt' | 'completedDates' | 'isActive' | 'isPaused' | 'currentFrequencyIndex' | 'elapsedTime' | 'allocationMethod' | 'fadeTransitions' | 'transitionDuration'>) => {
     const allocatedFrequencies = allocateSessionDuration(
-      sessionData.frequencies, 
+      sessionData.frequencies,
       sessionData.totalDuration,
       'smart'
     );
-    
+
     const newSession: Session = {
       ...sessionData,
       frequencies: allocatedFrequencies,
@@ -607,17 +612,17 @@ export const [SessionManagerProvider, useSessionManager] = createContextHook(() 
       reminderId: sessionData.reminderId || null,
       userId: sessionData.userId || userId || '',
     };
-    
+
     const updatedSessions = [...sessions, newSession];
     setSessions(updatedSessions);
     await saveData(STORAGE_KEYS.SESSIONS, updatedSessions);
     await syncSessionsToFirestore(updatedSessions);
-    
+
     return newSession;
   }, [sessions, allocateSessionDuration, userId]);
 
   const updateSession = useCallback(async (sessionId: string, updates: Partial<Session>) => {
-    const updatedSessions = sessions.map(session => 
+    const updatedSessions = sessions.map(session =>
       session.id === sessionId ? { ...session, ...updates } : session
     );
     setSessions(updatedSessions);
@@ -725,11 +730,13 @@ export const [SessionManagerProvider, useSessionManager] = createContextHook(() 
     await syncAchievementsToFirestore(updatedAchievements);
   }, [achievements]);
 
+  const { trackUsage } = useAuth();
+
   const completeSession = useCallback(async (sessionId: string, duration: number) => {
     const session = sessions.find(s => s.id === sessionId);
     if (!session) return;
 
-    const today = new Date().toISOString().split('T')[0];
+    const today = getLocalDateString();
     const updatedSession = {
       ...session,
       totalSessions: session.totalSessions + 1,
@@ -746,7 +753,14 @@ export const [SessionManagerProvider, useSessionManager] = createContextHook(() 
     await saveData(STORAGE_KEYS.SESSIONS, updatedSessions);
     await syncSessionsToFirestore(updatedSessions);
 
-    const minsToAdd = Math.floor(duration / 60);
+    const minsToAdd = Math.max(1, Math.floor(duration / 60));
+    const firstFreq = session.frequencies[0]?.name || session.category || 'Custom Session';
+
+    // Route stats completion through unified useAuth pathway
+    if (trackUsage) {
+      await trackUsage(minsToAdd, firstFreq);
+    }
+
     const updatedStats = {
       ...stats,
       totalMinutes: stats.totalMinutes + minsToAdd,
@@ -766,7 +780,7 @@ export const [SessionManagerProvider, useSessionManager] = createContextHook(() 
     await syncStatsToFirestore(updatedStats);
 
     await recomputeAchievements(updatedSessions, updatedStats);
-  }, [sessions, stats, recomputeAchievements]);
+  }, [sessions, stats, recomputeAchievements, trackUsage]);
 
   const completeDailyChallenge = useCallback(async () => {
     const updatedChallenge = { ...dailyChallenge, completed: true };
@@ -793,23 +807,23 @@ export const [SessionManagerProvider, useSessionManager] = createContextHook(() 
   const updateStreak = useCallback(async () => {
     const today = new Date().toISOString().split('T')[0];
     const yesterday = new Date(Date.now() - 86400000).toISOString().split('T')[0];
-    
+
     const todayCompleted = sessions.some(s => s.completedDates?.includes(today));
     const yesterdayCompleted = sessions.some(s => s.completedDates?.includes(yesterday));
-    
+
     let newStreak = stats.currentStreak;
     if (todayCompleted && !yesterdayCompleted) {
       newStreak = 1;
     } else if (todayCompleted && yesterdayCompleted) {
       newStreak = Math.max(1, stats.currentStreak + 1);
     }
-    
+
     const updatedStats = {
       ...stats,
       currentStreak: newStreak,
       longestStreak: Math.max(newStreak, stats.longestStreak),
     };
-    
+
     setStats(updatedStats);
     await saveData(STORAGE_KEYS.STATS, updatedStats);
     await syncStatsToFirestore(updatedStats);
@@ -817,22 +831,22 @@ export const [SessionManagerProvider, useSessionManager] = createContextHook(() 
 
   const getSessionsThisWeek = useCallback(() => {
     const weekAgo = new Date(Date.now() - 7 * 86400000).toISOString().split('T')[0];
-    return sessions.filter(s => 
+    return sessions.filter(s =>
       s.completedDates.some(date => date >= weekAgo)
     ).length;
   }, [sessions]);
 
-  const activeSessions = useMemo(() => 
+  const activeSessions = useMemo(() =>
     sessions.filter(s => s.progress < 100),
     [sessions]
   );
 
-  const scheduledSessions = useMemo(() => 
+  const scheduledSessions = useMemo(() =>
     sessions.filter(s => s.schedule && s.schedule.length > 0),
     [sessions]
   );
 
-  const completedSessions = useMemo(() => 
+  const completedSessions = useMemo(() =>
     sessions.filter(s => s.progress >= 100 || s.totalSessions > 0),
     [sessions]
   );
@@ -840,33 +854,33 @@ export const [SessionManagerProvider, useSessionManager] = createContextHook(() 
   const reallocateSessionDuration = useCallback(async (sessionId: string, newTotalDuration: number, method?: 'equal' | 'priority' | 'custom' | 'smart') => {
     const session = sessions.find(s => s.id === sessionId);
     if (!session) return;
-    
+
     const allocationMethod = method || session.allocationMethod || 'smart';
     const reallocatedFrequencies = allocateSessionDuration(
       session.frequencies,
       newTotalDuration,
       allocationMethod
     );
-    
+
     await updateSession(sessionId, {
       frequencies: reallocatedFrequencies,
       totalDuration: newTotalDuration,
       allocationMethod,
     });
   }, [sessions, allocateSessionDuration, updateSession]);
-  
+
   const getSessionProgress = useCallback((sessionId: string) => {
     const session = sessions.find(s => s.id === sessionId);
     if (!session || !session.isActive) return { progress: 0, currentFrequency: null, timeInCurrentFreq: 0, totalTimeLeft: 0 };
-    
+
     const totalSessionTime = session.frequencies.reduce((sum, freq) => sum + freq.duration * 60, 0);
     const elapsedTime = session.elapsedTime;
     const progress = Math.min(100, (elapsedTime / totalSessionTime) * 100);
-    
+
     let accumulatedTime = 0;
     let currentFrequencyIndex = 0;
     let timeInCurrentFreq = 0;
-    
+
     for (let i = 0; i < session.frequencies.length; i++) {
       const freqDuration = session.frequencies[i].duration * 60;
       if (elapsedTime <= accumulatedTime + freqDuration) {
@@ -876,7 +890,7 @@ export const [SessionManagerProvider, useSessionManager] = createContextHook(() 
       }
       accumulatedTime += freqDuration;
     }
-    
+
     return {
       progress,
       currentFrequency: session.frequencies[currentFrequencyIndex],
