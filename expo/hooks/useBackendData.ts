@@ -1,36 +1,15 @@
 import createContextHook from '@nkzw/create-context-hook';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useState, useEffect, useCallback, useMemo } from 'react';
-import { collection, getDocs, doc, setDoc, updateDoc, deleteDoc, writeBatch } from 'firebase/firestore';
+import { collection, getDocs, doc, setDoc, updateDoc, deleteDoc, query, where } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useDataMode } from './useDataMode';
-import {
-  SOLFEGGIO_FREQUENCIES,
-  CHAKRA_FREQUENCIES,
-  BINAURAL_BEATS,
-  HEALING_FREQUENCIES,
-  SLEEP_FREQUENCIES,
-  WEALTH_FREQUENCIES,
-  SCIENTIFIC_FREQUENCIES,
-} from '@/constants/frequencies';
+import { CanonicalFrequency, CanonicalArticle, ContentStatus } from '@/types/content';
+import { getFrequenciesSeed } from '@/seed/frequencies';
+import { getArticlesSeed } from '@/seed/articles';
+import { getProgramsSeed } from '@/seed/programs';
 
-export interface Frequency {
-  id: string;
-  name: string;
-  hz: number;
-  frequency: string;
-  description: string;
-  category: string;
-  color?: string;
-  gradient?: [string, string];
-  benefits: string[];
-  isPremium: boolean;
-  tags: string[];
-  scientificBasis?: string;
-  usageGuidelines?: string;
-  duration?: string;
-  research?: string;
-}
+export type Frequency = CanonicalFrequency;
 
 export interface CuratedProgram {
   id: string;
@@ -44,35 +23,20 @@ export interface CuratedProgram {
   updatedAt: string;
 }
 
-export interface LearningArticle {
-  id: string;
-  title: string;
-  content: string;
-  category: string;
-  tags: string[];
-  isPremium: boolean;
-  publishedAt: string;
-  author: string;
-  readTime?: number;
-  difficulty?: 'Beginner' | 'Intermediate' | 'Advanced';
-  keyPoints?: string[];
-  practicalTips?: string[];
-  scientificBasis?: string;
-  historicalContext?: string;
-}
+export type LearningArticle = CanonicalArticle;
 
 interface BackendDataState {
   frequencies: Frequency[];
   curatedPrograms: CuratedProgram[];
   articles: LearningArticle[];
   isLoading: boolean;
-  addFrequency: (frequency: Omit<Frequency, 'id'>) => Promise<void>;
+  addFrequency: (frequency: Omit<Frequency, 'id' | 'createdAt' | 'updatedAt' | 'provenance' | 'seedVersion'>) => Promise<void>;
   updateFrequency: (id: string, frequency: Partial<Frequency>) => Promise<void>;
   deleteFrequency: (id: string) => Promise<void>;
   addCuratedProgram: (program: Omit<CuratedProgram, 'id' | 'createdAt' | 'updatedAt'>) => Promise<void>;
   updateCuratedProgram: (id: string, program: Partial<CuratedProgram>) => Promise<void>;
   deleteCuratedProgram: (id: string) => Promise<void>;
-  addArticle: (article: Omit<LearningArticle, 'id' | 'publishedAt'>) => Promise<void>;
+  addArticle: (article: Omit<LearningArticle, 'id' | 'createdAt' | 'updatedAt' | 'publishedAt' | 'provenance' | 'seedVersion'>) => Promise<void>;
   updateArticle: (id: string, article: Partial<LearningArticle>) => Promise<void>;
   deleteArticle: (id: string) => Promise<void>;
   syncData: () => Promise<void>;
@@ -83,43 +47,6 @@ const STORAGE_KEYS = {
   curatedPrograms: 'localCuratedPrograms',
   articles: 'localArticles',
 } as const;
-
-const createFrequencyId = (category: string, hz: number) => `${category}-${hz}`;
-
-/** Single canonical source for frequency defaults — derived from constants/frequencies.ts */
-const convertFrequencies = (): Frequency[] => {
-  const frequencies: Frequency[] = [];
-
-  const addFrequencies = (list: any[], category: string) => {
-    list.forEach((freq) => {
-      frequencies.push({
-        id: createFrequencyId(category, freq.hz),
-        name: freq.name,
-        hz: freq.hz,
-        frequency: `${freq.hz} Hz`,
-        description: freq.description,
-        category,
-        color: freq.color || freq.gradient?.[0],
-        gradient: freq.gradient,
-        benefits: freq.benefits || [],
-        isPremium: false,
-        tags: [],
-        duration: freq.duration,
-        research: freq.research,
-      });
-    });
-  };
-
-  addFrequencies(SOLFEGGIO_FREQUENCIES, 'solfeggio');
-  addFrequencies(CHAKRA_FREQUENCIES, 'chakra');
-  addFrequencies(BINAURAL_BEATS, 'brainwave');
-  addFrequencies(HEALING_FREQUENCIES, 'healing');
-  addFrequencies(SLEEP_FREQUENCIES, 'sleep');
-  addFrequencies(WEALTH_FREQUENCIES, 'manifestation');
-  addFrequencies(SCIENTIFIC_FREQUENCIES, 'scientific');
-
-  return frequencies;
-};
 
 export const [BackendDataProvider, useBackendData] = createContextHook<BackendDataState>(() => {
   const [frequencies, setFrequencies] = useState<Frequency[]>([]);
@@ -132,56 +59,39 @@ export const [BackendDataProvider, useBackendData] = createContextHook<BackendDa
   const curatedProgramsRef = collection(db, 'curatedPrograms');
   const articlesRef = collection(db, 'articles');
 
+  /** Tier 3 Fallback: Version-controlled repository seed */
   const loadLocalFallback = useCallback(async () => {
-    // Only frequencies have a canonical client-side default (from constants)
-    // Curated programs and articles must come from Firestore (seeded by admin/backend)
-    const storedFrequencies = await AsyncStorage.getItem(STORAGE_KEYS.frequencies);
-    const defaultFrequencies = convertFrequencies();
+    const seedFrequencies = getFrequenciesSeed();
+    const seedArticles = getArticlesSeed();
+    const seedPrograms = getProgramsSeed();
 
+    const storedFrequencies = await AsyncStorage.getItem(STORAGE_KEYS.frequencies);
     if (storedFrequencies) {
       setFrequencies(JSON.parse(storedFrequencies));
     } else {
-      setFrequencies(defaultFrequencies);
-      await AsyncStorage.setItem(STORAGE_KEYS.frequencies, JSON.stringify(defaultFrequencies));
+      setFrequencies(seedFrequencies);
+      await AsyncStorage.setItem(STORAGE_KEYS.frequencies, JSON.stringify(seedFrequencies));
     }
 
     const storedPrograms = await AsyncStorage.getItem(STORAGE_KEYS.curatedPrograms);
     if (storedPrograms) {
       setCuratedPrograms(JSON.parse(storedPrograms));
+    } else {
+      setCuratedPrograms(seedPrograms as any);
+      await AsyncStorage.setItem(STORAGE_KEYS.curatedPrograms, JSON.stringify(seedPrograms));
     }
-    // No client-side default for curated programs — admin must seed them
 
     const storedArticles = await AsyncStorage.getItem(STORAGE_KEYS.articles);
     if (storedArticles) {
       setArticles(JSON.parse(storedArticles));
+    } else {
+      setArticles(seedArticles);
+      await AsyncStorage.setItem(STORAGE_KEYS.articles, JSON.stringify(seedArticles));
     }
-    // No client-side default for articles — admin must seed them
   }, []);
 
-  const seedFirestore = useCallback(async () => {
-    const seededFrequencies = convertFrequencies();
-    const batch = writeBatch(db);
-
-    seededFrequencies.forEach((frequency) => {
-      batch.set(doc(frequenciesRef, frequency.id), frequency);
-    });
-
-    // Note: Curated programs and articles are NOT auto-seeded by the client.
-    // They must be seeded by the admin via the backend API or admin panel.
-    // The seed data lives in backend/seed.ts as the single canonical source.
-
-    await batch.commit();
-    console.log('✅ Firestore seeded with canonical frequencies');
-
-    return {
-      frequencies: seededFrequencies,
-      curatedPrograms: [] as CuratedProgram[],
-      articles: [] as LearningArticle[],
-    };
-  }, [frequenciesRef]);
-
+  /** Tier 1: Cloud Firestore Authoritative Live Source */
   const loadFromFirestore = useCallback(async () => {
-    // 10-second timeout for the firestore fetch to prevent hanging
     const timeoutPromise = new Promise<never>((_, reject) =>
       setTimeout(() => reject(new Error('Firestore fetch timed out after 10s')), 10000)
     );
@@ -195,38 +105,26 @@ export const [BackendDataProvider, useBackendData] = createContextHook<BackendDa
       timeoutPromise,
     ]);
 
-    // Seed frequencies if Firestore is empty (frequencies are canonical from constants)
-    const needsFreqSeed = frequencySnapshot.empty;
-    let loadedFrequencies: Frequency[] = [];
+    const loadedFrequencies = frequencySnapshot.empty
+      ? getFrequenciesSeed()
+      : frequencySnapshot.docs.map((docSnap) => ({
+          ...(docSnap.data() as Frequency),
+          id: docSnap.id,
+        }));
 
-    if (needsFreqSeed) {
-      loadedFrequencies = convertFrequencies();
-      try {
-        const batch = writeBatch(db);
-        loadedFrequencies.forEach((freq) => {
-          batch.set(doc(frequenciesRef, freq.id), freq);
-        });
-        await batch.commit();
-      } catch {
-        // No write permission — local defaults are sufficient
-        console.warn('Cannot seed Firestore (insufficient permissions), using local frequencies');
-      }
-    } else {
-      loadedFrequencies = frequencySnapshot.docs.map((docSnap) => ({
-        ...(docSnap.data() as Frequency),
-        id: docSnap.id,
-      }));
-    }
+    const loadedPrograms = programSnapshot.empty
+      ? (getProgramsSeed() as any)
+      : programSnapshot.docs.map((docSnap) => ({
+          ...(docSnap.data() as CuratedProgram),
+          id: docSnap.id,
+        }));
 
-    const loadedPrograms = programSnapshot.docs.map((docSnap) => ({
-      ...(docSnap.data() as CuratedProgram),
-      id: docSnap.id,
-    }));
-
-    const loadedArticles = articleSnapshot.docs.map((docSnap) => ({
-      ...(docSnap.data() as LearningArticle),
-      id: docSnap.id,
-    }));
+    const loadedArticles = articleSnapshot.empty
+      ? getArticlesSeed()
+      : articleSnapshot.docs.map((docSnap) => ({
+          ...(docSnap.data() as LearningArticle),
+          id: docSnap.id,
+        }));
 
     return {
       frequencies: loadedFrequencies,
@@ -236,7 +134,6 @@ export const [BackendDataProvider, useBackendData] = createContextHook<BackendDa
   }, [articlesRef, frequenciesRef, curatedProgramsRef]);
 
   const loadData = useCallback(async () => {
-    // If in local-only mode, skip Firestore entirely
     if (!shouldUseFirestore) {
       await loadLocalFallback();
       setIsLoading(false);
@@ -248,13 +145,13 @@ export const [BackendDataProvider, useBackendData] = createContextHook<BackendDa
       setFrequencies(remote.frequencies);
       setCuratedPrograms(remote.curatedPrograms);
       setArticles(remote.articles);
-      // Fire-and-forget: cache to AsyncStorage without blocking
+
+      // Async Cache to Tier 2 (AsyncStorage)
       AsyncStorage.setItem(STORAGE_KEYS.frequencies, JSON.stringify(remote.frequencies)).catch(() => {});
       AsyncStorage.setItem(STORAGE_KEYS.curatedPrograms, JSON.stringify(remote.curatedPrograms)).catch(() => {});
       AsyncStorage.setItem(STORAGE_KEYS.articles, JSON.stringify(remote.articles)).catch(() => {});
     } catch (error: any) {
       if (isCloudStrict) {
-        // In cloud-strict mode, surface the error clearly
         const msg = error?.code === 'permission-denied'
           ? 'Firestore permissions denied — deploy firestore.rules first'
           : `Firestore fetch failed: ${error?.message || error}`;
@@ -262,12 +159,6 @@ export const [BackendDataProvider, useBackendData] = createContextHook<BackendDa
         console.error('❌ Cloud mode: ' + msg);
         setIsLoading(false);
         throw error;
-      }
-      // Auto mode: silent fallback
-      if (error?.code === 'permission-denied') {
-        console.warn('Firestore rules not deployed — using local data');
-      } else {
-        console.error('❌ Firestore fetch failed, falling back to local data:', error);
       }
       await loadLocalFallback();
     } finally {
@@ -283,8 +174,6 @@ export const [BackendDataProvider, useBackendData] = createContextHook<BackendDa
     await loadData();
   }, [loadData]);
 
-  // ── Mutation helpers — mode-aware ──
-  /** Try Firestore write; in cloud-strict mode surface errors, otherwise continue locally */
   const mutateWithFirestore = useCallback(async (
     operation: () => Promise<void>,
     label: string
@@ -303,9 +192,20 @@ export const [BackendDataProvider, useBackendData] = createContextHook<BackendDa
     }
   }, [shouldUseFirestore, isCloudStrict, setCloudError]);
 
-  const addFrequency = useCallback(async (frequency: Omit<Frequency, 'id'>) => {
+  const addFrequency = useCallback(async (frequency: Omit<Frequency, 'id' | 'createdAt' | 'updatedAt' | 'provenance' | 'seedVersion'>) => {
     const id = `custom-${Date.now()}`;
-    const newFrequency: Frequency = { ...frequency, id };
+    const now = new Date().toISOString();
+    const newFrequency: Frequency = {
+      ...frequency,
+      id,
+      provenance: 'admin',
+      seedVersion: 1,
+      createdAt: now,
+      updatedAt: now,
+      createdBy: 'admin',
+      updatedBy: 'admin',
+    } as Frequency;
+
     await mutateWithFirestore(
       () => setDoc(doc(frequenciesRef, id), newFrequency),
       'addFrequency'
@@ -316,11 +216,19 @@ export const [BackendDataProvider, useBackendData] = createContextHook<BackendDa
   }, [frequencies, frequenciesRef, mutateWithFirestore]);
 
   const updateFrequency = useCallback(async (id: string, frequency: Partial<Frequency>) => {
+    const now = new Date().toISOString();
+    const updates = {
+      ...frequency,
+      provenance: 'admin' as const,
+      updatedAt: now,
+      updatedBy: 'admin',
+    };
+
     await mutateWithFirestore(
-      () => updateDoc(doc(frequenciesRef, id), frequency),
+      () => updateDoc(doc(frequenciesRef, id), updates),
       'updateFrequency'
     );
-    const updated = frequencies.map((item) => (item.id === id ? { ...item, ...frequency } : item));
+    const updated = frequencies.map((item) => (item.id === id ? { ...item, ...updates } : item));
     setFrequencies(updated);
     await AsyncStorage.setItem(STORAGE_KEYS.frequencies, JSON.stringify(updated));
   }, [frequencies, frequenciesRef, mutateWithFirestore]);
@@ -337,11 +245,12 @@ export const [BackendDataProvider, useBackendData] = createContextHook<BackendDa
 
   const addCuratedProgram = useCallback(async (program: Omit<CuratedProgram, 'id' | 'createdAt' | 'updatedAt'>) => {
     const id = `program-${Date.now()}`;
+    const now = new Date().toISOString();
     const newProgram: CuratedProgram = {
       ...program,
       id,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
+      createdAt: now,
+      updatedAt: now,
     };
     await mutateWithFirestore(
       () => setDoc(doc(curatedProgramsRef, id), newProgram),
@@ -353,12 +262,13 @@ export const [BackendDataProvider, useBackendData] = createContextHook<BackendDa
   }, [curatedPrograms, curatedProgramsRef, mutateWithFirestore]);
 
   const updateCuratedProgram = useCallback(async (id: string, program: Partial<CuratedProgram>) => {
+    const now = new Date().toISOString();
     await mutateWithFirestore(
-      () => updateDoc(doc(curatedProgramsRef, id), { ...program, updatedAt: new Date().toISOString() }),
+      () => updateDoc(doc(curatedProgramsRef, id), { ...program, updatedAt: now }),
       'updateCuratedProgram'
     );
     const updated = curatedPrograms.map((item) =>
-      item.id === id ? { ...item, ...program, updatedAt: new Date().toISOString() } : item
+      item.id === id ? { ...item, ...program, updatedAt: now } : item
     );
     setCuratedPrograms(updated);
     await AsyncStorage.setItem(STORAGE_KEYS.curatedPrograms, JSON.stringify(updated));
@@ -374,13 +284,21 @@ export const [BackendDataProvider, useBackendData] = createContextHook<BackendDa
     await AsyncStorage.setItem(STORAGE_KEYS.curatedPrograms, JSON.stringify(updated));
   }, [curatedPrograms, curatedProgramsRef, mutateWithFirestore]);
 
-  const addArticle = useCallback(async (article: Omit<LearningArticle, 'id' | 'publishedAt'>) => {
+  const addArticle = useCallback(async (article: Omit<LearningArticle, 'id' | 'createdAt' | 'updatedAt' | 'publishedAt' | 'provenance' | 'seedVersion'>) => {
     const id = `article-${Date.now()}`;
+    const now = new Date().toISOString();
     const newArticle: LearningArticle = {
       ...article,
       id,
-      publishedAt: new Date().toISOString(),
-    };
+      publishedAt: now,
+      createdAt: now,
+      updatedAt: now,
+      provenance: 'admin',
+      seedVersion: 1,
+      createdBy: 'admin',
+      updatedBy: 'admin',
+    } as LearningArticle;
+
     await mutateWithFirestore(
       () => setDoc(doc(articlesRef, id), newArticle),
       'addArticle'
@@ -391,8 +309,16 @@ export const [BackendDataProvider, useBackendData] = createContextHook<BackendDa
   }, [articles, articlesRef, mutateWithFirestore]);
 
   const updateArticle = useCallback(async (id: string, article: Partial<LearningArticle>) => {
+    const now = new Date().toISOString();
+    const updates = {
+      ...article,
+      provenance: 'admin' as const,
+      updatedAt: now,
+      updatedBy: 'admin',
+    };
+
     await mutateWithFirestore(
-      () => updateDoc(doc(articlesRef, id), article),
+      () => updateDoc(doc(articlesRef, id), updates),
       'updateArticle'
     );
     const updated = articles.map((item) => (item.id === id ? { ...item, ...article } : item));

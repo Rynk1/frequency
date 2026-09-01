@@ -33,6 +33,7 @@ import {
   Filter,
 } from 'lucide-react-native';
 import { useLearningContent } from '@/hooks/useLearningContent';
+import { useLearningArticles } from '@/hooks/useDataHelpers';
 import { AudioPlayer } from '@/components/AudioPlayer';
 import {
   SOLFEGGIO_FREQUENCIES,
@@ -74,7 +75,7 @@ const CATEGORIES = [
   { id: 'science', name: 'Science', icon: Activity, color: '#22D3EE' },
 ];
 
-const ARTICLES: Article[] = [
+const STATIC_ARTICLES: Article[] = [
   {
     id: '1',
     title: 'The Ancient Solfeggio Scale: History and Healing',
@@ -279,6 +280,26 @@ const GlassCard = SharedGlassCard;
 export default function LearnScreen() {
   const insets = useSafeAreaInsets();
   const { colors, gradients, isDark } = useTheme();
+  const { articles: rawArticles } = useLearningArticles();
+
+  const articles = useMemo(() => {
+    if (!rawArticles || rawArticles.length === 0) return STATIC_ARTICLES;
+    const iconMap: Record<string, any> = {
+      music: Music,
+      zap: Zap,
+      brain: Brain,
+      heart: Heart,
+      moon: Moon,
+      sparkles: Sparkles,
+      activity: Activity,
+    };
+    return rawArticles.map(a => ({
+      ...a,
+      icon: iconMap[a.iconIdentifier?.toLowerCase()] || BookOpen,
+      color: a.colorToken || '#A78BFA',
+      gradient: [a.colorToken || '#A78BFA', a.colorToken || '#7C3AED'],
+    }));
+  }, [rawArticles]);
   const styles = useMemo(() => createStyles(colors, gradients), [colors, gradients]);
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [selectedArticle, setSelectedArticle] = useState<Article | null>(null);
@@ -332,12 +353,12 @@ export default function LearnScreen() {
   }, []);
 
   const handleContinueLearning = useCallback(() => {
-    const recommended = getRecommendedArticles ? getRecommendedArticles(ARTICLES) : [];
+    const recommended = getRecommendedArticles ? getRecommendedArticles(articles) : [];
     if (recommended?.length > 0) {
       setSelectedArticle(recommended[0]);
     } else {
-      const unread = ARTICLES.filter(a => !progress?.readArticles?.includes(a.id));
-      setSelectedArticle(unread.length > 0 ? unread[0] : ARTICLES[0]);
+      const unread = articles.filter(a => !progress?.readArticles?.includes(a.id));
+      setSelectedArticle(unread.length > 0 ? unread[0] : articles[0]);
     }
   }, [getRecommendedArticles, progress?.readArticles]);
 
@@ -349,7 +370,7 @@ export default function LearnScreen() {
     if (searchQuery && filteredArticles.length > 0) addSearchToHistory(searchQuery, filteredArticles.length);
   }, [searchQuery]);
 
-  const filteredArticles = ARTICLES.filter(a => {
+  const filteredArticles = articles.filter(a => {
     const matchCat = selectedCategory === 'all' || a.category === selectedCategory;
     const matchSearch = a.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
                         a.content.toLowerCase().includes(searchQuery.toLowerCase());
@@ -357,7 +378,7 @@ export default function LearnScreen() {
   });
 
   const stats = getReadingStats || { totalArticles: 0, currentStreak: 0, totalTime: 0, favoriteCount: 0 };
-  const progressPct = Math.min(100, (stats.totalArticles / ARTICLES.length) * 100);
+  const progressPct = Math.min(100, (stats.totalArticles / articles.length) * 100);
 
   const featuredArticle = filteredArticles[0];
   const restArticles = filteredArticles.slice(1);
@@ -383,7 +404,7 @@ export default function LearnScreen() {
           </View>
           <View style={styles.headerReadingBadge}>
             <TrendingUp size={13} color="#34D399" />
-            <Text style={styles.headerReadingText}>{stats.totalArticles}/{ARTICLES.length}</Text>
+            <Text style={styles.headerReadingText}>{stats.totalArticles}/{articles.length}</Text>
           </View>
         </View>
 
@@ -448,7 +469,7 @@ export default function LearnScreen() {
               <View style={styles.guideProgressBar}>
                 <View style={[styles.guideProgressFill, { width: `${progressPct}%` as any }]} />
               </View>
-              <Text style={styles.guideProgressText}>{stats.totalArticles} of {ARTICLES.length} completed</Text>
+              <Text style={styles.guideProgressText}>{stats.totalArticles} of {articles.length} completed</Text>
             </View>
             <View style={styles.guideStatsRow}>
               {[

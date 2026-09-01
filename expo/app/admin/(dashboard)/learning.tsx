@@ -22,13 +22,15 @@ import {
   Tag,
 } from 'lucide-react-native';
 import { useBackendData } from '@/hooks/useBackendData';
+import { ArticleCategory, ContentStatus, CanonicalArticle } from '@/types/content';
 
 interface ArticleForm {
   title: string;
   content: string;
-  category: string;
+  category: ArticleCategory;
   tags: string[];
   isPremium: boolean;
+  status: ContentStatus;
   author: string;
   readTime: number;
   difficulty: 'Beginner' | 'Intermediate' | 'Advanced';
@@ -36,19 +38,22 @@ interface ArticleForm {
   practicalTips: string[];
   scientificBasis: string;
   historicalContext: string;
+  iconIdentifier: string;
+  colorToken: string;
 }
 
 export default function LearningManagement() {
   const insets = useSafeAreaInsets();
   const [searchQuery, setSearchQuery] = useState('');
   const [modalVisible, setModalVisible] = useState(false);
-  const [editingArticle, setEditingArticle] = useState<any>(null);
+  const [editingArticle, setEditingArticle] = useState<CanonicalArticle | null>(null);
   const [formData, setFormData] = useState<ArticleForm>({
     title: '',
     content: '',
-    category: 'basics',
+    category: ArticleCategory.SOLFEGGIO,
     tags: [],
     isPremium: false,
+    status: ContentStatus.PUBLISHED,
     author: 'Admin',
     scientificBasis: '',
     historicalContext: '',
@@ -56,6 +61,8 @@ export default function LearningManagement() {
     readTime: 5,
     keyPoints: [],
     practicalTips: [],
+    iconIdentifier: 'BookOpen',
+    colorToken: '#F472B6',
   });
   const [newTag, setNewTag] = useState('');
   const [newKeyPoint, setNewKeyPoint] = useState('');
@@ -71,21 +78,24 @@ export default function LearningManagement() {
     article.tags.some(tag => tag.toLowerCase().includes(searchQuery.toLowerCase()))
   );
 
-  const handleEdit = (article: any) => {
+  const handleEdit = (article: CanonicalArticle) => {
     setEditingArticle(article);
     setFormData({
       title: article.title,
       content: article.content,
       category: article.category,
-      tags: article.tags,
-      isPremium: article.isPremium,
-      author: article.author,
+      tags: article.tags || [],
+      isPremium: article.isPremium || false,
+      status: article.status || ContentStatus.PUBLISHED,
+      author: article.author || 'Admin',
       scientificBasis: article.scientificBasis || '',
       historicalContext: article.historicalContext || '',
       difficulty: article.difficulty || 'Beginner',
       readTime: article.readTime || 5,
       keyPoints: article.keyPoints || [],
       practicalTips: article.practicalTips || [],
+      iconIdentifier: article.iconIdentifier || 'BookOpen',
+      colorToken: article.colorToken || '#F472B6',
     });
     setModalVisible(true);
   };
@@ -95,9 +105,10 @@ export default function LearningManagement() {
     setFormData({
       title: '',
       content: '',
-      category: 'basics',
+      category: ArticleCategory.SOLFEGGIO,
       tags: [],
       isPremium: false,
+      status: ContentStatus.PUBLISHED,
       author: 'Admin',
       scientificBasis: '',
       historicalContext: '',
@@ -105,6 +116,8 @@ export default function LearningManagement() {
       readTime: 5,
       keyPoints: [],
       practicalTips: [],
+      iconIdentifier: 'BookOpen',
+      colorToken: '#F472B6',
     });
     setModalVisible(true);
   };
@@ -183,7 +196,6 @@ export default function LearningManagement() {
     if (newKeyPoint.trim()) {
       setFormData({
         ...formData,
-        // @ts-ignore
         keyPoints: [...(formData.keyPoints || []), newKeyPoint.trim()],
       });
       setNewKeyPoint('');
@@ -193,7 +205,6 @@ export default function LearningManagement() {
   const removeKeyPoint = (index: number) => {
     setFormData({
       ...formData,
-      // @ts-ignore
       keyPoints: (formData.keyPoints || []).filter((_, i) => i !== index),
     });
   };
@@ -202,7 +213,6 @@ export default function LearningManagement() {
     if (newPracticalTip.trim()) {
       setFormData({
         ...formData,
-        // @ts-ignore
         practicalTips: [...(formData.practicalTips || []), newPracticalTip.trim()],
       });
       setNewPracticalTip('');
@@ -212,7 +222,6 @@ export default function LearningManagement() {
   const removePracticalTip = (index: number) => {
     setFormData({
       ...formData,
-      // @ts-ignore
       practicalTips: (formData.practicalTips || []).filter((_, i) => i !== index),
     });
   };
@@ -230,7 +239,7 @@ export default function LearningManagement() {
             onChangeText={setSearchQuery}
           />
         </View>
-        
+
         <TouchableOpacity style={styles.addButton} onPress={handleAdd}>
           <LinearGradient
             colors={['#3B82F6', '#2563EB']}
@@ -262,11 +271,11 @@ export default function LearningManagement() {
                   </View>
                 )}
               </View>
-              
+
               <Text style={styles.content} numberOfLines={3}>
                 {article.content}
               </Text>
-              
+
               <View style={styles.tagsList}>
                 {article.tags.map((tag: string, index: number) => (
                   <View key={`${article.id}-tag-${index}`} style={styles.tagChip}>
@@ -275,7 +284,7 @@ export default function LearningManagement() {
                   </View>
                 ))}
               </View>
-              
+
               <View style={styles.cardActions}>
                 <TouchableOpacity
                   style={styles.actionButton}
@@ -340,7 +349,7 @@ export default function LearningManagement() {
               <View style={styles.formGroup}>
                 <Text style={styles.label}>Category</Text>
                 <View style={styles.categoryOptions}>
-                  {['basics', 'science', 'healing', 'meditation', 'advanced'].map((cat) => (
+                  {Object.values(ArticleCategory).filter(c => c !== ArticleCategory.ALL).map((cat) => (
                     <TouchableOpacity
                       key={cat}
                       style={[
@@ -356,6 +365,31 @@ export default function LearningManagement() {
                         ]}
                       >
                         {cat}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              </View>
+
+              <View style={styles.formGroup}>
+                <Text style={styles.label}>Status</Text>
+                <View style={styles.categoryOptions}>
+                  {Object.values(ContentStatus).map((st) => (
+                    <TouchableOpacity
+                      key={st}
+                      style={[
+                        styles.categoryOption,
+                        formData.status === st && styles.categoryOptionActive,
+                      ]}
+                      onPress={() => setFormData({ ...formData, status: st })}
+                    >
+                      <Text
+                        style={[
+                          styles.categoryOptionText,
+                          formData.status === st && styles.categoryOptionTextActive,
+                        ]}
+                      >
+                        {st}
                       </Text>
                     </TouchableOpacity>
                   ))}
@@ -420,15 +454,12 @@ export default function LearningManagement() {
                         key={diff}
                         style={[
                           styles.difficultyOption,
-                          // @ts-ignore
                           formData.difficulty === diff && styles.difficultyOptionActive
                         ]}
-                        // @ts-ignore
-                        onPress={() => setFormData({ ...formData, difficulty: diff })}
+                        onPress={() => setFormData({ ...formData, difficulty: diff as any })}
                       >
                         <Text style={[
                           styles.difficultyText,
-                          // @ts-ignore
                           formData.difficulty === diff && styles.difficultyTextActive
                         ]}>{diff}</Text>
                       </TouchableOpacity>
@@ -438,12 +469,46 @@ export default function LearningManagement() {
               </View>
 
               <View style={styles.formGroup}>
+                <Text style={styles.label}>Icon Identifier</Text>
+                <View style={styles.categoryOptions}>
+                  {['BookOpen', 'Music', 'Brain', 'Heart', 'Moon', 'Sparkles', 'Activity', 'Zap'].map((ic) => (
+                    <TouchableOpacity
+                      key={ic}
+                      style={[
+                        styles.categoryOption,
+                        formData.iconIdentifier === ic && styles.categoryOptionActive,
+                      ]}
+                      onPress={() => setFormData({ ...formData, iconIdentifier: ic })}
+                    >
+                      <Text
+                        style={[
+                          styles.categoryOptionText,
+                          formData.iconIdentifier === ic && styles.categoryOptionTextActive,
+                        ]}
+                      >
+                        {ic}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              </View>
+
+              <View style={styles.formGroup}>
+                <Text style={styles.label}>Color Token</Text>
+                <TextInput
+                  style={styles.input}
+                  value={formData.colorToken}
+                  onChangeText={(text) => setFormData({ ...formData, colorToken: text })}
+                  placeholder="e.g., #F472B6"
+                  placeholderTextColor="#6B7280"
+                />
+              </View>
+
+              <View style={styles.formGroup}>
                 <Text style={styles.label}>Scientific Basis</Text>
                 <TextInput
                   style={[styles.input, styles.textAreaSmall]}
-                  // @ts-ignore
                   value={formData.scientificBasis}
-                  // @ts-ignore
                   onChangeText={(text) => setFormData({ ...formData, scientificBasis: text })}
                   placeholder="Scientific research backing this..."
                   placeholderTextColor="#6B7280"
@@ -456,9 +521,7 @@ export default function LearningManagement() {
                 <Text style={styles.label}>Historical Context</Text>
                 <TextInput
                   style={[styles.input, styles.textAreaSmall]}
-                  // @ts-ignore
                   value={formData.historicalContext}
-                  // @ts-ignore
                   onChangeText={(text) => setFormData({ ...formData, historicalContext: text })}
                   placeholder="Historical background..."
                   placeholderTextColor="#6B7280"
@@ -483,7 +546,6 @@ export default function LearningManagement() {
                   </TouchableOpacity>
                 </View>
                 <View style={styles.tagsContainer}>
-                  {/* @ts-ignore */}
                   {formData.keyPoints?.map((point, index) => (
                     <View key={`kp-${index}`} style={styles.tag}>
                       <Text style={styles.tagText} numberOfLines={1}>{point}</Text>
@@ -511,7 +573,6 @@ export default function LearningManagement() {
                   </TouchableOpacity>
                 </View>
                 <View style={styles.tagsContainer}>
-                  {/* @ts-ignore */}
                   {formData.practicalTips?.map((tip, index) => (
                     <View key={`tip-${index}`} style={styles.tag}>
                       <Text style={styles.tagText} numberOfLines={1}>{tip}</Text>
@@ -543,9 +604,9 @@ export default function LearningManagement() {
               >
                 <Text style={styles.cancelText}>Cancel</Text>
               </TouchableOpacity>
-              
-              <TouchableOpacity 
-                style={styles.saveButton} 
+
+              <TouchableOpacity
+                style={styles.saveButton}
                 onPress={handleSave}
                 disabled={isSaving}
               >
@@ -568,316 +629,62 @@ export default function LearningManagement() {
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#111827',
-  },
-  header: {
-    padding: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: '#374151',
-  },
-  searchContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#1F2937',
-    borderRadius: 12,
-    paddingHorizontal: 12,
-    marginBottom: 12,
-  },
-  searchInput: {
-    flex: 1,
-    height: 44,
-    marginLeft: 8,
-    color: 'white',
-    fontSize: 16,
-  },
-  addButton: {
-    borderRadius: 12,
-    overflow: 'hidden',
-  },
-  addGradient: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 12,
-    paddingHorizontal: 20,
-  },
-  addText: {
-    color: 'white',
-    fontSize: 16,
-    fontWeight: '600',
-    marginLeft: 8,
-  },
-  list: {
-    flex: 1,
-    padding: 16,
-  },
-  articleCard: {
-    backgroundColor: '#1F2937',
-    borderRadius: 12,
-    marginBottom: 12,
-    overflow: 'hidden',
-  },
-  cardContent: {
-    padding: 16,
-  },
-  cardHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    marginBottom: 8,
-  },
-  articleInfo: {
-    flex: 1,
-  },
-  articleTitle: {
-    color: 'white',
-    fontSize: 18,
-    fontWeight: '600',
-    marginBottom: 4,
-  },
-  articleMeta: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  articleAuthor: {
-    color: '#9CA3AF',
-    fontSize: 12,
-    marginRight: 12,
-  },
-  articleDate: {
-    color: '#9CA3AF',
-    fontSize: 12,
-  },
-  premiumBadge: {
-    backgroundColor: '#F59E0B',
-    paddingHorizontal: 12,
-    paddingVertical: 4,
-    borderRadius: 12,
-  },
-  premiumText: {
-    color: 'white',
-    fontSize: 12,
-    fontWeight: '600',
-  },
-  content: {
-    color: '#D1D5DB',
-    fontSize: 14,
-    lineHeight: 20,
-    marginBottom: 12,
-  },
-  tagsList: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    marginBottom: 12,
-  },
-  tagChip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#374151',
-    borderRadius: 12,
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    marginRight: 8,
-    marginBottom: 4,
-  },
-  tagChipText: {
-    color: '#D1D5DB',
-    fontSize: 12,
-    marginLeft: 4,
-  },
-  cardActions: {
-    flexDirection: 'row',
-    justifyContent: 'flex-end',
-  },
-  actionButton: {
-    padding: 8,
-    marginLeft: 8,
-  },
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.8)',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  modalContent: {
-    width: '90%',
-    maxWidth: 500,
-    maxHeight: '80%',
-    backgroundColor: '#1F2937',
-    borderRadius: 20,
-  },
-  modalHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    padding: 20,
-    borderBottomWidth: 1,
-    borderBottomColor: '#374151',
-  },
-  modalTitle: {
-    color: 'white',
-    fontSize: 20,
-    fontWeight: '600',
-  },
-  modalBody: {
-    padding: 20,
-  },
-  formGroup: {
-    marginBottom: 20,
-  },
-  label: {
-    color: '#D1D5DB',
-    fontSize: 14,
-    fontWeight: '500',
-    marginBottom: 8,
-  },
-  input: {
-    backgroundColor: '#111827',
-    borderWidth: 1,
-    borderColor: '#374151',
-    borderRadius: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    color: 'white',
-    fontSize: 16,
-  },
-  textArea: {
-    minHeight: 200,
-    textAlignVertical: 'top',
-  },
-  categoryOptions: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-  },
-  categoryOption: {
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 20,
-    backgroundColor: '#374151',
-    marginRight: 8,
-    marginBottom: 8,
-  },
-  categoryOptionActive: {
-    backgroundColor: '#3B82F6',
-  },
-  categoryOptionText: {
-    color: '#9CA3AF',
-    fontSize: 14,
-    textTransform: 'capitalize',
-  },
-  categoryOptionTextActive: {
-    color: 'white',
-  },
-  listInput: {
-    flexDirection: 'row',
-    marginBottom: 8,
-  },
-  listInputField: {
-    flex: 1,
-    backgroundColor: '#111827',
-    borderWidth: 1,
-    borderColor: '#374151',
-    borderRadius: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    color: 'white',
-    fontSize: 14,
-  },
-  listAddButton: {
-    backgroundColor: '#3B82F6',
-    borderRadius: 8,
-    padding: 10,
-    marginLeft: 8,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  tagsContainer: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    marginTop: 8,
-  },
-  tag: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#3B82F6',
-    borderRadius: 12,
-    paddingHorizontal: 12,
-    paddingVertical: 4,
-    marginRight: 8,
-    marginBottom: 8,
-  },
-  tagText: {
-    color: 'white',
-    fontSize: 12,
-    marginRight: 4,
-  },
-  switchRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  row: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-  },
-  textAreaSmall: {
-    minHeight: 80,
-    textAlignVertical: 'top',
-  },
-  difficultyContainer: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 4,
-  },
-  difficultyOption: {
-    paddingHorizontal: 8,
-    paddingVertical: 6,
-    borderRadius: 8,
-    backgroundColor: '#374151',
-    marginBottom: 4,
-  },
-  difficultyOptionActive: {
-    backgroundColor: '#3B82F6',
-  },
-  difficultyText: {
-    color: '#9CA3AF',
-    fontSize: 12,
-  },
-  difficultyTextActive: {
-    color: 'white',
-  },
-  modalFooter: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    padding: 20,
-    borderTopWidth: 1,
-    borderTopColor: '#374151',
-  },
-  cancelButton: {
-    paddingVertical: 12,
-    paddingHorizontal: 24,
-  },
-  cancelText: {
-    color: '#9CA3AF',
-    fontSize: 16,
-    fontWeight: '500',
-  },
-  saveButton: {
-    borderRadius: 12,
-    overflow: 'hidden',
-  },
-  saveGradient: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 12,
-    paddingHorizontal: 24,
-  },
-  saveText: {
-    color: 'white',
-    fontSize: 16,
-    fontWeight: '600',
-    marginLeft: 8,
-  },
+  container: { flex: 1, backgroundColor: '#111827' },
+  header: { padding: 16, borderBottomWidth: 1, borderBottomColor: '#374151' },
+  searchContainer: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#1F2937', borderRadius: 12, paddingHorizontal: 12, marginBottom: 12 },
+  searchInput: { flex: 1, height: 44, marginLeft: 8, color: 'white', fontSize: 16 },
+  addButton: { borderRadius: 12, overflow: 'hidden' },
+  addGradient: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: 12, paddingHorizontal: 20 },
+  addText: { color: 'white', fontSize: 16, fontWeight: '600', marginLeft: 8 },
+  list: { flex: 1, padding: 16 },
+  articleCard: { backgroundColor: '#1F2937', borderRadius: 12, marginBottom: 12, overflow: 'hidden' },
+  cardContent: { padding: 16 },
+  cardHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 8 },
+  articleInfo: { flex: 1 },
+  articleTitle: { color: 'white', fontSize: 18, fontWeight: '600', marginBottom: 4 },
+  articleMeta: { flexDirection: 'row', alignItems: 'center' },
+  articleAuthor: { color: '#9CA3AF', fontSize: 12, marginRight: 12 },
+  articleDate: { color: '#9CA3AF', fontSize: 12 },
+  premiumBadge: { backgroundColor: '#F59E0B', paddingHorizontal: 12, paddingVertical: 4, borderRadius: 12 },
+  premiumText: { color: 'white', fontSize: 12, fontWeight: '600' },
+  content: { color: '#D1D5DB', fontSize: 14, lineHeight: 20, marginBottom: 12 },
+  tagsList: { flexDirection: 'row', flexWrap: 'wrap', marginBottom: 12 },
+  tagChip: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#374151', borderRadius: 12, paddingHorizontal: 10, paddingVertical: 4, marginRight: 8, marginBottom: 4 },
+  tagChipText: { color: '#D1D5DB', fontSize: 12, marginLeft: 4 },
+  cardActions: { flexDirection: 'row', justifyContent: 'flex-end' },
+  actionButton: { padding: 8, marginLeft: 8 },
+  modalOverlay: { flex: 1, backgroundColor: 'rgba(0, 0, 0, 0.8)', justifyContent: 'center', alignItems: 'center' },
+  modalContent: { width: '90%', maxWidth: 500, maxHeight: '80%', backgroundColor: '#1F2937', borderRadius: 20 },
+  modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 20, borderBottomWidth: 1, borderBottomColor: '#374151' },
+  modalTitle: { color: 'white', fontSize: 20, fontWeight: '600' },
+  modalBody: { padding: 20 },
+  formGroup: { marginBottom: 20 },
+  label: { color: '#D1D5DB', fontSize: 14, fontWeight: '500', marginBottom: 8 },
+  input: { backgroundColor: '#111827', borderWidth: 1, borderColor: '#374151', borderRadius: 8, paddingHorizontal: 12, paddingVertical: 10, color: 'white', fontSize: 16 },
+  textArea: { minHeight: 200, textAlignVertical: 'top' },
+  categoryOptions: { flexDirection: 'row', flexWrap: 'wrap' },
+  categoryOption: { paddingHorizontal: 16, paddingVertical: 8, borderRadius: 20, backgroundColor: '#374151', marginRight: 8, marginBottom: 8 },
+  categoryOptionActive: { backgroundColor: '#3B82F6' },
+  categoryOptionText: { color: '#9CA3AF', fontSize: 14, textTransform: 'capitalize' },
+  categoryOptionTextActive: { color: 'white' },
+  listInput: { flexDirection: 'row', marginBottom: 8 },
+  listInputField: { flex: 1, backgroundColor: '#111827', borderWidth: 1, borderColor: '#374151', borderRadius: 8, paddingHorizontal: 12, paddingVertical: 8, color: 'white', fontSize: 14 },
+  listAddButton: { backgroundColor: '#3B82F6', borderRadius: 8, padding: 10, marginLeft: 8, justifyContent: 'center', alignItems: 'center' },
+  tagsContainer: { flexDirection: 'row', flexWrap: 'wrap', marginTop: 8 },
+  tag: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#3B82F6', borderRadius: 12, paddingHorizontal: 12, paddingVertical: 4, marginRight: 8, marginBottom: 8 },
+  tagText: { color: 'white', fontSize: 12, marginRight: 4 },
+  switchRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  row: { flexDirection: 'row', justifyContent: 'space-between' },
+  textAreaSmall: { minHeight: 80, textAlignVertical: 'top' },
+  difficultyContainer: { flexDirection: 'row', flexWrap: 'wrap', gap: 4 },
+  difficultyOption: { paddingHorizontal: 8, paddingVertical: 6, borderRadius: 8, backgroundColor: '#374151', marginBottom: 4 },
+  difficultyOptionActive: { backgroundColor: '#3B82F6' },
+  difficultyText: { color: '#9CA3AF', fontSize: 12 },
+  difficultyTextActive: { color: 'white' },
+  modalFooter: { flexDirection: 'row', justifyContent: 'space-between', padding: 20, borderTopWidth: 1, borderTopColor: '#374151' },
+  cancelButton: { paddingVertical: 12, paddingHorizontal: 24 },
+  cancelText: { color: '#9CA3AF', fontSize: 16, fontWeight: '500' },
+  saveButton: { borderRadius: 12, overflow: 'hidden' },
+  saveGradient: { flexDirection: 'row', alignItems: 'center', paddingVertical: 12, paddingHorizontal: 24 },
+  saveText: { color: 'white', fontSize: 16, fontWeight: '600', marginLeft: 8 },
 });
