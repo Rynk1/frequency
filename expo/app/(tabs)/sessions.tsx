@@ -46,6 +46,7 @@ import { AudioPlayer } from '@/components/AudioPlayer';
 import { DataModeIndicator } from '@/components/DataModeIndicator';
 import { FONTS } from '@/constants/theme';
 import { useAuth } from '@/hooks/useAuth';
+import { getDailyAlignment, getLocalDateString } from '@/lib/recommendation';
 import { useTheme } from '@/hooks/useTheme';
 
 const { width } = Dimensions.get('window');
@@ -309,14 +310,12 @@ export default function SessionsScreen() {
     }));
   }, [localPrograms]);
 
+  const dailyAlignment = useMemo(() => getDailyAlignment(userProfile?.uid || 'guest'), [userProfile?.uid]);
+
   const handleStartDailyAlignment = () => {
-    setAudioPlayerFrequency({ hz: 528, name: 'Daily Alignment', description: 'Your daily alignment session' });
+    setAudioPlayerFrequency({ hz: dailyAlignment.frequencies[0]?.hz || 528, name: 'Daily Alignment', description: 'Your dynamic daily alignment session' });
     setAudioPlayerSession({
-      frequencies: [
-        { hz: 528, name: 'Love Frequency', duration: 10 },
-        { hz: 432, name: 'Natural Harmony', duration: 10 },
-        { hz: 639, name: 'Relationships', duration: 10 },
-      ],
+      frequencies: dailyAlignment.frequencies,
       name: 'Daily Alignment',
     });
     setShowAudioPlayer(true);
@@ -386,6 +385,16 @@ export default function SessionsScreen() {
         case '4': // Dedication — 30 sessions
           progress = Math.min(sessionsCompleted, ach.target);
           unlocked = sessionsCompleted >= ach.target;
+          break;
+        case '5': // Night Owl — 10 sleep sessions
+          const sleepCount = (completedSessions || []).filter(s => s.category === 'sleep').length;
+          progress = Math.min(sleepCount, ach.target);
+          unlocked = sleepCount >= ach.target;
+          break;
+        case '6': // Deep Healer — 10 healing sessions
+          const healingCount = (completedSessions || []).filter(s => s.category === 'healing' || s.category === 'meditation').length;
+          progress = Math.min(healingCount, ach.target);
+          unlocked = healingCount >= ach.target;
           break;
         case '7': // Zen Master — 500 minutes total
           progress = Math.min(totalMinutes, ach.target);
@@ -478,7 +487,7 @@ export default function SessionsScreen() {
               />
               <View style={styles.orbContent}>
                 <Text style={styles.orbLabel}>Daily Alignment</Text>
-                <Text style={styles.orbFreqs}>528Hz · 432Hz · 639Hz</Text>
+                <Text style={styles.orbFreqs}>{dailyAlignment.label}</Text>
               </View>
             </Animated.View>
           </View>
@@ -579,20 +588,39 @@ export default function SessionsScreen() {
       )}
 
       {/* Week Progress */}
-      <GlassCard style={styles.weekCard} depth="light">
-        <View style={styles.weekHeader}>
-          <Text style={styles.weekTitle}>This Week</Text>
-          <Text style={styles.weekCount}>{weekSessions} sessions</Text>
-        </View>
-        <View style={styles.weekDays}>
-          {['M', 'T', 'W', 'T', 'F', 'S', 'S'].map((day, i) => (
-            <View key={i} style={styles.weekDayItem}>
-              <View style={[styles.weekDot, i < weekSessions && styles.weekDotActive]} />
-              <Text style={styles.weekDayLabel}>{day}</Text>
+      {(() => {
+        // Map userSessionHistory (YYYY-MM-DD) to Mon-Sun of current week
+        const now = new Date();
+        const currentDayIndex = (now.getDay() + 6) % 7; // Monday = 0, Sunday = 6
+        const monday = new Date(now);
+        monday.setDate(now.getDate() - currentDayIndex);
+
+        const weekDayDates = Array.from({ length: 7 }, (_, i) => {
+          const d = new Date(monday);
+          d.setDate(monday.getDate() + i);
+          return getLocalDateString(d);
+        });
+
+        const activeDaysMap = weekDayDates.map(dateStr => userSessionHistory.includes(dateStr));
+        const currentWeekSessionCount = activeDaysMap.filter(Boolean).length;
+
+        return (
+          <GlassCard style={styles.weekCard} depth="light">
+            <View style={styles.weekHeader}>
+              <Text style={styles.weekTitle}>This Week</Text>
+              <Text style={styles.weekCount}>{currentWeekSessionCount} sessions</Text>
             </View>
-          ))}
-        </View>
-      </GlassCard>
+            <View style={styles.weekDays}>
+              {['M', 'T', 'W', 'T', 'F', 'S', 'S'].map((dayLabel, i) => (
+                <View key={i} style={styles.weekDayItem}>
+                  <View style={[styles.weekDot, activeDaysMap[i] && styles.weekDotActive]} />
+                  <Text style={styles.weekDayLabel}>{dayLabel}</Text>
+                </View>
+              ))}
+            </View>
+          </GlassCard>
+        );
+      })()}
 
       {/* My Sessions */}
       <View style={styles.sectionHeader}>
