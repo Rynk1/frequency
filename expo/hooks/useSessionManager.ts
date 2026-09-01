@@ -468,11 +468,13 @@ export const [SessionManagerProvider, useSessionManager] = createContextHook(() 
   const requestNotificationPermission = useCallback(async (): Promise<boolean> => {
     if (Platform.OS === 'web') return false;
     try {
+      if (typeof Notifications.getPermissionsAsync !== 'function') return false;
       const { status } = await Notifications.getPermissionsAsync();
       if (status === 'granted') return true;
       const { status: newStatus } = await Notifications.requestPermissionsAsync();
       return newStatus === 'granted';
-    } catch {
+    } catch (e) {
+      console.warn('Notifications permission check skipped in current environment:', e);
       return false;
     }
   }, []);
@@ -487,6 +489,7 @@ export const [SessionManagerProvider, useSessionManager] = createContextHook(() 
     try {
       const granted = await requestNotificationPermission();
       if (!granted) return null;
+      if (typeof Notifications.scheduleNotificationAsync !== 'function') return null;
       const id = await Notifications.scheduleNotificationAsync({
         content: {
           title: '🎵 Session Reminder',
@@ -502,7 +505,7 @@ export const [SessionManagerProvider, useSessionManager] = createContextHook(() 
       });
       return id;
     } catch (e) {
-      console.error('Failed to schedule notification:', e);
+      console.warn('Notification scheduling skipped in Expo Go:', e);
       return null;
     }
   }, [requestNotificationPermission]);
@@ -510,9 +513,10 @@ export const [SessionManagerProvider, useSessionManager] = createContextHook(() 
   const cancelReminderNotification = useCallback(async (notificationId: string | null) => {
     if (!notificationId || Platform.OS === 'web') return;
     try {
+      if (typeof Notifications.cancelScheduledNotificationAsync !== 'function') return;
       await Notifications.cancelScheduledNotificationAsync(notificationId);
     } catch (e) {
-      console.error('Failed to cancel notification:', e);
+      console.warn('Notification cancellation skipped in Expo Go:', e);
     }
   }, []);
 
