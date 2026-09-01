@@ -1,38 +1,17 @@
-export interface LearningArticleSeed {
-  id: string;
-  title: string;
-  content: string;
-  category: string;
-  tags: string[];
-  isPremium: boolean;
-  publishedAt: string;
-  author: string;
-  readTime?: number;
-  difficulty?: 'Beginner' | 'Intermediate' | 'Advanced';
-  keyPoints?: string[];
-  practicalTips?: string[];
-  scientificBasis?: string;
-  historicalContext?: string;
-}
+import { CanonicalArticle, ArticleCategory, ContentStatus } from '../types/content';
 
-const now = () => new Date().toISOString();
+const now = '2026-01-01T00:00:00.000Z';
 
-export function getArticlesSeed(): LearningArticleSeed[] {
+export function getArticlesSeed(): CanonicalArticle[] {
   return [
     {
       id: 'article-1',
       title: 'Solfeggio Frequencies: Ancient Tones for Modern Healing',
-      content: `Solfeggio frequencies are a set of ancient musical tones that date back to Medieval Gregorian chants. These specific frequencies were believed to impart spiritual blessings when sung in harmony. Dr. Joseph Puleo rediscovered these frequencies in the 1990s, identifying six core tones: 396 Hz, 417 Hz, 528 Hz, 639 Hz, 741 Hz, and 852 Hz.
-
-Each frequency is associated with specific benefits. The 528 Hz frequency, often called the "Love Frequency" or "Miracle Tone," is particularly notable. Some researchers claim it can repair DNA and bring about positive transformation, though these claims require more scientific validation.
-
-The 396 Hz frequency is associated with liberating fear and guilt, helping to break down barriers that prevent us from achieving our goals. The 417 Hz tone facilitates change and helps undo negative situations. The 639 Hz frequency enhances communication, understanding, and tolerance, making it ideal for relationship healing.
-
-Modern sound therapists use these frequencies in various healing modalities, from tuning fork therapy to music composition. While scientific evidence is still emerging, many practitioners and listeners report profound benefits including reduced anxiety, enhanced meditation depth, and improved emotional well-being.`,
-      category: 'solfeggio',
+      content: `Solfeggio frequencies are a set of ancient musical tones that date back to Medieval Gregorian chants. These specific frequencies were believed to impart spiritual blessings when sung in harmony. Dr. Joseph Puleo rediscovered these frequencies in the 1990s, identifying six core tones: 396 Hz, 417 Hz, 528 Hz, 639 Hz, 741 Hz, and 852 Hz.\n\nEach frequency is associated with specific benefits. The 528 Hz frequency, often called the "Love Frequency" or "Miracle Tone," is particularly notable. Some researchers claim it can repair DNA and bring about positive transformation, though these claims require more scientific validation.\n\nThe 396 Hz frequency is associated with liberating fear and guilt, helping to break down barriers that prevent us from achieving our goals. The 417 Hz tone facilitates change and helps undo negative situations. The 639 Hz frequency enhances communication, understanding, and tolerance, making it ideal for relationship healing.\n\nModern sound therapists use these frequencies in various healing modalities, from tuning fork therapy to music composition. While scientific evidence is still emerging, many practitioners and listeners report profound benefits including reduced anxiety, enhanced meditation depth, and improved emotional well-being.`,
+      category: ArticleCategory.SOLFEGGIO,
       tags: ['solfeggio', 'basics', 'ancient', 'healing'],
       isPremium: false,
-      publishedAt: now(),
+      status: ContentStatus.PUBLISHED,
       author: 'Frequency Lab',
       readTime: 6,
       difficulty: 'Beginner',
@@ -48,21 +27,23 @@ Modern sound therapists use these frequencies in various healing modalities, fro
         'Combine with breath work for deeper results',
         'Keep a journal to track subtle shifts',
       ],
+      iconIdentifier: 'Music',
+      colorToken: '#F472B6',
+      publishedAt: now,
+      createdAt: now,
+      updatedAt: now,
+      provenance: 'system_seed',
+      seedVersion: 1,
+      createdBy: 'system_seed',
     },
     {
       id: 'article-2',
       title: 'Brainwave Entrainment: Science of the Synchronised Mind',
-      content: `Brainwave entrainment is the practice of synchronising brain activity to an external stimulus — typically audio frequencies. The brain naturally tends to match the dominant frequency it is exposed to, a phenomenon known as the Frequency Following Response (FFR).
-
-Our brains operate across five primary states: Delta (0.5–4 Hz) for deep sleep and healing; Theta (4–8 Hz) for creativity and deep meditation; Alpha (8–13 Hz) for relaxed awareness; Beta (13–30 Hz) for active thinking; and Gamma (30+ Hz) for heightened perception.
-
-Binaural beats are the most popular form of brainwave entrainment. When you hear two slightly different frequencies in each ear — for example, 200 Hz in the left and 210 Hz in the right — your brain perceives a phantom beat at the difference frequency, in this case 10 Hz (Alpha). This gently guides the brain into that target state.
-
-Research supports binaural beats for anxiety reduction, focus enhancement, sleep improvement, and even pain management. A 2019 meta-analysis in Psychological Research found significant improvements in anxiety and mood from regular binaural beat listening.`,
-      category: 'brainwave',
+      content: `Brainwave entrainment is the practice of synchronising brain activity to an external stimulus — typically audio frequencies. The brain naturally tends to match the dominant frequency it is exposed to, a phenomenon known as the Frequency Following Response (FFR).\n\nOur brains operate across five primary states: Delta (0.5–4 Hz) for deep sleep and healing; Theta (4–8 Hz) for creativity and deep meditation; Alpha (8–13 Hz) for relaxed awareness; Beta (13–30 Hz) for active thinking; and Gamma (30+ Hz) for heightened perception.\n\nBinaural beats are the most popular form of brainwave entrainment. When you hear two slightly different frequencies in each ear — for example, 200 Hz in the left and 210 Hz in the right — your brain perceives a phantom beat at the difference frequency, in this case 10 Hz (Alpha). This gently guides the brain into that target state.\n\nResearch supports binaural beats for anxiety reduction, focus enhancement, sleep improvement, and even pain management. A 2019 meta-analysis in Psychological Research found significant improvements in anxiety and mood from regular binaural beat listening.`,
+      category: ArticleCategory.BRAINWAVES,
       tags: ['brainwaves', 'focus', 'science', 'binaural'],
       isPremium: false,
-      publishedAt: now(),
+      status: ContentStatus.PUBLISHED,
       author: 'Frequency Lab',
       readTime: 8,
       difficulty: 'Intermediate',
@@ -79,23 +60,23 @@ Research supports binaural beats for anxiety reduction, focus enhancement, sleep
         'Avoid high-beta frequencies before sleep',
       ],
       scientificBasis: 'Frequency Following Response (FFR) has been documented since 1973. Multiple peer-reviewed studies confirm effects on mood, anxiety and cognition.',
+      iconIdentifier: 'Brain',
+      colorToken: '#818CF8',
+      publishedAt: now,
+      createdAt: now,
+      updatedAt: now,
+      provenance: 'system_seed',
+      seedVersion: 1,
+      createdBy: 'system_seed',
     },
     {
       id: 'article-3',
       title: 'Sleep Frequencies: Your Guide to Restorative Nights',
-      content: `Quality sleep is foundational to health, yet millions struggle to achieve it. Sound frequencies offer a gentle, non-pharmaceutical approach to improving sleep onset, depth, and duration.
-
-Delta waves (0.5–4 Hz) are the hallmark of deep, restorative sleep — the stage where the body repairs tissue, consolidates memories, and releases growth hormone. Listening to delta frequency binaural beats before and during sleep can help encourage this deeply restorative state.
-
-Theta waves (4–8 Hz) dominate during REM sleep, the dream phase critical for emotional processing and memory consolidation. A well-structured sleep frequency programme transitions you from theta into delta as the night progresses.
-
-The 432 Hz "natural tuning" frequency has also gained popularity as a pre-sleep tone. Proponents suggest it aligns with the natural harmonic series of the universe, inducing a calmer, more receptive state conducive to sleep.
-
-Practically, sleep frequency programmes work best when listened to in the 30–60 minutes before bed, ideally with low-volume headphones or a quality speaker placed away from the bed. Consistency is key — like any sleep intervention, effects accumulate over days and weeks.`,
-      category: 'sleep',
+      content: `Quality sleep is foundational to health, yet millions struggle to achieve it. Sound frequencies offer a gentle, non-pharmaceutical approach to improving sleep onset, depth, and duration.\n\nDelta waves (0.5–4 Hz) are the hallmark of deep, restorative sleep — the stage where the body repairs tissue, consolidates memories, and releases growth hormone. Listening to delta frequency binaural beats before and during sleep can help encourage this deeply restorative state.\n\nTheta waves (4–8 Hz) dominate during REM sleep, the dream phase critical for emotional processing and memory consolidation. A well-structured sleep frequency programme transitions you from theta into delta as the night progresses.\n\nThe 432 Hz "natural tuning" frequency has also gained popularity as a pre-sleep tone. Proponents suggest it aligns with the natural harmonic series of the universe, inducing a calmer, more receptive state conducive to sleep.\n\nPractically, sleep frequency programmes work best when listened to in the 30–60 minutes before bed, ideally with low-volume headphones or a quality speaker placed away from the bed. Consistency is key — like any sleep intervention, effects accumulate over days and weeks.`,
+      category: ArticleCategory.SLEEP,
       tags: ['sleep', 'delta', 'theta', 'recovery', 'insomnia'],
       isPremium: false,
-      publishedAt: now(),
+      status: ContentStatus.PUBLISHED,
       author: 'Frequency Lab',
       readTime: 7,
       difficulty: 'Beginner',
@@ -112,23 +93,23 @@ Practically, sleep frequency programmes work best when listened to in the 30–6
         'Pair with a cool, dark room for maximum effect',
         'Start with the Sleep & Dream Enhancement programme',
       ],
+      iconIdentifier: 'Moon',
+      colorToken: '#60A5FA',
+      publishedAt: now,
+      createdAt: now,
+      updatedAt: now,
+      provenance: 'system_seed',
+      seedVersion: 1,
+      createdBy: 'system_seed',
     },
     {
       id: 'article-4',
       title: 'Chakra Frequencies: Tuning Your Energy Body',
-      content: `The chakra system, originating in ancient Indian tradition, describes seven primary energy centres along the body's central axis. Each chakra governs specific physical, emotional and spiritual functions. Sound healers have mapped musical frequencies to each chakra, creating a powerful system for energetic balancing.
-
-The Root Chakra (Muladhara) at the base of the spine is associated with 194.18 Hz — the Earth's year frequency. It governs our sense of safety, grounding, and basic survival needs. When balanced, we feel secure and present; when blocked, anxiety and fear dominate.
-
-Moving up, the Sacral Chakra (Svadhisthana) resonates at 210.42 Hz and governs creativity, sexuality, and emotional flow. The Solar Plexus Chakra (Manipura) at 126.22 Hz is our centre of personal power and confidence. The Heart Chakra (Anahata) at 341.3 Hz opens us to love and compassion.
-
-The upper chakras work with higher frequencies: the Throat Chakra (Vishuddha) at 384 Hz governs authentic expression; the Third Eye (Ajna) at 426.7 Hz activates intuition; and the Crown Chakra (Sahasrara) at 963 Hz connects us to universal consciousness.
-
-A complete chakra balancing session, working through all seven frequencies sequentially, can leave practitioners feeling deeply centred, energised and aligned.`,
-      category: 'chakra',
+      content: `The chakra system, originating in ancient Indian tradition, describes seven primary energy centres along the body's central axis. Each chakra governs specific physical, emotional and spiritual functions. Sound healers have mapped musical frequencies to each chakra, creating a powerful system for energetic balancing.\n\nThe Root Chakra (Muladhara) at the base of the spine is associated with 194.18 Hz — the Earth's year frequency. It governs our sense of safety, grounding, and basic survival needs. When balanced, we feel secure and present; when blocked, anxiety and fear dominate.\n\nMoving up, the Sacral Chakra (Svadhisthana) resonates at 210.42 Hz and governs creativity, sexuality, and emotional flow. The Solar Plexus Chakra (Manipura) at 126.22 Hz is our centre of personal power and confidence. The Heart Chakra (Anahata) at 341.3 Hz opens us to love and compassion.\n\nThe upper chakras work with higher frequencies: the Throat Chakra (Vishuddha) at 384 Hz governs authentic expression; the Third Eye (Ajna) at 426.7 Hz activates intuition; and the Crown Chakra (Sahasrara) at 963 Hz connects us to universal consciousness.\n\nA complete chakra balancing session, working through all seven frequencies sequentially, can leave practitioners feeling deeply centred, energised and aligned.`,
+      category: ArticleCategory.CHAKRAS,
       tags: ['chakra', 'energy', 'healing', 'balance', 'spiritual'],
       isPremium: false,
-      publishedAt: now(),
+      status: ContentStatus.PUBLISHED,
       author: 'Frequency Lab',
       readTime: 9,
       difficulty: 'Beginner',
@@ -144,21 +125,23 @@ A complete chakra balancing session, working through all seven frequencies seque
         'Visualise the associated colour while listening',
         'Notice areas of resistance — they may need extra attention',
       ],
+      iconIdentifier: 'Zap',
+      colorToken: '#FBBF24',
+      publishedAt: now,
+      createdAt: now,
+      updatedAt: now,
+      provenance: 'system_seed',
+      seedVersion: 1,
+      createdBy: 'system_seed',
     },
     {
       id: 'article-5',
       title: 'The Science of 528 Hz: The Love Frequency Explained',
-      content: `Of all the Solfeggio frequencies, 528 Hz has attracted the most scientific interest and popular fascination. Sometimes called the "Love Frequency," "Miracle Tone," or "DNA Repair Frequency," 528 Hz sits at the heart of the ancient Solfeggio scale and at the centre of considerable debate.
-
-The frequency 528 Hz is mathematically central to nature. It appears in the geometry of the chlorophyll molecule (responsible for turning sunlight into life energy), the ratio of sacred geometry, and reportedly within the double helix structure of DNA. These mathematical connections, while fascinating, do not yet constitute clinical proof of healing effects.
-
-Biochemist Dr. Glen Rein published a study in 1998 suggesting that 528 Hz could enhance DNA repair in test tubes. While this single study requires replication, it sparked enormous interest. Several subsequent studies have suggested that 528 Hz reduces cortisol (the stress hormone) and increases melatonin and serotonin in drinking water exposed to the frequency — effects that, if they translate to biological tissue, would be profoundly significant.
-
-From a practical standpoint, thousands of practitioners and listeners report that 528 Hz induces feelings of love, warmth, and profound well-being — independent of any scientific mechanism. In a world saturated by stress, that experiential reality matters.`,
-      category: 'solfeggio',
+      content: `Of all the Solfeggio frequencies, 528 Hz has attracted the most scientific interest and popular fascination. Sometimes called the "Love Frequency," "Miracle Tone," or "DNA Repair Frequency," 528 Hz sits at the heart of the ancient Solfeggio scale and at the centre of considerable debate.\n\nThe frequency 528 Hz is mathematically central to nature. It appears in the geometry of the chlorophyll molecule (responsible for turning sunlight into life energy), the ratio of sacred geometry, and reportedly within the double helix structure of DNA. These mathematical connections, while fascinating, do not yet constitute clinical proof of healing effects.\n\nBiochemist Dr. Glen Rein published a study in 1998 suggesting that 528 Hz could enhance DNA repair in test tubes. While this single study requires replication, it sparked enormous interest. Several subsequent studies have suggested that 528 Hz reduces cortisol (the stress hormone) and increases melatonin and serotonin in drinking water exposed to the frequency — effects that, if they translate to biological tissue, would be profoundly significant.\n\nFrom a practical standpoint, thousands of practitioners and listeners report that 528 Hz induces feelings of love, warmth, and profound well-being — independent of any scientific mechanism. In a world saturated by stress, that experiential reality matters.`,
+      category: ArticleCategory.SOLFEGGIO,
       tags: ['528hz', 'love frequency', 'DNA', 'science', 'healing'],
       isPremium: false,
-      publishedAt: now(),
+      status: ContentStatus.PUBLISHED,
       author: 'Frequency Lab',
       readTime: 8,
       difficulty: 'Intermediate',
@@ -175,21 +158,23 @@ From a practical standpoint, thousands of practitioners and listeners report tha
         'Pair with positive affirmations for amplified results',
       ],
       scientificBasis: 'Rein (1998) — DNA conformational changes in-vitro. Basar et al (2013) — emotional state modulation. Further peer-reviewed research ongoing.',
+      iconIdentifier: 'Heart',
+      colorToken: '#34D399',
+      publishedAt: now,
+      createdAt: now,
+      updatedAt: now,
+      provenance: 'system_seed',
+      seedVersion: 1,
+      createdBy: 'system_seed',
     },
     {
       id: 'article-6',
       title: 'Schumann Resonance: Syncing With the Earth\'s Pulse',
-      content: `The Schumann Resonance is one of the most remarkable discoveries in geophysics. In 1952, German physicist Winfried Schumann mathematically predicted that the space between Earth's surface and the ionosphere — a cavity of roughly 60 km height — would act as a resonating chamber for electromagnetic waves. The fundamental frequency of this cavity is approximately 7.83 Hz.
-
-What makes this extraordinary is that 7.83 Hz falls precisely within the human theta–alpha brainwave boundary — the state associated with deep relaxation, meditation, and the threshold of sleep. This has led many researchers and practitioners to hypothesise that human consciousness evolved in resonance with this planetary frequency.
-
-When we spend extended time in urban environments, surrounded by artificial electromagnetic fields (WiFi, mobile networks, overhead lighting), our natural entrainment to the Schumann Resonance can be disrupted. Some functional medicine practitioners link this disruption to increased anxiety, poor sleep, reduced immune function and a vague sense of "disconnection."
-
-Listening to 7.83 Hz can help re-attune your nervous system to this ancient Earth rhythm. Combined with time in nature — bare feet on grass, swimming in the ocean, or simply sitting under a tree — Schumann Resonance audio work can be a powerful antidote to modern over-stimulation.`,
-      category: 'healing',
+      content: `The Schumann Resonance is one of the most remarkable discoveries in geophysics. In 1952, German physicist Winfried Schumann mathematically predicted that the space between Earth's surface and the ionosphere — a cavity of roughly 60 km height — would act as a resonating chamber for electromagnetic waves. The fundamental frequency of this cavity is approximately 7.83 Hz.\n\nWhat makes this extraordinary is that 7.83 Hz falls precisely within the human theta–alpha brainwave boundary — the state associated with deep relaxation, meditation, and the threshold of sleep. This has led many researchers and practitioners to hypothesise that human consciousness evolved in resonance with this planetary frequency.\n\nWhen we spend extended time in urban environments, surrounded by artificial electromagnetic fields (WiFi, mobile networks, overhead lighting), our natural entrainment to the Schumann Resonance can be disrupted. Some functional medicine practitioners link this disruption to increased anxiety, poor sleep, reduced immune function and a vague sense of "disconnection."\n\nListening to 7.83 Hz can help re-attune your nervous system to this ancient Earth rhythm. Combined with time in nature — bare feet on grass, swimming in the ocean, or simply sitting under a tree — Schumann Resonance audio work can be a powerful antidote to modern over-stimulation.`,
+      category: ArticleCategory.HEALING,
       tags: ['Schumann', 'earth frequency', 'grounding', 'nature', '7.83hz'],
       isPremium: false,
-      publishedAt: now(),
+      status: ContentStatus.PUBLISHED,
       author: 'Frequency Lab',
       readTime: 7,
       difficulty: 'Intermediate',
@@ -205,23 +190,23 @@ Listening to 7.83 Hz can help re-attune your nervous system to this ancient Eart
         'Ideal for morning grounding routines',
         'Use for 20–30 minutes for noticeable calming effects',
       ],
+      iconIdentifier: 'Activity',
+      colorToken: '#22D3EE',
+      publishedAt: now,
+      createdAt: now,
+      updatedAt: now,
+      provenance: 'system_seed',
+      seedVersion: 1,
+      createdBy: 'system_seed',
     },
     {
       id: 'article-7',
       title: 'Manifestation Frequencies: Tuning Into Abundance',
-      content: `The idea that specific frequencies can support manifestation and abundance draws from multiple traditions — quantum physics interpretations, numerology, and the law of resonance. While the scientific community remains cautious, the experiential and psychological mechanisms are real and worth understanding.
-
-The 888 Hz frequency carries powerful numerological significance. In many traditions, 8 represents infinity, abundance, and the flow of energy in both directions. Triple 8 — as in 888 — is considered an amplification of these qualities. As a sound frequency, 888 Hz creates a particular resonant state that practitioners describe as expansive and prosperity-aligned.
-
-The 432 Hz "natural tuning" is often positioned as the foundation of an abundance mindset. Unlike the standard 440 Hz concert pitch, 432 Hz is said to be more harmonically aligned with the natural world. Studies comparing music played at 432 Hz versus 440 Hz suggest subjects find 432 Hz more calming and emotionally satisfying.
-
-The 528 Hz frequency bridges healing and manifestation — its transformation properties make it ideal for dissolving limiting beliefs about what you can receive and achieve.
-
-Psychologically, regular listening to these frequencies while holding clear intentions creates a form of mental priming — the Reticular Activating System (the brain's attention filter) becomes tuned to recognise opportunities aligned with your stated desires.`,
-      category: 'manifestation',
+      content: `The idea that specific frequencies can support manifestation and abundance draws from multiple traditions — quantum physics interpretations, numerology, and the law of resonance. While the scientific community remains cautious, the experiential and psychological mechanisms are real and worth understanding.\n\nThe 888 Hz frequency carries powerful numerological significance. In many traditions, 8 represents infinity, abundance, and the flow of energy in both directions. Triple 8 — as in 888 — is considered an amplification of these qualities. As a sound frequency, 888 Hz creates a particular resonant state that practitioners describe as expansive and prosperity-aligned.\n\nThe 432 Hz "natural tuning" is often positioned as the foundation of an abundance mindset. Unlike the standard 440 Hz concert pitch, 432 Hz is said to be more harmonically aligned with the natural world. Studies comparing music played at 432 Hz versus 440 Hz suggest subjects find 432 Hz more calming and emotionally satisfying.\n\nThe 528 Hz frequency bridges healing and manifestation — its transformation properties make it ideal for dissolving limiting beliefs about what you can receive and achieve.\n\nPsychologically, regular listening to these frequencies while holding clear intentions creates a form of mental priming — the Reticular Activating System (the brain's attention filter) becomes tuned to recognise opportunities aligned with your stated desires.`,
+      category: ArticleCategory.MANIFESTATION,
       tags: ['manifestation', 'abundance', '888hz', '432hz', 'law of attraction'],
       isPremium: true,
-      publishedAt: now(),
+      status: ContentStatus.PUBLISHED,
       author: 'Frequency Lab',
       readTime: 8,
       difficulty: 'Intermediate',
@@ -237,21 +222,23 @@ Psychologically, regular listening to these frequencies while holding clear inte
         'Combine with alpha waves (10 Hz) for best results',
         'Practice daily during morning windows of peak receptivity',
       ],
+      iconIdentifier: 'Sparkles',
+      colorToken: '#FBBF24',
+      publishedAt: now,
+      createdAt: now,
+      updatedAt: now,
+      provenance: 'system_seed',
+      seedVersion: 1,
+      createdBy: 'system_seed',
     },
     {
       id: 'article-8',
       title: 'Gamma Waves & 40 Hz: The Frequency of Awakening',
-      content: `Gamma brainwaves (30–100 Hz) represent the fastest documented brain oscillations and are associated with the highest states of cognitive function, perception, and consciousness. At the centre of gamma research sits 40 Hz — a frequency that has drawn extraordinary scientific attention since the 1990s.
-
-MIT researcher Li-Huei Tsai demonstrated in 2016 that flickering light and sound at precisely 40 Hz reduced amyloid plaques and tau tangles — the hallmarks of Alzheimer's disease — in mouse models. This landmark study ignited a wave of human clinical trials. While human results are more nuanced, the mechanism is real: gamma entrainment appears to synchronise neural activity in ways that support memory consolidation, attention, and neuroprotective processes.
-
-From a consciousness perspective, Tibetan monks with decades of meditation practice show dramatically elevated gamma activity compared to novices — particularly during states of compassion and loving-kindness meditation. The 40 Hz gamma state appears to be the neurological signature of heightened awareness and integration.
-
-Practically, 40 Hz binaural and monaural beats are used to enhance focus before demanding cognitive work, support memory and learning, and access elevated meditative states more quickly than traditional practice alone allows.`,
-      category: 'scientific',
+      content: `Gamma brainwaves (30–100 Hz) represent the fastest documented brain oscillations and are associated with the highest states of cognitive function, perception, and consciousness. At the centre of gamma research sits 40 Hz — a frequency that has drawn extraordinary scientific attention since the 1990s.\n\nMIT researcher Li-Huei Tsai demonstrated in 2016 that flickering light and sound at precisely 40 Hz reduced amyloid plaques and tau tangles — the hallmarks of Alzheimer's disease — in mouse models. This landmark study ignited a wave of human clinical trials. While human results are more nuanced, the mechanism is real: gamma entrainment appears to synchronise neural activity in ways that support memory consolidation, attention, and neuroprotective processes.\n\nFrom a consciousness perspective, Tibetan monks with decades of meditation practice show dramatically elevated gamma activity compared to novices — particularly during states of compassion and loving-kindness meditation. The 40 Hz gamma state appears to be the neurological signature of heightened awareness and integration.\n\nPractically, 40 Hz binaural and monaural beats are used to enhance focus before demanding cognitive work, support memory and learning, and access elevated meditative states more quickly than traditional practice alone allows.`,
+      category: ArticleCategory.SCIENCE,
       tags: ['gamma', '40hz', 'Alzheimer', 'cognitive', 'science', 'MIT'],
       isPremium: false,
-      publishedAt: now(),
+      status: ContentStatus.PUBLISHED,
       author: 'Frequency Lab',
       readTime: 9,
       difficulty: 'Advanced',
@@ -268,6 +255,14 @@ Practically, 40 Hz binaural and monaural beats are used to enhance focus before 
         'Combine with the Focus & Mental Clarity programme',
       ],
       scientificBasis: 'Tsai et al., MIT (2016) — gamma entrainment reduces amyloid plaques. Multiple follow-up human trials ongoing at MIT, Oxford, and UCSF.',
+      iconIdentifier: 'Brain',
+      colorToken: '#A78BFA',
+      publishedAt: now,
+      createdAt: now,
+      updatedAt: now,
+      provenance: 'system_seed',
+      seedVersion: 1,
+      createdBy: 'system_seed',
     },
   ];
 }

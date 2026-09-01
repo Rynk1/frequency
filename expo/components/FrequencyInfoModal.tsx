@@ -574,7 +574,7 @@ export function FrequencyInfoModal({ visible, onClose, frequency, category }: Fr
   }, [visible]);
 
   // Resolve frequency guide
-  const guide = frequency.background || frequency.purpose ? {
+  const guide = (frequency.background || frequency.purpose || frequency.scientificBasis || (frequency.benefits && frequency.benefits.length > 0)) ? {
     background: frequency.background || '',
     purpose: frequency.purpose || '',
     scientificBasis: frequency.scientificBasis || '',

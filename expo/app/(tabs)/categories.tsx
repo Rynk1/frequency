@@ -63,7 +63,7 @@ export default function CategoriesScreen() {
     }).start();
   }, [activeTab]);
 
-  const { scientific, brainwave, solfeggio, chakra } = useFrequencies();
+  const { scientific, binaural: brainwave, solfeggio, chakra } = useFrequencies();
   const { isInitialized, isLoading } = useDataInitialization();
   const { isPremium } = useAuth();
   const { showPremiumGate, gateConfig, closePremiumGate, attemptFeatureAccess } = usePremiumUsage();
