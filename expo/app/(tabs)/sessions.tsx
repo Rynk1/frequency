@@ -8,6 +8,7 @@ import {
   Modal,
   Dimensions,
   Animated,
+  Image,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { GlassCard as SharedGlassCard } from '@/components/GlassCard';
@@ -211,7 +212,10 @@ export default function SessionsScreen() {
   } | null>(null);
 
   const pulseAnim = useRef(new Animated.Value(1)).current;
-  const orbAnim = useRef(new Animated.Value(0)).current;
+  const auraAnim = useRef(new Animated.Value(0.85)).current;
+  const rotateCW = useRef(new Animated.Value(0)).current;
+  const rotateCCW = useRef(new Animated.Value(0)).current;
+  const sparkleAnim = useRef(new Animated.Value(0.3)).current;
   const ring1Anim = useRef(new Animated.Value(0)).current;
   const ring2Anim = useRef(new Animated.Value(0)).current;
   const ring3Anim = useRef(new Animated.Value(0)).current;
@@ -219,25 +223,45 @@ export default function SessionsScreen() {
   useEffect(() => {
     Animated.loop(
       Animated.sequence([
-        Animated.timing(pulseAnim, { toValue: 1.07, duration: 2400, useNativeDriver: true }),
-        Animated.timing(pulseAnim, { toValue: 1, duration: 2400, useNativeDriver: true }),
+        Animated.timing(pulseAnim, { toValue: 1.05, duration: 3200, useNativeDriver: true }),
+        Animated.timing(pulseAnim, { toValue: 1, duration: 3200, useNativeDriver: true }),
       ])
     ).start();
+
     Animated.loop(
-      Animated.timing(orbAnim, { toValue: 1, duration: 8000, useNativeDriver: true })
+      Animated.sequence([
+        Animated.timing(auraAnim, { toValue: 1.12, duration: 4500, useNativeDriver: true }),
+        Animated.timing(auraAnim, { toValue: 0.85, duration: 4500, useNativeDriver: true }),
+      ])
     ).start();
+
+    Animated.loop(
+      Animated.timing(rotateCW, { toValue: 1, duration: 28000, useNativeDriver: true })
+    ).start();
+
+    Animated.loop(
+      Animated.timing(rotateCCW, { toValue: 1, duration: 36000, useNativeDriver: true })
+    ).start();
+
+    Animated.loop(
+      Animated.sequence([
+        Animated.timing(sparkleAnim, { toValue: 0.85, duration: 2200, useNativeDriver: true }),
+        Animated.timing(sparkleAnim, { toValue: 0.25, duration: 2200, useNativeDriver: true }),
+      ])
+    ).start();
+
     const startRing = (anim: Animated.Value, delay: number) => {
       Animated.loop(
         Animated.sequence([
           Animated.delay(delay),
-          Animated.timing(anim, { toValue: 1, duration: 3200, useNativeDriver: true }),
+          Animated.timing(anim, { toValue: 1, duration: 3400, useNativeDriver: true }),
           Animated.timing(anim, { toValue: 0, duration: 0, useNativeDriver: true }),
         ])
       ).start();
     };
     startRing(ring1Anim, 0);
-    startRing(ring2Anim, 1067);
-    startRing(ring3Anim, 2134);
+    startRing(ring2Anim, 1133);
+    startRing(ring3Anim, 2266);
   }, []);
 
   const {
@@ -376,28 +400,80 @@ export default function SessionsScreen() {
     });
   }, [achievements, sessionsCompleted, streakDays, totalMinutes, userProfile?.usageStats?.favoriteFrequencies]);
 
-  const ring1Scale = ring1Anim.interpolate({ inputRange: [0, 1], outputRange: [1, 1.7] });
-  const ring1Opacity = ring1Anim.interpolate({ inputRange: [0, 0.3, 1], outputRange: [0.5, 0.3, 0] });
-  const ring2Scale = ring2Anim.interpolate({ inputRange: [0, 1], outputRange: [1, 1.7] });
-  const ring2Opacity = ring2Anim.interpolate({ inputRange: [0, 0.3, 1], outputRange: [0.5, 0.3, 0] });
-  const ring3Scale = ring3Anim.interpolate({ inputRange: [0, 1], outputRange: [1, 1.7] });
+  const ring1Scale = ring1Anim.interpolate({ inputRange: [0, 1], outputRange: [1, 1.65] });
+  const ring1Opacity = ring1Anim.interpolate({ inputRange: [0, 0.3, 1], outputRange: [0.45, 0.25, 0] });
+  const ring2Scale = ring2Anim.interpolate({ inputRange: [0, 1], outputRange: [1, 1.65] });
+  const ring2Opacity = ring2Anim.interpolate({ inputRange: [0, 0.3, 1], outputRange: [0.45, 0.25, 0] });
+  const ring3Scale = ring3Anim.interpolate({ inputRange: [0, 1], outputRange: [1, 1.65] });
   const ring3Opacity = ring3Anim.interpolate({ inputRange: [0, 0.3, 1], outputRange: [0.5, 0.3, 0] });
+
+  const spinCW = rotateCW.interpolate({ inputRange: [0, 1], outputRange: ['0deg', '360deg'] });
+  const spinCCW = rotateCCW.interpolate({ inputRange: [0, 1], outputRange: ['0deg', '-360deg'] });
 
   const renderJourneyTab = () => (
     <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
-      {/* Orb Hero */}
+      {/* Living Resonance Orb Hero */}
       <View style={styles.orbSection}>
-        {/* Sonar rings */}
+        {/* Layer 0: Ambient Breathing Aura & Glow */}
+        <Animated.View
+          style={[
+            styles.orbAuraGlow,
+            {
+              backgroundColor: colors.accent + '22',
+              transform: [{ scale: auraAnim }],
+            },
+          ]}
+        />
+
+        {/* Sonar Ring Echoes */}
         <View style={styles.orbRingContainer}>
-          <Animated.View style={[styles.sonarRing, { transform: [{ scale: ring1Scale }], opacity: ring1Opacity }]} />
-          <Animated.View style={[styles.sonarRing, { transform: [{ scale: ring2Scale }], opacity: ring2Opacity }]} />
-          <Animated.View style={[styles.sonarRing, { transform: [{ scale: ring3Scale }], opacity: ring3Opacity }]} />
+          <Animated.View style={[styles.sonarRing, { borderColor: colors.accent + '60', transform: [{ scale: ring1Scale }], opacity: ring1Opacity }]} />
+          <Animated.View style={[styles.sonarRing, { borderColor: colors.accent + '60', transform: [{ scale: ring2Scale }], opacity: ring2Opacity }]} />
+          <Animated.View style={[styles.sonarRing, { borderColor: colors.accent + '60', transform: [{ scale: ring3Scale }], opacity: ring3Opacity }]} />
         </View>
+
+        {/* Outer Frame */}
         <View style={styles.orbOuterRing}>
+          {/* Layer 1: Counter-Rotating Harmonic Wave Lines */}
+          <Animated.View
+            style={[
+              styles.harmonicRingCW,
+              {
+                borderColor: colors.accent + '35',
+                transform: [{ rotate: spinCW }],
+              },
+            ]}
+          />
+          <Animated.View
+            style={[
+              styles.harmonicRingCCW,
+              {
+                borderColor: colors.primary + '30',
+                transform: [{ rotate: spinCCW }],
+              },
+            ]}
+          />
+
           <View style={styles.orbMiddleRing}>
+            {/* Layer 2: Cymatic Geometry Overlay PNG */}
+            <Animated.View style={[styles.cymaticWrap, { transform: [{ rotate: spinCCW }] }]}>
+              <Image
+                source={require('@/assets/images/cymatic-ring.png')}
+                style={styles.cymaticOverlay}
+                resizeMode="contain"
+              />
+            </Animated.View>
+
+            {/* Layer 3: Perimeter Light Sparkle Accents */}
+            <Animated.View style={[styles.lightAccent1, { backgroundColor: colors.accent, opacity: sparkleAnim }]} />
+            <Animated.View style={[styles.lightAccent2, { backgroundColor: colors.gold, opacity: sparkleAnim }]} />
+            <Animated.View style={[styles.lightAccent3, { backgroundColor: colors.accent, opacity: sparkleAnim }]} />
+            <Animated.View style={[styles.lightAccent4, { backgroundColor: colors.primary, opacity: sparkleAnim }]} />
+
+            {/* Layer 4: Center Core & Crisp Typography */}
             <Animated.View style={[styles.orbInner, { transform: [{ scale: pulseAnim }] }]}>
               <LinearGradient
-                colors={['rgba(108,99,255,0.95)', 'rgba(124,58,237,0.8)', 'rgba(167,139,250,0.6)']}
+                colors={['rgba(108,99,255,0.95)', 'rgba(124,58,237,0.85)', 'rgba(167,139,250,0.65)']}
                 style={styles.orbGradient}
               />
               <View style={styles.orbContent}>
@@ -407,6 +483,8 @@ export default function SessionsScreen() {
             </Animated.View>
           </View>
         </View>
+
+        {/* Begin Session Button (Untouched) */}
         <TouchableOpacity style={styles.startSessionBtn} onPress={handleStartDailyAlignment} activeOpacity={0.85}>
           <LinearGradient colors={['rgba(108,99,255,0.95)', 'rgba(124,58,237,0.85)']} style={styles.startSessionBtnGrad}>
             <Play color="#fff" size={16} fill="#fff" />
@@ -1141,11 +1219,19 @@ const createStyles = (colors: any, gradients: any) => StyleSheet.create({
     paddingHorizontal: 22,
     paddingBottom: 16,
   },
-  // Orb section
+  // Orb section - Living Resonance Orb
   orbSection: {
     alignItems: 'center',
     marginBottom: 24,
     paddingTop: 8,
+    position: 'relative',
+  },
+  orbAuraGlow: {
+    position: 'absolute',
+    width: 220,
+    height: 220,
+    borderRadius: 110,
+    top: 3,
   },
   orbRingContainer: {
     position: 'absolute',
@@ -1153,7 +1239,7 @@ const createStyles = (colors: any, gradients: any) => StyleSheet.create({
     height: 200,
     alignItems: 'center',
     justifyContent: 'center',
-    top: 0,
+    top: 13,
   },
   sonarRing: {
     position: 'absolute',
@@ -1161,7 +1247,6 @@ const createStyles = (colors: any, gradients: any) => StyleSheet.create({
     height: 180,
     borderRadius: 90,
     borderWidth: 1.5,
-    borderColor: 'rgba(108,99,255,0.5)',
   },
   orbOuterRing: {
     width: 210,
@@ -1169,10 +1254,26 @@ const createStyles = (colors: any, gradients: any) => StyleSheet.create({
     borderRadius: 105,
     backgroundColor: 'rgba(108,99,255,0.05)',
     borderWidth: 1,
-    borderColor: 'rgba(108,99,255,0.15)',
+    borderColor: 'rgba(108,99,255,0.18)',
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 22,
+    position: 'relative',
+  },
+  harmonicRingCW: {
+    position: 'absolute',
+    width: 198,
+    height: 198,
+    borderRadius: 99,
+    borderWidth: 1,
+    borderStyle: 'dashed',
+  },
+  harmonicRingCCW: {
+    position: 'absolute',
+    width: 186,
+    height: 186,
+    borderRadius: 93,
+    borderWidth: 1,
   },
   orbMiddleRing: {
     width: 174,
@@ -1183,6 +1284,51 @@ const createStyles = (colors: any, gradients: any) => StyleSheet.create({
     borderColor: 'rgba(108,99,255,0.22)',
     alignItems: 'center',
     justifyContent: 'center',
+    position: 'relative',
+  },
+  cymaticWrap: {
+    position: 'absolute',
+    width: 168,
+    height: 168,
+    alignItems: 'center',
+    justifyContent: 'center',
+    opacity: 0.35,
+  },
+  cymaticOverlay: {
+    width: 168,
+    height: 168,
+  },
+  lightAccent1: {
+    position: 'absolute',
+    width: 5,
+    height: 5,
+    borderRadius: 2.5,
+    top: 8,
+    left: 80,
+  },
+  lightAccent2: {
+    position: 'absolute',
+    width: 4,
+    height: 4,
+    borderRadius: 2,
+    bottom: 12,
+    right: 36,
+  },
+  lightAccent3: {
+    position: 'absolute',
+    width: 5,
+    height: 5,
+    borderRadius: 2.5,
+    top: 48,
+    right: 12,
+  },
+  lightAccent4: {
+    position: 'absolute',
+    width: 4,
+    height: 4,
+    borderRadius: 2,
+    bottom: 40,
+    left: 16,
   },
   orbInner: {
     width: 140,
