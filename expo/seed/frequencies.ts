@@ -45,6 +45,8 @@ export function getFrequenciesSeed(): CanonicalFrequency[] {
         id: createFrequencyId(category, freq.hz),
         name: freq.name,
         hz: freq.hz,
+        baseFreq: freq.baseFreq,
+        beatFreq: freq.beatFreq,
         frequency: `${freq.hz} Hz`,
         description: freq.description,
         category,
