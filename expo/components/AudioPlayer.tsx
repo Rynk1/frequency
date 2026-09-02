@@ -313,7 +313,7 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({
               if (i !== st.currentFrequencyIndex) {
                 const nf = st.sessionFrequencies[i];
                 setCurrentFrequencyIndex(i);
-                setTimeout(() => playFrequency(nf.hz, nf.name), 100);
+                setTimeout(() => playFrequency(nf, nf.name), 100);
               }
               break;
             }
@@ -346,7 +346,7 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({
             if (st.autoRepeat && st.isPremium && frequency) {
               setTimeout(() => {
                 setTimeLeft(st.duration * 60);
-                playFrequency(frequency.hz, frequency.name);
+                playFrequency(frequency, frequency.name);
                 setIsTimerActive(true);
               }, 2000);
             }
@@ -393,7 +393,7 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({
       } else {
         const currentFreq = sessionFrequencies[currentFrequencyIndex];
         if (currentFreq && sessionTimeLeft > 0) {
-          playFrequency(currentFreq.hz, currentFreq.name);
+          playFrequency(currentFreq, currentFreq.name);
           setIsSessionActive(true);
         }
       }
@@ -403,7 +403,7 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({
         setIsTimerActive(false);
       } else {
         if (frequency) {
-          playFrequency(frequency.hz, frequency.name);
+          playFrequency(frequency, frequency.name);
           if (timeLeft > 0) {
             setIsTimerActive(true);
           }
@@ -418,7 +418,7 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({
       const nextFreq = sessionFrequencies[nextIndex];
       setCurrentFrequencyIndex(nextIndex);
       if (isPlaying) {
-        playFrequency(nextFreq.hz, nextFreq.name);
+        playFrequency(nextFreq, nextFreq.name);
       }
     }
   }, [isSessionMode, currentFrequencyIndex, sessionFrequencies, isPlaying, playFrequency]);
@@ -429,7 +429,7 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({
       const prevFreq = sessionFrequencies[prevIndex];
       setCurrentFrequencyIndex(prevIndex);
       if (isPlaying) {
-        playFrequency(prevFreq.hz, prevFreq.name);
+        playFrequency(prevFreq, prevFreq.name);
       }
     }
   }, [isSessionMode, currentFrequencyIndex, sessionFrequencies, isPlaying, playFrequency]);
@@ -963,7 +963,7 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({
                           onPress={() => {
                             setCurrentFrequencyIndex(index);
                             if (isPlaying) {
-                              playFrequency(freq.hz, freq.name);
+                              playFrequency(freq, freq.name);
                             }
                           }}
                         >

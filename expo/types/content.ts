@@ -46,6 +46,8 @@ export interface CanonicalFrequency extends SeedMetadata {
   id: string;
   name: string;
   hz: number;
+  baseFreq?: number;
+  beatFreq?: number;
   frequency: string;
   description: string;
   category: FrequencyCategory;
