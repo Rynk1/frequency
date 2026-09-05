@@ -1,4 +1,5 @@
 import { Platform } from 'react-native';
+import Constants from 'expo-constants';
 import { FrequencyAudioSpec, AudioPlaybackState } from './AudioTypes';
 import { AudioValidator } from './AudioValidator';
 import { WebAudioRenderer } from './platform/WebAudioRenderer';
@@ -21,7 +22,7 @@ export class FrequencyAudioEngine {
   constructor() {
     if (Platform.OS === 'web') {
       this.webRenderer = new WebAudioRenderer();
-    } else {
+    } else if (Constants.appOwnership !== 'expo') {
       this.nativeRenderer = new NativeAudioRenderer();
     }
   }
@@ -65,6 +66,8 @@ export class FrequencyAudioEngine {
         await this.webRenderer.play(spec, volume);
       } else if (this.nativeRenderer) {
         await this.nativeRenderer.play(spec, volume);
+      } else {
+        throw new Error('Native audio requires an Expo development build. Expo Go does not include expo-av.');
       }
 
       this.updateState({

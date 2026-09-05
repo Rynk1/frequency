@@ -45,7 +45,8 @@ import {
   SLEEP_FREQUENCIES,
   WEALTH_FREQUENCIES,
 } from '@/constants/frequencies';
-import { COLORS, GRADIENTS, FONTS } from '@/constants/theme';
+import { FONTS, type ThemeColors } from '@/constants/theme';
+import { useTheme } from '@/hooks/useTheme';
 
 interface CreateSessionModalProps {
   visible: boolean;
@@ -105,6 +106,7 @@ const GlassCard = SharedGlassCard;
 
 export default function CreateSessionModal({ visible, onClose, onCreateSession }: CreateSessionModalProps) {
   const insets = useSafeAreaInsets();
+  const { colors, gradients, isDark } = useTheme();
   const { user } = useAuth();
   const { createReminder, requestNotificationPermission } = useSessionManager();
   const [sessionName, setSessionName] = useState('');
@@ -245,6 +247,7 @@ export default function CreateSessionModal({ visible, onClose, onCreateSession }
 
   const canProceed = sessionName.trim().length > 0;
   const canCreate = canProceed && selectedFrequencies.length > 0;
+  const styles = React.useMemo(() => createStyles(colors, isDark), [colors, isDark]);
 
   return (
     <Modal
@@ -254,7 +257,7 @@ export default function CreateSessionModal({ visible, onClose, onCreateSession }
       onRequestClose={onClose}
     >
       <View style={styles.container}>
-        <LinearGradient colors={GRADIENTS.bg} style={StyleSheet.absoluteFillObject} pointerEvents="none" />
+        <LinearGradient colors={gradients.bg} style={StyleSheet.absoluteFillObject} pointerEvents="none" />
         <View style={styles.bgOrb1} pointerEvents="none" />
         <View style={styles.bgOrb2} pointerEvents="none" />
 
@@ -266,7 +269,7 @@ export default function CreateSessionModal({ visible, onClose, onCreateSession }
               <Text style={styles.title}>Create Session</Text>
             </View>
             <TouchableOpacity onPress={onClose} style={styles.closeButton}>
-              <X size={20} color={COLORS.textSecondary} />
+              <X size={20} color={colors.textSecondary} />
             </TouchableOpacity>
           </View>
 
@@ -302,7 +305,7 @@ export default function CreateSessionModal({ visible, onClose, onCreateSession }
                     <TextInput
                       style={styles.input}
                       placeholder="e.g., Morning Meditation"
-                      placeholderTextColor={COLORS.textMuted}
+                      placeholderTextColor={colors.textMuted}
                       value={sessionName}
                       onChangeText={setSessionName}
                     />
@@ -312,7 +315,7 @@ export default function CreateSessionModal({ visible, onClose, onCreateSession }
                     <TextInput
                       style={[styles.input, styles.textArea]}
                       placeholder="What do you want to achieve?"
-                      placeholderTextColor={COLORS.textMuted}
+                      placeholderTextColor={colors.textMuted}
                       value={goal}
                       onChangeText={setGoal}
                       multiline
@@ -324,7 +327,7 @@ export default function CreateSessionModal({ visible, onClose, onCreateSession }
                 {/* Category */}
                 <GlassCard style={styles.section} depth="normal">
                   <View style={styles.sectionHeaderRow}>
-                    <Music size={15} color={COLORS.accent} />
+                    <Music size={15} color={colors.accent} />
                     <Text style={styles.sectionTitle}>Category</Text>
                   </View>
                   <ScrollView
@@ -345,7 +348,7 @@ export default function CreateSessionModal({ visible, onClose, onCreateSession }
                           onPress={() => setSelectedCategory(category.id)}
                         >
                           <View style={[styles.catChipIcon, { backgroundColor: isSelected ? category.color + '25' : 'rgba(255,255,255,0.06)' }]}>
-                            <IconComponent size={14} color={isSelected ? category.color : COLORS.textMuted} />
+                            <IconComponent size={14} color={isSelected ? category.color : colors.textMuted} />
                           </View>
                           <Text style={[styles.categoryChipName, isSelected && { color: category.color }]}>
                             {category.name}
@@ -364,7 +367,7 @@ export default function CreateSessionModal({ visible, onClose, onCreateSession }
                 {/* Intensity */}
                 <GlassCard style={styles.section} depth="normal">
                   <View style={styles.sectionHeaderRow}>
-                    <Zap size={15} color={COLORS.gold} />
+                    <Zap size={15} color={colors.gold} />
                     <Text style={styles.sectionTitle}>Intensity Level</Text>
                   </View>
                   <View style={styles.intensityRow}>
@@ -398,20 +401,20 @@ export default function CreateSessionModal({ visible, onClose, onCreateSession }
                 {/* Frequencies */}
                 <GlassCard style={styles.section} depth="normal">
                   <View style={styles.sectionHeaderRow}>
-                    <Sparkles size={15} color={COLORS.accent} />
+                    <Sparkles size={15} color={colors.accent} />
                     <Text style={styles.sectionTitle}>Frequencies <Text style={styles.requiredNote}>*</Text></Text>
                     <TouchableOpacity
                       style={styles.addFreqBtn}
                       onPress={() => setShowFrequencyPicker(true)}
                     >
-                      <Plus size={13} color={COLORS.accent} />
+                      <Plus size={13} color={colors.accent} />
                       <Text style={styles.addFreqBtnText}>Add</Text>
                     </TouchableOpacity>
                   </View>
 
                   {selectedFrequencies.length === 0 ? (
                     <TouchableOpacity style={styles.emptyFreqArea} onPress={() => setShowFrequencyPicker(true)}>
-                      <Music size={28} color={COLORS.textMuted} />
+                      <Music size={28} color={colors.textMuted} />
                       <Text style={styles.emptyFreqText}>Tap to add frequencies</Text>
                       <Text style={styles.emptyFreqSub}>Build your healing sequence</Text>
                     </TouchableOpacity>
@@ -427,13 +430,13 @@ export default function CreateSessionModal({ visible, onClose, onCreateSession }
                             <Text style={styles.frequencyHz}>{freq.hz} Hz · {freq.duration} min</Text>
                           </View>
                           <TouchableOpacity onPress={() => handleRemoveFrequency(index)} style={styles.removeFreqBtn}>
-                            <X size={14} color={COLORS.textMuted} />
+                            <X size={14} color={colors.textMuted} />
                           </TouchableOpacity>
                         </View>
                       ))}
                       <View style={styles.totalDurationRow}>
-                        <Timer size={13} color={COLORS.accent} />
-                        <Text style={styles.totalDurationText}>Total duration: <Text style={{ color: COLORS.accent, fontWeight: '700' }}>{totalDuration} min</Text></Text>
+                        <Timer size={13} color={colors.accent} />
+                        <Text style={styles.totalDurationText}>Total duration: <Text style={{ color: colors.accent, fontWeight: '700' }}>{totalDuration} min</Text></Text>
                       </View>
                     </View>
                   )}
@@ -442,13 +445,13 @@ export default function CreateSessionModal({ visible, onClose, onCreateSession }
                 {/* Notes */}
                 <GlassCard style={styles.section} depth="light">
                   <View style={styles.sectionHeaderRow}>
-                    <Target size={15} color={COLORS.textMuted} />
+                    <Target size={15} color={colors.textMuted} />
                     <Text style={styles.sectionTitle}>Notes <Text style={styles.optionalNote}>(optional)</Text></Text>
                   </View>
                   <TextInput
                     style={[styles.input, styles.textArea]}
                     placeholder="Any additional notes or intentions..."
-                    placeholderTextColor={COLORS.textMuted}
+                    placeholderTextColor={colors.textMuted}
                     value={notes}
                     onChangeText={setNotes}
                     multiline
@@ -465,8 +468,8 @@ export default function CreateSessionModal({ visible, onClose, onCreateSession }
                     colors={canProceed ? ['rgba(108,99,255,0.9)', 'rgba(124,58,237,0.85)'] : ['rgba(255,255,255,0.05)', 'rgba(255,255,255,0.05)']}
                     style={styles.nextBtnGrad}
                   >
-                    <Text style={[styles.nextBtnText, !canProceed && { color: COLORS.textMuted }]}>Continue to Schedule</Text>
-                    <ChevronRight size={16} color={canProceed ? '#fff' : COLORS.textMuted} />
+                    <Text style={[styles.nextBtnText, !canProceed && { color: colors.textMuted }]}>Continue to Schedule</Text>
+                    <ChevronRight size={16} color={canProceed ? '#fff' : colors.textMuted} />
                   </LinearGradient>
                 </TouchableOpacity>
               </>
@@ -477,7 +480,7 @@ export default function CreateSessionModal({ visible, onClose, onCreateSession }
                 {/* Schedule Days */}
                 <GlassCard style={styles.section} depth="normal">
                   <View style={styles.sectionHeaderRow}>
-                    <Calendar size={15} color={COLORS.accent} />
+                    <Calendar size={15} color={colors.accent} />
                     <Text style={styles.sectionTitle}>Repeat Schedule</Text>
                   </View>
                   <View style={styles.scheduleGrid}>
@@ -502,18 +505,18 @@ export default function CreateSessionModal({ visible, onClose, onCreateSession }
                 {/* Notification / Alarm */}
                 <GlassCard style={styles.section} depth="normal">
                   <View style={styles.sectionHeaderRow}>
-                    <Bell size={15} color={notificationsEnabled ? COLORS.gold : COLORS.textMuted} />
+                    <Bell size={15} color={notificationsEnabled ? colors.gold : colors.textMuted} />
                     <Text style={styles.sectionTitle}>Session Reminder</Text>
                     <TouchableOpacity
-                      style={[styles.notifToggle, notificationsEnabled && { backgroundColor: COLORS.gold + '20', borderColor: COLORS.gold + '50' }]}
+                      style={[styles.notifToggle, notificationsEnabled && { backgroundColor: colors.gold + '20', borderColor: colors.gold + '50' }]}
                       onPress={() => setNotificationsEnabled(!notificationsEnabled)}
                     >
                       {notificationsEnabled ? (
-                        <Bell size={14} color={COLORS.gold} />
+                        <Bell size={14} color={colors.gold} />
                       ) : (
-                        <BellOff size={14} color={COLORS.textMuted} />
+                        <BellOff size={14} color={colors.textMuted} />
                       )}
-                      <Text style={[styles.notifToggleText, notificationsEnabled && { color: COLORS.gold }]}>
+                      <Text style={[styles.notifToggleText, notificationsEnabled && { color: colors.gold }]}>
                         {notificationsEnabled ? 'On' : 'Off'}
                       </Text>
                     </TouchableOpacity>
@@ -523,7 +526,7 @@ export default function CreateSessionModal({ visible, onClose, onCreateSession }
                     <>
                       {Platform.OS === 'web' ? (
                         <View style={styles.webNotifNote}>
-                          <Bell size={14} color={COLORS.textMuted} />
+                          <Bell size={14} color={colors.textMuted} />
                           <Text style={styles.webNotifNoteText}>
                             Notifications available on iOS & Android devices
                           </Text>
@@ -591,14 +594,14 @@ export default function CreateSessionModal({ visible, onClose, onCreateSession }
                           </View>
 
                           <View style={styles.timePreview}>
-                            <Bell size={14} color={COLORS.gold} />
+                            <Bell size={14} color={colors.gold} />
                             <Text style={styles.timePreviewText}>
                               You'll be reminded at{' '}
-                              <Text style={{ color: COLORS.gold, fontWeight: '700' }}>
+                              <Text style={{ color: colors.gold, fontWeight: '700' }}>
                                 {notifHour}:{notifMinute} {notifPeriod}
                               </Text>
                               {' '}on{' '}
-                              <Text style={{ color: COLORS.accent, fontWeight: '600' }}>
+                              <Text style={{ color: colors.accent, fontWeight: '600' }}>
                                 {selectedSchedule.join(', ')}
                               </Text>
                             </Text>
@@ -649,14 +652,14 @@ export default function CreateSessionModal({ visible, onClose, onCreateSession }
                   {notificationsEnabled && (
                     <View style={styles.summaryRow}>
                       <Text style={styles.summaryKey}>Reminder</Text>
-                      <Text style={[styles.summaryVal, { color: COLORS.gold }]}>{notifHour}:{notifMinute} {notifPeriod}</Text>
+                      <Text style={[styles.summaryVal, { color: colors.gold }]}>{notifHour}:{notifMinute} {notifPeriod}</Text>
                     </View>
                   )}
                 </GlassCard>
 
                 <View style={styles.actionRow}>
                   <TouchableOpacity style={styles.backBtn} onPress={() => setStep(1)}>
-                    <ChevronRight size={16} color={COLORS.textSecondary} style={{ transform: [{ rotate: '180deg' }] }} />
+                    <ChevronRight size={16} color={colors.textSecondary} style={{ transform: [{ rotate: '180deg' }] }} />
                     <Text style={styles.backBtnText}>Back</Text>
                   </TouchableOpacity>
                   <TouchableOpacity
@@ -668,8 +671,8 @@ export default function CreateSessionModal({ visible, onClose, onCreateSession }
                       colors={canCreate ? [selectedCatMeta.color, selectedCatMeta.color + 'CC'] : ['rgba(255,255,255,0.05)', 'rgba(255,255,255,0.05)']}
                       style={styles.createBtnGrad}
                     >
-                      <Check size={16} color={canCreate ? '#fff' : COLORS.textMuted} />
-                      <Text style={[styles.createButtonText, !canCreate && { color: COLORS.textMuted }]}>
+                      <Check size={16} color={canCreate ? '#fff' : colors.textMuted} />
+                      <Text style={[styles.createButtonText, !canCreate && { color: colors.textMuted }]}>
                         Create Session
                       </Text>
                     </LinearGradient>
@@ -691,7 +694,7 @@ export default function CreateSessionModal({ visible, onClose, onCreateSession }
             onRequestClose={() => setShowFrequencyPicker(false)}
           >
             <View style={styles.pickerContainer}>
-              <LinearGradient colors={GRADIENTS.bg} style={StyleSheet.absoluteFillObject} pointerEvents="none" />
+              <LinearGradient colors={gradients.bg} style={StyleSheet.absoluteFillObject} pointerEvents="none" />
               <View style={styles.bgOrb1} pointerEvents="none" />
 
               <View style={[styles.pickerContent, { paddingTop: insets.top + 8 }]}>
@@ -701,14 +704,14 @@ export default function CreateSessionModal({ visible, onClose, onCreateSession }
                     <Text style={styles.pickerTitle}>Select Frequency</Text>
                   </View>
                   <TouchableOpacity onPress={() => setShowFrequencyPicker(false)} style={styles.closeButton}>
-                    <X size={20} color={COLORS.textSecondary} />
+                    <X size={20} color={colors.textSecondary} />
                   </TouchableOpacity>
                 </View>
 
                 {/* Duration selector */}
                 <GlassCard style={styles.durationCard} depth="normal">
                   <View style={styles.sectionHeaderRow}>
-                    <Timer size={14} color={COLORS.accent} />
+                    <Timer size={14} color={colors.accent} />
                     <Text style={styles.sectionTitle}>Duration per frequency</Text>
                   </View>
                   <View style={styles.durationRow}>
@@ -753,8 +756,8 @@ export default function CreateSessionModal({ visible, onClose, onCreateSession }
                       onPress={() => handleAddFrequency(freq)}
                     >
                       <GlassCard style={styles.frequencyOptionCard} depth="light">
-                        <View style={[styles.freqOptionHz, { backgroundColor: COLORS.primary + '20' }]}>
-                          <Text style={[styles.freqOptionHzText, { color: COLORS.accent }]}>{freq.hz}</Text>
+                        <View style={[styles.freqOptionHz, { backgroundColor: colors.primary + '20' }]}>
+                          <Text style={[styles.freqOptionHzText, { color: colors.accent }]}>{freq.hz}</Text>
                           <Text style={styles.freqOptionHzUnit}>Hz</Text>
                         </View>
                         <View style={styles.freqOptionInfo}>
@@ -762,7 +765,7 @@ export default function CreateSessionModal({ visible, onClose, onCreateSession }
                           <Text style={styles.frequencyOptionDetails}>{freq.category}</Text>
                         </View>
                         <View style={styles.freqAddBtn}>
-                          <Plus size={14} color={COLORS.accent} />
+                          <Plus size={14} color={colors.accent} />
                         </View>
                       </GlassCard>
                     </TouchableOpacity>
@@ -778,8 +781,8 @@ export default function CreateSessionModal({ visible, onClose, onCreateSession }
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1 },
+const createStyles = (colors: ThemeColors, isDark: boolean) => StyleSheet.create({
+  container: { flex: 1, backgroundColor: colors.bg },
   bgOrb1: {
     position: 'absolute',
     width: 300,
@@ -810,7 +813,7 @@ const styles = StyleSheet.create({
   headerEyebrow: {
     fontSize: 11,
     fontWeight: '600' as const,
-    color: COLORS.textMuted,
+    color: colors.textMuted,
     letterSpacing: 1.8,
     textTransform: 'uppercase' as const,
     marginBottom: 3,
@@ -818,16 +821,16 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 28,
     fontWeight: '700' as const,
-    color: COLORS.textPrimary,
+    color: colors.textPrimary,
     letterSpacing: 0.2,
   },
   closeButton: {
     width: 36,
     height: 36,
     borderRadius: 18,
-    backgroundColor: 'rgba(255,255,255,0.04)',
+    backgroundColor: isDark ? colors.glass : 'rgba(255,255,255,0.04)',
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.08)',
+    borderColor: isDark ? colors.glassBorder : 'rgba(255,255,255,0.08)',
     alignItems: 'center',
     justifyContent: 'center',
     marginTop: 4,
@@ -849,34 +852,34 @@ const styles = StyleSheet.create({
     width: 26,
     height: 26,
     borderRadius: 13,
-    backgroundColor: 'rgba(255,255,255,0.04)',
+    backgroundColor: isDark ? colors.glass : 'rgba(255,255,255,0.04)',
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.08)',
+    borderColor: isDark ? colors.glassBorder : 'rgba(255,255,255,0.08)',
     alignItems: 'center',
     justifyContent: 'center',
   },
   stepDotActive: {
-    backgroundColor: 'rgba(108,99,255,0.25)',
-    borderColor: 'rgba(108,99,255,0.5)',
+    backgroundColor: isDark ? colors.accentSoft : 'rgba(108,99,255,0.25)',
+    borderColor: isDark ? colors.glassBorderBright : 'rgba(108,99,255,0.5)',
   },
   stepNum: {
     fontSize: 11,
     fontWeight: '700' as const,
-    color: COLORS.textSecondary,
+    color: colors.textSecondary,
   },
   stepLabel: {
     fontSize: 13,
     fontWeight: '500' as const,
-    color: COLORS.textMuted,
+    color: colors.textMuted,
   },
   stepLabelActive: {
-    color: COLORS.accent,
+    color: colors.accent,
     fontWeight: '600' as const,
   },
   stepLine: {
     flex: 1,
     height: 1,
-    backgroundColor: COLORS.divider,
+    backgroundColor: colors.divider,
     marginHorizontal: 12,
   },
   scrollView: { flex: 1 },
@@ -896,7 +899,7 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 15,
     fontWeight: '600' as const,
-    color: COLORS.textPrimary,
+    color: colors.textPrimary,
     flex: 1,
     letterSpacing: 0.15,
   },
@@ -905,7 +908,7 @@ const styles = StyleSheet.create({
     fontSize: 13,
   },
   optionalNote: {
-    color: COLORS.textMuted,
+    color: colors.textMuted,
     fontSize: 12,
     fontWeight: '400' as const,
   },
@@ -913,7 +916,7 @@ const styles = StyleSheet.create({
   inputGroup: { marginBottom: 14 },
   label: {
     fontSize: 12,
-    color: COLORS.textMuted,
+    color: colors.textMuted,
     marginBottom: 8,
     fontWeight: '500' as const,
     letterSpacing: 0.3,
@@ -921,13 +924,13 @@ const styles = StyleSheet.create({
   },
   input: {
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.08)',
+    borderColor: isDark ? colors.glassBorder : 'rgba(255,255,255,0.08)',
     borderRadius: 14,
     paddingHorizontal: 16,
     paddingVertical: 13,
     fontSize: 15,
-    color: COLORS.textPrimary,
-    backgroundColor: 'rgba(255,255,255,0.03)',
+    color: colors.textPrimary,
+    backgroundColor: isDark ? colors.glass : 'rgba(255,255,255,0.03)',
   },
   textArea: {
     minHeight: 80,
@@ -946,8 +949,8 @@ const styles = StyleSheet.create({
     paddingVertical: 9,
     borderRadius: 24,
     borderWidth: 1,
-    borderColor: COLORS.glassBorder,
-    backgroundColor: COLORS.glass,
+    borderColor: colors.glassBorder,
+    backgroundColor: colors.glass,
     gap: 7,
     position: 'relative' as const,
     marginRight: 2,
@@ -962,7 +965,7 @@ const styles = StyleSheet.create({
   categoryChipName: {
     fontSize: 13,
     fontWeight: '500' as const,
-    color: COLORS.textSecondary,
+    color: colors.textSecondary,
   },
   catIconWrap: {
     width: 28,
@@ -974,7 +977,7 @@ const styles = StyleSheet.create({
   categoryName: {
     fontSize: 13,
     fontWeight: '500' as const,
-    color: COLORS.textSecondary,
+    color: colors.textSecondary,
   },
   catCheckDot: {
     position: 'absolute' as const,
@@ -986,7 +989,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1.5,
-    borderColor: COLORS.bg,
+    borderColor: colors.bg,
   },
   // Intensity
   intensityRow: {
@@ -999,8 +1002,8 @@ const styles = StyleSheet.create({
     paddingVertical: 14,
     borderRadius: 16,
     borderWidth: 1,
-    borderColor: COLORS.glassBorder,
-    backgroundColor: COLORS.glass,
+    borderColor: colors.glassBorder,
+    backgroundColor: colors.glass,
     gap: 5,
     position: 'relative' as const,
     overflow: 'hidden' as const,
@@ -1011,7 +1014,7 @@ const styles = StyleSheet.create({
   intensityName: {
     fontSize: 12,
     fontWeight: '600' as const,
-    color: COLORS.textMuted,
+    color: colors.textMuted,
     letterSpacing: 0.2,
   },
   intensityActiveLine: {
@@ -1026,18 +1029,18 @@ const styles = StyleSheet.create({
   addFreqBtn: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: COLORS.accentSoft,
+    backgroundColor: colors.accentSoft,
     paddingHorizontal: 10,
     paddingVertical: 5,
     borderRadius: 10,
     gap: 4,
     borderWidth: 1,
-    borderColor: 'rgba(167,139,250,0.3)',
+    borderColor: isDark ? colors.glassBorderBright : 'rgba(167,139,250,0.3)',
   },
   addFreqBtnText: {
     fontSize: 12,
     fontWeight: '600' as const,
-    color: COLORS.accent,
+    color: colors.accent,
   },
   emptyFreqArea: {
     alignItems: 'center',
@@ -1047,11 +1050,11 @@ const styles = StyleSheet.create({
   emptyFreqText: {
     fontSize: 14,
     fontWeight: '500' as const,
-    color: COLORS.textSecondary,
+    color: colors.textSecondary,
   },
   emptyFreqSub: {
     fontSize: 12,
-    color: COLORS.textMuted,
+    color: colors.textMuted,
   },
   frequencyList: { gap: 8 },
   frequencyItem: {
@@ -1059,10 +1062,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingVertical: 10,
     paddingHorizontal: 12,
-    backgroundColor: COLORS.glass,
+    backgroundColor: colors.glass,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: COLORS.glassBorder,
+    borderColor: colors.glassBorder,
     gap: 10,
   },
   freqIndexBadge: {
@@ -1080,12 +1083,12 @@ const styles = StyleSheet.create({
   frequencyName: {
     fontSize: 14,
     fontWeight: '600' as const,
-    color: COLORS.textPrimary,
+    color: colors.textPrimary,
     marginBottom: 2,
   },
   frequencyHz: {
     fontSize: 11,
-    color: COLORS.textMuted,
+    color: colors.textMuted,
   },
   removeFreqBtn: {
     width: 28,
@@ -1103,12 +1106,12 @@ const styles = StyleSheet.create({
     gap: 7,
     paddingTop: 10,
     borderTopWidth: 1,
-    borderTopColor: COLORS.divider,
+    borderTopColor: colors.divider,
     marginTop: 4,
   },
   totalDurationText: {
     fontSize: 13,
-    color: COLORS.textSecondary,
+    color: colors.textSecondary,
   },
   // Schedule
   scheduleGrid: {
@@ -1123,22 +1126,22 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: COLORS.glassBorder,
-    backgroundColor: COLORS.glass,
+    borderColor: colors.glassBorder,
+    backgroundColor: colors.glass,
     gap: 5,
   },
   scheduleChipText: {
     fontSize: 13,
     fontWeight: '500' as const,
-    color: COLORS.textMuted,
+    color: colors.textMuted,
   },
   // Notification
   notifToggle: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: COLORS.glass,
+    backgroundColor: colors.glass,
     borderWidth: 1,
-    borderColor: COLORS.glassBorder,
+    borderColor: colors.glassBorder,
     paddingHorizontal: 10,
     paddingVertical: 5,
     borderRadius: 10,
@@ -1147,11 +1150,11 @@ const styles = StyleSheet.create({
   notifToggleText: {
     fontSize: 12,
     fontWeight: '600' as const,
-    color: COLORS.textMuted,
+    color: colors.textMuted,
   },
   notifHint: {
     fontSize: 13,
-    color: COLORS.textMuted,
+    color: colors.textMuted,
     lineHeight: 18,
   },
   webNotifNote: {
@@ -1160,15 +1163,15 @@ const styles = StyleSheet.create({
     gap: 8,
     paddingVertical: 12,
     paddingHorizontal: 14,
-    backgroundColor: COLORS.glass,
+    backgroundColor: colors.glass,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: COLORS.glassBorder,
+    borderColor: colors.glassBorder,
     marginTop: 4,
   },
   webNotifNoteText: {
     fontSize: 13,
-    color: COLORS.textMuted,
+    color: colors.textMuted,
     flex: 1,
     lineHeight: 18,
   },
@@ -1176,7 +1179,7 @@ const styles = StyleSheet.create({
   timePicker: { marginTop: 8 },
   timePickerLabel: {
     fontSize: 12,
-    color: COLORS.textMuted,
+    color: colors.textMuted,
     fontWeight: '500' as const,
     letterSpacing: 0.5,
     textTransform: 'uppercase' as const,
@@ -1194,7 +1197,7 @@ const styles = StyleSheet.create({
   },
   timeColumnLabel: {
     fontSize: 11,
-    color: COLORS.textMuted,
+    color: colors.textMuted,
     fontWeight: '500' as const,
     letterSpacing: 0.3,
   },
@@ -1216,23 +1219,23 @@ const styles = StyleSheet.create({
     marginVertical: 1,
   },
   timeItemActive: {
-    backgroundColor: 'rgba(108,99,255,0.3)',
+    backgroundColor: isDark ? colors.accentSoft : 'rgba(108,99,255,0.3)',
     borderWidth: 1,
-    borderColor: 'rgba(108,99,255,0.5)',
+    borderColor: isDark ? colors.glassBorderBright : 'rgba(108,99,255,0.5)',
   },
   timeItemText: {
     fontSize: 16,
     fontWeight: '500' as const,
-    color: COLORS.textMuted,
+    color: colors.textMuted,
   },
   timeItemTextActive: {
-    color: COLORS.accent,
+    color: colors.accent,
     fontWeight: '700' as const,
   },
   timeSep: {
     fontSize: 24,
     fontWeight: '700' as const,
-    color: COLORS.textMuted,
+    color: colors.textMuted,
     marginTop: 42,
   },
   timePreview: {
@@ -1241,14 +1244,14 @@ const styles = StyleSheet.create({
     gap: 8,
     marginTop: 16,
     padding: 12,
-    backgroundColor: COLORS.goldGlow,
+    backgroundColor: colors.goldGlow,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: COLORS.gold + '30',
+    borderColor: colors.gold + '30',
   },
   timePreviewText: {
     fontSize: 13,
-    color: COLORS.textSecondary,
+    color: colors.textSecondary,
     flex: 1,
     lineHeight: 20,
   },
@@ -1272,7 +1275,7 @@ const styles = StyleSheet.create({
     fontFamily: FONTS.heading,
     fontSize: 14,
     fontWeight: '400' as const,
-    color: COLORS.textPrimary,
+    color: colors.textPrimary,
     letterSpacing: 0.5,
     textTransform: 'uppercase' as const,
     marginBottom: 14,
@@ -1283,17 +1286,17 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingVertical: 8,
     borderBottomWidth: 1,
-    borderBottomColor: COLORS.divider,
+    borderBottomColor: colors.divider,
   },
   summaryKey: {
     fontSize: 13,
-    color: COLORS.textMuted,
+    color: colors.textMuted,
     fontWeight: '500' as const,
   },
   summaryVal: {
     fontFamily: FONTS.body,
     fontSize: 13,
-    color: COLORS.textPrimary,
+    color: colors.textPrimary,
     fontWeight: '600' as const,
     maxWidth: '60%',
     textAlign: 'right' as const,
@@ -1334,9 +1337,9 @@ const styles = StyleSheet.create({
   backBtn: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: COLORS.glass,
+    backgroundColor: colors.glass,
     borderWidth: 1,
-    borderColor: COLORS.glassBorder,
+    borderColor: colors.glassBorder,
     paddingHorizontal: 16,
     paddingVertical: 14,
     borderRadius: 18,
@@ -1345,7 +1348,7 @@ const styles = StyleSheet.create({
   backBtnText: {
     fontSize: 14,
     fontWeight: '600' as const,
-    color: COLORS.textSecondary,
+    color: colors.textSecondary,
   },
   createButton: {
     flex: 1,
@@ -1371,7 +1374,7 @@ const styles = StyleSheet.create({
     letterSpacing: 0.3,
   },
   // Frequency picker
-  pickerContainer: { flex: 1 },
+  pickerContainer: { flex: 1, backgroundColor: colors.bg },
   pickerContent: {
     flex: 1,
     paddingHorizontal: 22,
@@ -1385,7 +1388,7 @@ const styles = StyleSheet.create({
   pickerEyebrow: {
     fontSize: 11,
     fontWeight: '600' as const,
-    color: COLORS.textMuted,
+    color: colors.textMuted,
     letterSpacing: 1.8,
     textTransform: 'uppercase' as const,
     marginBottom: 3,
@@ -1393,7 +1396,7 @@ const styles = StyleSheet.create({
   pickerTitle: {
     fontSize: 24,
     fontWeight: '700' as const,
-    color: COLORS.textPrimary,
+    color: colors.textPrimary,
   },
   durationCard: {
     borderRadius: 18,
@@ -1409,21 +1412,21 @@ const styles = StyleSheet.create({
     paddingVertical: 9,
     borderRadius: 10,
     borderWidth: 1,
-    borderColor: COLORS.glassBorder,
-    backgroundColor: COLORS.glass,
+    borderColor: colors.glassBorder,
+    backgroundColor: colors.glass,
     alignItems: 'center',
   },
   durationChipActive: {
-    backgroundColor: 'rgba(108,99,255,0.2)',
-    borderColor: 'rgba(108,99,255,0.5)',
+    backgroundColor: isDark ? colors.accentSoft : 'rgba(108,99,255,0.2)',
+    borderColor: isDark ? colors.glassBorderBright : 'rgba(108,99,255,0.5)',
   },
   durationChipText: {
     fontSize: 13,
     fontWeight: '600' as const,
-    color: COLORS.textMuted,
+    color: colors.textMuted,
   },
   durationChipTextActive: {
-    color: COLORS.accent,
+    color: colors.accent,
   },
   freqCatScroll: { marginBottom: 14 },
   freqCatScrollContent: {
@@ -1435,21 +1438,21 @@ const styles = StyleSheet.create({
     paddingVertical: 7,
     borderRadius: 10,
     borderWidth: 1,
-    borderColor: COLORS.glassBorder,
-    backgroundColor: COLORS.glass,
+    borderColor: colors.glassBorder,
+    backgroundColor: colors.glass,
     marginRight: 6,
   },
   freqCatChipActive: {
-    backgroundColor: 'rgba(108,99,255,0.2)',
-    borderColor: 'rgba(108,99,255,0.5)',
+    backgroundColor: isDark ? colors.accentSoft : 'rgba(108,99,255,0.2)',
+    borderColor: isDark ? colors.glassBorderBright : 'rgba(108,99,255,0.5)',
   },
   freqCatChipText: {
     fontSize: 12,
     fontWeight: '500' as const,
-    color: COLORS.textMuted,
+    color: colors.textMuted,
   },
   freqCatChipTextActive: {
-    color: COLORS.accent,
+    color: colors.accent,
     fontWeight: '600' as const,
   },
   frequencyOptionCard: {
@@ -1476,27 +1479,27 @@ const styles = StyleSheet.create({
   freqOptionHzUnit: {
     fontSize: 9,
     fontWeight: '600' as const,
-    color: COLORS.textMuted,
+    color: colors.textMuted,
     letterSpacing: 0.5,
   },
   freqOptionInfo: { flex: 1 },
   frequencyOptionName: {
     fontSize: 14,
     fontWeight: '600' as const,
-    color: COLORS.textPrimary,
+    color: colors.textPrimary,
     marginBottom: 3,
   },
   frequencyOptionDetails: {
     fontSize: 12,
-    color: COLORS.textMuted,
+    color: colors.textMuted,
   },
   freqAddBtn: {
     width: 30,
     height: 30,
     borderRadius: 10,
-    backgroundColor: COLORS.accentSoft,
+    backgroundColor: colors.accentSoft,
     borderWidth: 1,
-    borderColor: 'rgba(167,139,250,0.3)',
+    borderColor: isDark ? colors.glassBorderBright : 'rgba(167,139,250,0.3)',
     alignItems: 'center',
     justifyContent: 'center',
   },

@@ -300,7 +300,7 @@ export default function LearnScreen() {
       gradient: [a.colorToken || '#A78BFA', a.colorToken || '#7C3AED'],
     }));
   }, [rawArticles]);
-  const styles = useMemo(() => createStyles(colors, gradients), [colors, gradients]);
+  const styles = useMemo(() => createStyles(colors, gradients, isDark), [colors, gradients, isDark]);
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [selectedArticle, setSelectedArticle] = useState<Article | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
@@ -384,7 +384,7 @@ export default function LearnScreen() {
   const restArticles = filteredArticles.slice(1);
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: colors.bg }]}>
       <LinearGradient colors={gradients.bg} style={StyleSheet.absoluteFillObject} pointerEvents="none" />
       <View style={styles.ambientOrb} pointerEvents="none" />
       <View style={styles.ambientOrb2} pointerEvents="none" />
@@ -617,7 +617,7 @@ export default function LearnScreen() {
       {/* Article Modal */}
       {selectedArticle && (
         <Modal visible animationType="slide" presentationStyle="fullScreen">
-          <View style={styles.modalWrap}>
+          <View style={[styles.modalWrap, { backgroundColor: colors.bg }]}>
             <LinearGradient colors={gradients.bg} style={StyleSheet.absoluteFillObject} pointerEvents="none" />
             {/* Ambient color orb from article */}
             <View style={[styles.modalAmbientOrb, { backgroundColor: selectedArticle.color + '12' }]} pointerEvents="none" />
@@ -773,7 +773,9 @@ export default function LearnScreen() {
             {/* Floating practice CTA */}
             <View style={[styles.modalFloatingBar, { paddingBottom: insets.bottom + 12 }]}>
               <LinearGradient
-                colors={['rgba(10,14,26,0)', 'rgba(10,14,26,0.98)', 'rgba(10,14,26,1)']}
+                colors={isDark
+                  ? ['rgba(10,14,26,0)', 'rgba(10,14,26,0.98)', colors.bg]
+                  : ['rgba(245,246,250,0)', 'rgba(245,246,250,0.98)', colors.bg]}
                 style={StyleSheet.absoluteFillObject}
                 pointerEvents="none"
               />
@@ -805,7 +807,7 @@ export default function LearnScreen() {
   );
 }
 
-const createStyles = (colors: any, gradients: any) => StyleSheet.create({
+const createStyles = (colors: any, gradients: any, isDark: boolean) => StyleSheet.create({
   container: { flex: 1 },
   ambientOrb: {
     position: 'absolute',
@@ -931,7 +933,7 @@ const createStyles = (colors: any, gradients: any) => StyleSheet.create({
     width: 44,
     height: 44,
     borderRadius: 14,
-    backgroundColor: 'rgba(255,255,255,0.2)',
+    backgroundColor: isDark ? colors.glassStrong : 'rgba(255,255,255,0.2)',
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -1247,7 +1249,7 @@ const createStyles = (colors: any, gradients: any) => StyleSheet.create({
     lineHeight: 20,
   },
   // Modal
-  modalWrap: { flex: 1 },
+  modalWrap: { flex: 1, backgroundColor: colors.bg },
   modalAmbientOrb: {
     position: 'absolute',
     width: 350,

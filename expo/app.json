@@ -48,7 +48,13 @@
         {
           "microphonePermission": false
         }
-      ]
+      ],
+      "expo-font",
+      "expo-image",
+      "expo-notifications",
+      "expo-splash-screen",
+      "expo-status-bar",
+      "expo-web-browser"
     ],
     "experiments": {
       "typedRoutes": true

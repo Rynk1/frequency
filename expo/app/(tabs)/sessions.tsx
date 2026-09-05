@@ -198,7 +198,7 @@ const GlassCard = SharedGlassCard;
 export default function SessionsScreen() {
   const insets = useSafeAreaInsets();
   const { colors, gradients, isDark } = useTheme();
-  const styles = useMemo(() => createStyles(colors, gradients), [colors, gradients]);
+  const styles = useMemo(() => createStyles(colors, gradients, isDark), [colors, gradients, isDark]);
   const [mainTab, setMainTab] = useState<'journey' | 'programs'>('journey');
   const [activeTab, setActiveTab] = useState<'active' | 'completed' | 'scheduled'>('active');
   const [showCreateModal, setShowCreateModal] = useState(false);
@@ -929,7 +929,7 @@ export default function SessionsScreen() {
   );
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: colors.bg }]}>
       <LinearGradient colors={gradients.bg} style={StyleSheet.absoluteFillObject} pointerEvents="none" />
 
       {/* Ambient orb background */}
@@ -1157,7 +1157,7 @@ export default function SessionsScreen() {
   );
 }
 
-const createStyles = (colors: any, gradients: any) => StyleSheet.create({
+const createStyles = (colors: any, gradients: any, isDark: boolean) => StyleSheet.create({
   container: { flex: 1 },
   safeArea: { flex: 1 },
   bgOrb1: {
@@ -1230,9 +1230,9 @@ const createStyles = (colors: any, gradients: any) => StyleSheet.create({
     borderRadius: 11,
   },
   mainTabActive: {
-    backgroundColor: 'rgba(108,99,255,0.3)',
+    backgroundColor: isDark ? colors.accentSoft : 'rgba(108,99,255,0.3)',
     borderWidth: 1,
-    borderColor: 'rgba(108,99,255,0.5)',
+    borderColor: isDark ? colors.glassBorderBright : 'rgba(108,99,255,0.5)',
   },
   mainTabText: {
     fontSize: 13,
@@ -1280,7 +1280,7 @@ const createStyles = (colors: any, gradients: any) => StyleSheet.create({
     width: 210,
     height: 210,
     borderRadius: 105,
-    backgroundColor: 'rgba(108,99,255,0.05)',
+    backgroundColor: isDark ? colors.glass : 'rgba(108,99,255,0.05)',
     borderWidth: 1,
     borderColor: 'rgba(108,99,255,0.18)',
     alignItems: 'center',
@@ -1307,9 +1307,9 @@ const createStyles = (colors: any, gradients: any) => StyleSheet.create({
     width: 174,
     height: 174,
     borderRadius: 87,
-    backgroundColor: 'rgba(108,99,255,0.09)',
+    backgroundColor: isDark ? colors.glassMid : 'rgba(108,99,255,0.09)',
     borderWidth: 1,
-    borderColor: 'rgba(108,99,255,0.22)',
+    borderColor: isDark ? colors.glassBorderBright : 'rgba(108,99,255,0.22)',
     alignItems: 'center',
     justifyContent: 'center',
     position: 'relative',
@@ -1528,13 +1528,13 @@ const createStyles = (colors: any, gradients: any) => StyleSheet.create({
     width: 28,
     height: 28,
     borderRadius: 14,
-    backgroundColor: 'rgba(255,255,255,0.04)',
+    backgroundColor: isDark ? colors.glass : 'rgba(255,255,255,0.04)',
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.08)',
+    borderColor: isDark ? colors.glassBorder : 'rgba(255,255,255,0.08)',
   },
   weekDotActive: {
-    backgroundColor: 'rgba(108,99,255,0.25)',
-    borderColor: 'rgba(108,99,255,0.5)',
+    backgroundColor: isDark ? colors.accentSoft : 'rgba(108,99,255,0.25)',
+    borderColor: isDark ? colors.glassBorderBright : 'rgba(108,99,255,0.5)',
   },
   weekDayLabel: {
     fontSize: 11,
@@ -1557,13 +1557,13 @@ const createStyles = (colors: any, gradients: any) => StyleSheet.create({
   addBtn: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(255,255,255,0.05)',
+    backgroundColor: isDark ? colors.glass : 'rgba(255,255,255,0.05)',
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 12,
     gap: 4,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.10)',
+    borderColor: isDark ? colors.glassBorder : 'rgba(255,255,255,0.10)',
   },
   addBtnText: {
     fontSize: 12,
@@ -1579,13 +1579,13 @@ const createStyles = (colors: any, gradients: any) => StyleSheet.create({
     paddingHorizontal: 14,
     paddingVertical: 7,
     borderRadius: 12,
-    backgroundColor: 'rgba(255,255,255,0.04)',
+    backgroundColor: isDark ? colors.glass : 'rgba(255,255,255,0.04)',
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.08)',
+    borderColor: isDark ? colors.glassBorder : 'rgba(255,255,255,0.08)',
   },
   tabPillActive: {
-    backgroundColor: 'rgba(108,99,255,0.15)',
-    borderColor: 'rgba(108,99,255,0.4)',
+    backgroundColor: isDark ? colors.accentSoft : 'rgba(108,99,255,0.15)',
+    borderColor: isDark ? colors.glassBorderBright : 'rgba(108,99,255,0.4)',
   },
   tabPillText: {
     fontSize: 12,
@@ -1611,9 +1611,9 @@ const createStyles = (colors: any, gradients: any) => StyleSheet.create({
     borderRadius: 14,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: 'rgba(255,255,255,0.04)',
+    backgroundColor: isDark ? colors.glass : 'rgba(255,255,255,0.04)',
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.08)',
+    borderColor: isDark ? colors.glassBorder : 'rgba(255,255,255,0.08)',
   },
   sessionInfo: { flex: 1 },
   sessionName: {
@@ -1655,7 +1655,7 @@ const createStyles = (colors: any, gradients: any) => StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1,
-    backgroundColor: 'rgba(255,255,255,0.05)',
+    backgroundColor: isDark ? colors.glass : 'rgba(255,255,255,0.05)',
   },
   // Empty state
   emptyCard: {
@@ -1686,7 +1686,7 @@ const createStyles = (colors: any, gradients: any) => StyleSheet.create({
     marginTop: 8,
     gap: 6,
     borderWidth: 1,
-    borderColor: 'rgba(167,139,250,0.3)',
+    borderColor: isDark ? colors.glassBorderBright : 'rgba(167,139,250,0.3)',
   },
   emptyBtnText: {
     fontSize: 13,
@@ -1900,7 +1900,7 @@ const createStyles = (colors: any, gradients: any) => StyleSheet.create({
     fontWeight: '600' as const,
   },
   // Detail Modal
-  detailModal: { flex: 1 },
+  detailModal: { flex: 1, backgroundColor: colors.bg },
   detailContent: {
     flex: 1,
     paddingHorizontal: 22,
@@ -2033,7 +2033,7 @@ const createStyles = (colors: any, gradients: any) => StyleSheet.create({
     justifyContent: 'center',
     backgroundColor: colors.glass,
     borderWidth: 1,
-    borderColor: 'rgba(167,139,250,0.35)',
+    borderColor: colors.glassBorderBright,
     paddingVertical: 14,
     borderRadius: 18,
     gap: 8,

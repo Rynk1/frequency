@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Platform } from 'react-native';
-import * as Notifications from 'expo-notifications';
+import Constants from 'expo-constants';
 import createContextHook from '@nkzw/create-context-hook';
 import {
   collection,
@@ -27,6 +27,13 @@ interface Frequency {
   minDuration?: number;
   maxDuration?: number;
 }
+
+const isExpoGo = Constants.appOwnership === 'expo';
+
+const getNotifications = () => {
+  if (Platform.OS === 'web' || isExpoGo) return null;
+  return require('expo-notifications') as typeof import('expo-notifications');
+};
 
 export interface Reminder {
   id: string;
@@ -471,9 +478,9 @@ export const [SessionManagerProvider, useSessionManager] = createContextHook(() 
   }, []);
 
   const requestNotificationPermission = useCallback(async (): Promise<boolean> => {
-    if (Platform.OS === 'web') return false;
+    const Notifications = getNotifications();
+    if (!Notifications) return false;
     try {
-      if (typeof Notifications.getPermissionsAsync !== 'function') return false;
       const { status } = await Notifications.getPermissionsAsync();
       if (status === 'granted') return true;
       const { status: newStatus } = await Notifications.requestPermissionsAsync();
@@ -490,11 +497,11 @@ export const [SessionManagerProvider, useSessionManager] = createContextHook(() 
     minute: number,
     _days: string[]
   ): Promise<string | null> => {
-    if (Platform.OS === 'web') return null;
+    const Notifications = getNotifications();
+    if (!Notifications) return null;
     try {
       const granted = await requestNotificationPermission();
       if (!granted) return null;
-      if (typeof Notifications.scheduleNotificationAsync !== 'function') return null;
       const id = await Notifications.scheduleNotificationAsync({
         content: {
           title: '🎵 Session Reminder',
@@ -516,9 +523,9 @@ export const [SessionManagerProvider, useSessionManager] = createContextHook(() 
   }, [requestNotificationPermission]);
 
   const cancelReminderNotification = useCallback(async (notificationId: string | null) => {
-    if (!notificationId || Platform.OS === 'web') return;
+    const Notifications = getNotifications();
+    if (!notificationId || !Notifications) return;
     try {
-      if (typeof Notifications.cancelScheduledNotificationAsync !== 'function') return;
       await Notifications.cancelScheduledNotificationAsync(notificationId);
     } catch (e) {
       console.warn('Notification cancellation skipped in Expo Go:', e);

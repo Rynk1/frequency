@@ -1,7 +1,7 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Stack } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
-import * as Notifications from "expo-notifications";
+import Constants from "expo-constants";
 import React, { useEffect, useState } from "react";
 import { Platform, View, ActivityIndicator, StatusBar } from "react-native";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
@@ -60,8 +60,11 @@ function RootLayoutNav() {
   );
 }
 
+const isExpoGo = Constants.appOwnership === 'expo';
+
 // Configure notification handler globally
-if (Platform.OS !== 'web') {
+if (Platform.OS !== 'web' && !isExpoGo) {
+  const Notifications = require('expo-notifications');
   Notifications.setNotificationHandler({
     handleNotification: async () => ({
       shouldShowAlert: true,
@@ -83,8 +86,9 @@ export default function RootLayout() {
 
   // Request notification permissions on mount for native platforms
   useEffect(() => {
-    if (Platform.OS !== 'web') {
-      Notifications.getPermissionsAsync().then(({ status }) => {
+    if (Platform.OS !== 'web' && !isExpoGo) {
+      const Notifications = require('expo-notifications');
+      Notifications.getPermissionsAsync().then(({ status }: { status: string }) => {
         if (status !== 'granted') {
           Notifications.requestPermissionsAsync().catch(() => {});
         }

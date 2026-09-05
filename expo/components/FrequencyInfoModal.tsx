@@ -880,6 +880,7 @@ export function FrequencyInfoModal({ visible, onClose, frequency, category }: Fr
 const createStyles = (colors: ThemeColors, gradients: ThemeGradients) => StyleSheet.create({
   container: {
     flex: 1,
+    backgroundColor: colors.bg,
   },
   // Ambient orbs
   ambientOrb: {

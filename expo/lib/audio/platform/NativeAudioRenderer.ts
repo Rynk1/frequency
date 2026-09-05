@@ -1,4 +1,3 @@
-import { Audio, InterruptionModeIOS, InterruptionModeAndroid } from 'expo-av';
 import {
   documentDirectory,
   cacheDirectory,
@@ -10,9 +9,13 @@ import { FrequencyAudioSpec } from '../AudioTypes';
 import { SignalGenerator } from '../SignalGenerator';
 
 export class NativeAudioRenderer {
-  private sound: Audio.Sound | null = null;
+  private sound: { stopAsync: () => Promise<unknown>; unloadAsync: () => Promise<unknown>; setVolumeAsync: (volume: number) => Promise<unknown> } | null = null;
   private isLoaded: boolean = false;
   private cacheMap: Map<string, string> = new Map();
+
+  private getAudioModule(): typeof import('expo-av') {
+    return require('expo-av');
+  }
 
   private async getToneFileUri(spec: FrequencyAudioSpec): Promise<string> {
     const cacheKey = SignalGenerator.getCacheKey(spec);
@@ -50,6 +53,8 @@ export class NativeAudioRenderer {
 
   async play(spec: FrequencyAudioSpec, volume: number = 0.5): Promise<void> {
     await this.stop();
+
+    const { Audio, InterruptionModeIOS, InterruptionModeAndroid } = this.getAudioModule();
 
     await Audio.setAudioModeAsync({
       allowsRecordingIOS: false,

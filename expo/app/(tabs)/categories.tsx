@@ -34,7 +34,7 @@ const GlassCard = SharedGlassCard;
 export default function CategoriesScreen() {
   const insets = useSafeAreaInsets();
   const { colors, gradients, isDark } = useTheme();
-  const styles = useMemo(() => createStyles(colors), [colors]);
+  const styles = useMemo(() => createStyles(colors, isDark), [colors, isDark]);
   const [activeTab, setActiveTab] = useState<TabType>('overview');
   const [selectedCategory, setSelectedCategory] = useState<CategoryType>('all');
   const [selectedFrequency, setSelectedFrequency] = useState<any>(null);
@@ -410,7 +410,7 @@ export default function CategoriesScreen() {
 
   if (isLoading && !isInitialized) {
     return (
-      <View style={styles.container}>
+      <View style={[styles.container, { backgroundColor: colors.bg }]}>
         <LinearGradient colors={gradients.bg as any} style={StyleSheet.absoluteFillObject} pointerEvents="none" />
         <View style={[styles.safeArea, { paddingTop: insets.top, justifyContent: 'center', alignItems: 'center' }]}>
           <Text style={[styles.loadingText, { color: colors.textSecondary }]}>Loading Frequencies...</Text>
@@ -420,7 +420,7 @@ export default function CategoriesScreen() {
   }
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: colors.bg }]}>
       <LinearGradient colors={gradients.bg as any} style={StyleSheet.absoluteFillObject} pointerEvents="none" />
 
       <View style={[styles.ambientOrb1, { backgroundColor: isDark ? 'rgba(108,99,255,0.11)' : 'rgba(108,99,255,0.06)' }]} pointerEvents="none" />
@@ -499,7 +499,7 @@ export default function CategoriesScreen() {
   );
 }
 
-const createStyles = (colors: any) => StyleSheet.create({
+const createStyles = (colors: any, isDark: boolean) => StyleSheet.create({
   container: { flex: 1 },
   safeArea: { flex: 1 },
   ambientOrb1: {
@@ -559,9 +559,9 @@ const createStyles = (colors: any) => StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 5,
-    backgroundColor: 'rgba(255,255,255,0.05)',
+    backgroundColor: isDark ? colors.glass : 'rgba(255,255,255,0.05)',
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.1)',
+    borderColor: isDark ? colors.glassBorder : 'rgba(255,255,255,0.1)',
     paddingHorizontal: 12,
     paddingVertical: 7,
     borderRadius: 12,
@@ -591,9 +591,9 @@ const createStyles = (colors: any) => StyleSheet.create({
     gap: 6,
   },
   tabActive: {
-    backgroundColor: 'rgba(108,99,255,0.18)',
+    backgroundColor: isDark ? colors.accentSoft : 'rgba(108,99,255,0.18)',
     borderWidth: 1,
-    borderColor: 'rgba(108,99,255,0.35)',
+    borderColor: isDark ? colors.glassBorderBright : 'rgba(108,99,255,0.35)',
   },
   tabText: {
     fontSize: 14,
@@ -605,12 +605,12 @@ const createStyles = (colors: any) => StyleSheet.create({
     fontWeight: '700' as const,
   },
   tabBadge: {
-    backgroundColor: 'rgba(255,255,255,0.06)',
+    backgroundColor: isDark ? colors.glassMid : 'rgba(255,255,255,0.06)',
     borderRadius: 8,
     paddingHorizontal: 6,
     paddingVertical: 2,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.1)',
+    borderColor: isDark ? colors.glassBorder : 'rgba(255,255,255,0.1)',
   },
   tabBadgeText: {
     fontSize: 10,
@@ -685,7 +685,7 @@ const createStyles = (colors: any) => StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1,
-    backgroundColor: 'rgba(255,255,255,0.05)',
+    backgroundColor: isDark ? colors.glass : 'rgba(255,255,255,0.05)',
   },
   catCardHeaderText: { flex: 1 },
   catName: {
@@ -701,11 +701,11 @@ const createStyles = (colors: any) => StyleSheet.create({
     fontWeight: '500' as const,
   },
   premiumBadge: {
-    backgroundColor: 'rgba(212,175,55,0.12)',
+    backgroundColor: isDark ? colors.goldGlow : 'rgba(212,175,55,0.12)',
     borderRadius: 10,
     padding: 6,
     borderWidth: 1,
-    borderColor: 'rgba(212,175,55,0.25)',
+    borderColor: isDark ? colors.gold : 'rgba(212,175,55,0.25)',
   },
   catDescription: {
     fontSize: 13,
@@ -747,7 +747,7 @@ const createStyles = (colors: any) => StyleSheet.create({
     borderRadius: 12,
     gap: 7,
     borderWidth: 1,
-    backgroundColor: 'rgba(255,255,255,0.04)',
+    backgroundColor: isDark ? colors.glass : 'rgba(255,255,255,0.04)',
   },
   catSelectBtnText: {
     fontSize: 13,
@@ -772,15 +772,15 @@ const createStyles = (colors: any) => StyleSheet.create({
     paddingHorizontal: 14,
     paddingVertical: 10,
     borderRadius: 14,
-    backgroundColor: 'rgba(255,255,255,0.04)',
+    backgroundColor: isDark ? colors.glass : 'rgba(255,255,255,0.04)',
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.08)',
+    borderColor: isDark ? colors.glassBorder : 'rgba(255,255,255,0.08)',
     gap: 6,
     position: 'relative',
   },
   libFilterTabActive: {
-    backgroundColor: 'rgba(167,139,250,0.15)',
-    borderColor: 'rgba(167,139,250,0.4)',
+    backgroundColor: isDark ? colors.accentSoft : 'rgba(167,139,250,0.15)',
+    borderColor: isDark ? colors.glassBorderBright : 'rgba(167,139,250,0.4)',
   },
   libFilterTabActiveColored: {},
   libFilterTabText: {
@@ -793,18 +793,18 @@ const createStyles = (colors: any) => StyleSheet.create({
     fontWeight: '700' as const,
   },
   libFilterCount: {
-    backgroundColor: 'rgba(255,255,255,0.05)',
+    backgroundColor: isDark ? colors.glass : 'rgba(255,255,255,0.05)',
     borderRadius: 7,
     paddingHorizontal: 6,
     paddingVertical: 2,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.08)',
+    borderColor: isDark ? colors.glassBorder : 'rgba(255,255,255,0.08)',
     minWidth: 22,
     alignItems: 'center',
   },
   libFilterCountActive: {
-    backgroundColor: 'rgba(255,255,255,0.08)',
-    borderColor: 'rgba(255,255,255,0.12)',
+    backgroundColor: isDark ? colors.glassMid : 'rgba(255,255,255,0.08)',
+    borderColor: isDark ? colors.glassBorderBright : 'rgba(255,255,255,0.12)',
   },
   libFilterCountText: {
     fontSize: 10,
@@ -845,12 +845,12 @@ const createStyles = (colors: any) => StyleSheet.create({
     flex: 1,
   },
   resultsCatTag: {
-    backgroundColor: 'rgba(255,255,255,0.05)',
+    backgroundColor: isDark ? colors.glass : 'rgba(255,255,255,0.05)',
     borderRadius: 8,
     paddingHorizontal: 8,
     paddingVertical: 3,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.1)',
+    borderColor: isDark ? colors.glassBorder : 'rgba(255,255,255,0.1)',
   },
   resultsCatTagText: {
     fontSize: 11,
@@ -893,7 +893,7 @@ const createStyles = (colors: any) => StyleSheet.create({
     justifyContent: 'center',
     borderWidth: 1,
     flexShrink: 0,
-    backgroundColor: 'rgba(255,255,255,0.04)',
+    backgroundColor: isDark ? colors.glass : 'rgba(255,255,255,0.04)',
   },
   freqHz: {
     fontSize: 15,
@@ -926,7 +926,7 @@ const createStyles = (colors: any) => StyleSheet.create({
     borderRadius: 8,
     borderWidth: 1,
     flexShrink: 0,
-    backgroundColor: 'rgba(255,255,255,0.05)',
+    backgroundColor: isDark ? colors.glass : 'rgba(255,255,255,0.05)',
   },
   freqCatBadgeText: {
     fontSize: 10,
@@ -967,7 +967,7 @@ const createStyles = (colors: any) => StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1,
-    backgroundColor: 'rgba(255,255,255,0.05)',
+    backgroundColor: isDark ? colors.glass : 'rgba(255,255,255,0.05)',
   },
   freqPlayBtn: {
     width: 34,
