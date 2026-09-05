@@ -54,7 +54,14 @@ export const PremiumGate: React.FC<PremiumGateProps> = ({
               colors={['rgba(15,22,40,0.96)', 'rgba(10,14,26,0.96)'] as const}
               style={styles.gradient}
             >
-              <TouchableOpacity style={styles.closeButton} onPress={onClose} testID="close-premium-gate">
+              <TouchableOpacity
+                style={styles.closeButton}
+                onPress={onClose}
+                testID="close-premium-gate"
+                accessibilityRole="button"
+                accessibilityLabel="Close premium gate"
+                accessibilityHint="Double tap to close"
+              >
                 <X color={COLORS.textSecondary} size={20} />
               </TouchableOpacity>
 
@@ -99,6 +106,9 @@ export const PremiumGate: React.FC<PremiumGateProps> = ({
                   style={styles.upgradeButton}
                   onPress={handleUpgradePress}
                   testID="upgrade-from-gate"
+                  accessibilityRole="button"
+                  accessibilityLabel={`${feature}, Premium Feature`}
+                  accessibilityHint="Double tap to start trial or view subscription plans"
                 >
                   <LinearGradient
                     colors={GRADIENTS.gold}
@@ -129,6 +139,7 @@ export const PremiumGate: React.FC<PremiumGateProps> = ({
         onClose={handlePremiumModalClose}
         onStartTrial={handlePremiumModalClose}
         onUpgrade={handlePremiumModalClose}
+        trigger="premium_content"
       />
     </>
   );
@@ -152,7 +163,7 @@ const styles = StyleSheet.create({
   },
   gradient: { padding: 24, borderRadius: 24 },
   closeButton: {
-    alignSelf: 'flex-end', width: 30, height: 30, borderRadius: 15,
+    alignSelf: 'flex-end', width: 44, height: 44, borderRadius: 22,
     backgroundColor: COLORS.glass, alignItems: 'center', justifyContent: 'center',
     marginBottom: 8,
   },

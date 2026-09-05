@@ -4,6 +4,11 @@ import createContextHook from '@nkzw/create-context-hook';
 import { db } from '@/lib/firebase';
 import { doc, getDoc, setDoc, updateDoc, Timestamp } from 'firebase/firestore';
 import { useDataMode } from './useDataMode';
+import {
+  computeCapabilities,
+  EntitlementCapabilities,
+  EntitlementState,
+} from '@/lib/subscription-service';
 
 interface UserProfile {
   uid: string;
@@ -36,22 +41,24 @@ interface AuthContextType {
   isPremium: boolean;
   isTrialActive: boolean;
   trialDaysLeft: number;
+  capabilities: EntitlementCapabilities;
+  entitlementState: EntitlementState;
   signIn: (email: string, password: string) => Promise<void>;
   signUp: (email: string, password: string, displayName?: string) => Promise<void>;
   signOut: () => Promise<void>;
   updateProfile: (updates: Partial<UserProfile>) => Promise<void>;
   /**
-   * Refresh subscription entitlement from the server (Stripe via Hono backend).
+   * Refresh subscription entitlement from the server (Stripe / Google Play / RevenueCat via Firebase).
    * This is the source of truth — the client never mutates subscription fields.
    */
   refreshSubscriptionStatus: () => Promise<void>;
   /**
-   * @deprecated Subscription is now managed via Stripe checkout. This is a no-op
+   * @deprecated Subscription is now managed via checkout. This is a no-op
    * kept for backwards compatibility — use createCheckoutSession from lib/subscription-service.
    */
   startTrial: (options?: { hasAcceptedAutoRenew: boolean }) => Promise<void>;
   /**
-   * @deprecated Use Stripe checkout via lib/subscription-service instead.
+   * @deprecated Use checkout via lib/subscription-service instead.
    */
   upgradeToPremium: (type: 'monthly' | 'yearly') => Promise<void>;
   trackUsage: (sessionDuration: number, frequency: string) => Promise<void>;
@@ -67,12 +74,34 @@ export const [AuthProvider, useAuth] = createContextHook((): AuthContextType => 
 
   const isAuthenticated = !!user;
   const isPremium = userProfile?.subscriptionStatus === 'premium';
-  const isTrialActive = Boolean(userProfile?.subscriptionStatus === 'trial' && 
+  const isTrialActive = Boolean(userProfile?.subscriptionStatus === 'trial' &&
     userProfile?.trialEndsAt && new Date() < userProfile.trialEndsAt);
-  
-  const trialDaysLeft = userProfile?.trialEndsAt 
+
+  const trialDaysLeft = userProfile?.trialEndsAt
     ? Math.max(0, Math.ceil((userProfile.trialEndsAt.getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24)))
     : 0;
+
+  const capabilities = useMemo(
+    () => computeCapabilities(isPremium || isTrialActive),
+    [isPremium, isTrialActive]
+  );
+
+  const entitlementState: EntitlementState = useMemo(() => {
+    let status: EntitlementState['status'] = 'free';
+    if (isPremium) status = 'active';
+    else if (isTrialActive) status = 'trial';
+    else if (userProfile?.subscriptionStatus === 'trial' && !isTrialActive) status = 'expired';
+
+    return {
+      isPremium: isPremium || isTrialActive,
+      status,
+      expiresAt: userProfile?.subscriptionEndsAt,
+      trialEndsAt: userProfile?.trialEndsAt,
+      source: 'stripe',
+      lastVerifiedAt: userProfile?.lastLoginAt,
+      capabilities,
+    };
+  }, [isPremium, isTrialActive, userProfile, capabilities]);
 
   const createUserProfile = useCallback((authUser: AuthUser): UserProfile => {
     const now = new Date();
@@ -284,13 +313,11 @@ export const [AuthProvider, useAuth] = createContextHook((): AuthContextType => 
     }
   }, [toFirestoreProfile, shouldUseFirestore, isCloudStrict, setCloudError]);
 
-
-
   const signIn = useCallback(async (email: string, password: string) => {
     if (!email?.trim() || !password?.trim()) {
       throw new Error('Email and password are required');
     }
-    
+
     try {
       setIsLoading(true);
       await authService.signIn(email.trim(), password);
@@ -304,16 +331,16 @@ export const [AuthProvider, useAuth] = createContextHook((): AuthContextType => 
     if (!email?.trim() || !password?.trim()) {
       throw new Error('Email and password are required');
     }
-    
+
     try {
       setIsLoading(true);
       const authUser = await authService.signUp(email.trim(), password);
-      
+
       const profile = createUserProfile({
         ...authUser,
         displayName: displayName?.trim() || authUser.displayName,
       });
-      
+
       setUserProfile(profile);
       // Only persist to Firestore if in cloud/auto mode
       if (shouldUseFirestore) {
@@ -336,17 +363,13 @@ export const [AuthProvider, useAuth] = createContextHook((): AuthContextType => 
 
   const updateProfile = useCallback(async (updates: Partial<UserProfile>) => {
     if (!userProfile) return;
-    
+
     const updatedProfile = { ...userProfile, ...updates };
     setUserProfile(updatedProfile);
     await saveUserProfile(updatedProfile);
   }, [userProfile, saveUserProfile]);
 
   // ── Subscription status refresh (server-verified) ──
-  // Pulls the entitlement from the Hono backend (which queries Stripe).
-  // Merges the result into the in-memory profile and (if in cloud mode) lets
-  // Firestore reflect the server's truth. The client NEVER writes subscription
-  // fields directly — only the Stripe webhook does.
   const refreshSubscriptionStatus = useCallback(async () => {
     if (!user) return;
     try {
@@ -370,31 +393,29 @@ export const [AuthProvider, useAuth] = createContextHook((): AuthContextType => 
   }, [user]);
 
   /**
-   * @deprecated Trial now starts via Stripe checkout (lib/subscription-service).
-   * This stub is kept for backwards compatibility but does NOT mutate subscription state.
+   * @deprecated Trial now starts via checkout (lib/subscription-service).
    */
   const startTrial = useCallback(async (_options?: { hasAcceptedAutoRenew: boolean }) => {
-    console.warn('startTrial() is deprecated. Use createCheckoutSession() from lib/subscription-service to start a Stripe-backed trial.');
-    throw new Error('Trial must be started through Stripe checkout. Use createCheckoutSession().');
+    console.warn('startTrial() is deprecated. Use createCheckoutSession() from lib/subscription-service.');
+    throw new Error('Trial must be started through checkout.');
   }, []);
 
   /**
-   * @deprecated Upgrades now go through Stripe checkout. This stub is kept for
-   * backwards compatibility but does NOT mutate subscription state.
+   * @deprecated Upgrades now go through checkout.
    */
   const upgradeToPremium = useCallback(async (_type: 'monthly' | 'yearly') => {
-    console.warn('upgradeToPremium() is deprecated. Use createCheckoutSession() from lib/subscription-service to upgrade via Stripe.');
-    throw new Error('Upgrades must go through Stripe checkout. Use createCheckoutSession().');
+    console.warn('upgradeToPremium() is deprecated. Use createCheckoutSession() from lib/subscription-service.');
+    throw new Error('Upgrades must go through checkout.');
   }, []);
 
   const trackUsage = useCallback(async (sessionDuration: number, frequency: string) => {
     if (!userProfile || !frequency?.trim()) return;
-    
+
     const sanitizedFrequency = frequency.trim();
     const now = new Date();
     const todayISO = now.toISOString().split('T')[0];
     const lastSessionDate = userProfile.usageStats.lastSessionDate;
-    
+
     // Calculate streak
     let streakDays = userProfile.usageStats.streakDays;
     if (lastSessionDate) {
@@ -407,13 +428,13 @@ export const [AuthProvider, useAuth] = createContextHook((): AuthContextType => 
     } else {
       streakDays = 1;
     }
-    
+
     // Update favorite frequencies
     const favoriteFrequencies = [...userProfile.usageStats.favoriteFrequencies];
     if (!favoriteFrequencies.includes(sanitizedFrequency)) {
       favoriteFrequencies.push(sanitizedFrequency);
     }
-    
+
     // Track session history for weekly stats (keep last 30 days)
     const sessionHistory = [...userProfile.usageStats.sessionHistory, todayISO]
       .filter((date, idx, arr) => arr.indexOf(date) === idx) // dedupe
@@ -421,7 +442,7 @@ export const [AuthProvider, useAuth] = createContextHook((): AuthContextType => 
         const d = new Date(date);
         return (now.getTime() - d.getTime()) / (1000 * 60 * 60 * 24) <= 30; // keep 30 days
       });
-    
+
     await updateProfile({
       usageStats: {
         ...userProfile.usageStats,
@@ -443,6 +464,8 @@ export const [AuthProvider, useAuth] = createContextHook((): AuthContextType => 
     isPremium,
     isTrialActive,
     trialDaysLeft,
+    capabilities,
+    entitlementState,
     signIn,
     signUp,
     signOut,
@@ -459,6 +482,8 @@ export const [AuthProvider, useAuth] = createContextHook((): AuthContextType => 
     isPremium,
     isTrialActive,
     trialDaysLeft,
+    capabilities,
+    entitlementState,
     signIn,
     signUp,
     signOut,

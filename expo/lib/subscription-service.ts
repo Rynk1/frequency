@@ -19,6 +19,40 @@ const API_BASE = process.env.EXPO_PUBLIC_API_BASE_URL || '';
 
 export type Plan = 'monthly' | 'yearly';
 
+export interface EntitlementCapabilities {
+  premiumFrequencies: boolean;
+  extendedSessions: boolean;
+  binaural: boolean;
+  chakra: boolean;
+  offlineDownloads: boolean;
+  advancedAnalytics: boolean;
+  customMixing: boolean;
+}
+
+export interface EntitlementState {
+  isPremium: boolean;
+  status: 'free' | 'trial' | 'active' | 'past_due' | 'cancelled' | 'expired';
+  expiresAt?: Date;
+  trialEndsAt?: Date;
+  source?: 'google_play' | 'revenuecat' | 'stripe';
+  lastVerifiedAt?: Date;
+  capabilities: EntitlementCapabilities;
+}
+
+export interface PremiumPolicyConfig {
+  freeSessionMaxDuration: number; // in seconds (e.g. 15 * 60)
+  dailyFreeSessionsLimit: number; // e.g. 3
+  premiumPreviewDuration: number; // in seconds (e.g. 180 = 3 minutes)
+  offlineGracePeriodHours: number; // e.g. 72
+}
+
+export const DEFAULT_PREMIUM_POLICY: PremiumPolicyConfig = {
+  freeSessionMaxDuration: 15 * 60, // 15 minutes in seconds
+  dailyFreeSessionsLimit: 3,
+  premiumPreviewDuration: 180, // 3 minutes
+  offlineGracePeriodHours: 72,
+};
+
 export interface SubscriptionStatus {
   isPremium: boolean;
   isTrialActive: boolean;
@@ -29,6 +63,31 @@ export interface SubscriptionStatus {
   trialEndsAt?: string;
   willRenew: boolean;
   cancelAtPeriodEnd: boolean;
+  source?: 'google_play' | 'revenuecat' | 'stripe';
+  lastVerifiedAt?: string;
+}
+
+export function computeCapabilities(isPremiumOrTrial: boolean): EntitlementCapabilities {
+  if (isPremiumOrTrial) {
+    return {
+      premiumFrequencies: true,
+      extendedSessions: true,
+      binaural: true,
+      chakra: true,
+      offlineDownloads: true,
+      advancedAnalytics: true,
+      customMixing: true,
+    };
+  }
+  return {
+    premiumFrequencies: false,
+    extendedSessions: false,
+    binaural: false,
+    chakra: false,
+    offlineDownloads: false,
+    advancedAnalytics: false,
+    customMixing: false,
+  };
 }
 
 async function getIdTokenSafe(): Promise<string> {
