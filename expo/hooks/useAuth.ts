@@ -3,12 +3,15 @@ import { authService, AuthUser } from '@/lib/firebase-auth';
 import createContextHook from '@nkzw/create-context-hook';
 import { db } from '@/lib/firebase';
 import { doc, getDoc, setDoc, updateDoc, Timestamp } from 'firebase/firestore';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useDataMode } from './useDataMode';
 import {
   computeCapabilities,
   EntitlementCapabilities,
   EntitlementState,
 } from '@/lib/subscription-service';
+import { getLocalDateString } from '@/lib/recommendation';
+import { USAGE_EVENTS_STORAGE_KEY } from './useUsageAnalytics';
 
 interface UserProfile {
   uid: string;
@@ -413,7 +416,7 @@ export const [AuthProvider, useAuth] = createContextHook((): AuthContextType => 
 
     const sanitizedFrequency = frequency.trim();
     const now = new Date();
-    const todayISO = now.toISOString().split('T')[0];
+    const todayISO = getLocalDateString(now);
     const lastSessionDate = userProfile.usageStats.lastSessionDate;
 
     // Calculate streak
@@ -443,6 +446,23 @@ export const [AuthProvider, useAuth] = createContextHook((): AuthContextType => 
         return (now.getTime() - d.getTime()) / (1000 * 60 * 60 * 24) <= 30; // keep 30 days
       });
 
+    const usageEvent = {
+      id: `${todayISO}-${Date.now()}`,
+      date: todayISO,
+      durationMinutes: Math.max(0, sessionDuration),
+      frequency: sanitizedFrequency,
+      createdAt: now.toISOString(),
+    };
+
+    const storedEvents = await AsyncStorage.getItem(USAGE_EVENTS_STORAGE_KEY);
+    const usageEvents = [...(storedEvents ? JSON.parse(storedEvents) : []), usageEvent]
+      .filter((event) => event.date >= new Date(now.getTime() - 31 * 86400000).toISOString().split('T')[0]);
+    await AsyncStorage.setItem(USAGE_EVENTS_STORAGE_KEY, JSON.stringify(usageEvents));
+
+    if (shouldUseFirestore && userProfile.uid) {
+      setDoc(doc(db, 'userUsage', userProfile.uid, 'events', usageEvent.id), usageEvent).catch(() => {});
+    }
+
     await updateProfile({
       usageStats: {
         ...userProfile.usageStats,
@@ -454,7 +474,7 @@ export const [AuthProvider, useAuth] = createContextHook((): AuthContextType => 
         sessionHistory,
       },
     });
-  }, [userProfile, updateProfile]);
+  }, [shouldUseFirestore, userProfile, updateProfile]);
 
   return useMemo(() => ({
     user,

@@ -1,3 +1,4 @@
+import { UsageAnalyticsModal } from '@/components/UsageAnalyticsModal';
 import React, { useState, useRef, useEffect, useMemo } from 'react';
 import {
   View,
@@ -206,6 +207,7 @@ export default function SessionsScreen() {
   const [showStarterDetails, setShowStarterDetails] = useState(false);
   const [selectedStarterSession, setSelectedStarterSession] = useState<typeof STARTER_SESSIONS[0] | null>(null);
   const [showAudioPlayer, setShowAudioPlayer] = useState(false);
+  const [showUsageAnalytics, setShowUsageAnalytics] = useState(false);
   const [audioPlayerFrequency, setAudioPlayerFrequency] = useState<any>(null);
   const [audioPlayerSession, setAudioPlayerSession] = useState<{
     frequencies: { hz: number; name: string; duration: number }[];
@@ -608,14 +610,24 @@ export default function SessionsScreen() {
           <GlassCard style={styles.weekCard} depth="light">
             <View style={styles.weekHeader}>
               <Text style={styles.weekTitle}>This Week</Text>
-              <Text style={styles.weekCount}>{currentWeekSessionCount} sessions</Text>
+              <TouchableOpacity onPress={() => setShowUsageAnalytics(true)} accessibilityRole="button" accessibilityLabel="Open this week analytics">
+                <Text style={styles.weekCount}>{currentWeekSessionCount} sessions</Text>
+              </TouchableOpacity>
             </View>
             <View style={styles.weekDays}>
               {['M', 'T', 'W', 'T', 'F', 'S', 'S'].map((dayLabel, i) => (
-                <View key={i} style={styles.weekDayItem}>
-                  <View style={[styles.weekDot, activeDaysMap[i] && styles.weekDotActive]} />
+                <TouchableOpacity
+                  key={i}
+                  style={styles.weekDayItem}
+                  onPress={() => i === currentDayIndex && setShowUsageAnalytics(true)}
+                  disabled={i !== currentDayIndex}
+                  accessibilityRole={i === currentDayIndex ? 'button' : undefined}
+                  accessibilityLabel={i === currentDayIndex ? "Open today's analytics" : `${dayLabel} day`}
+                >
+                  <View style={[styles.weekDot, activeDaysMap[i] && styles.weekDotActive, i === currentDayIndex && styles.weekDotToday]} />
                   <Text style={styles.weekDayLabel}>{dayLabel}</Text>
-                </View>
+                  {i === currentDayIndex && <Text style={styles.weekTodayLabel}>Today</Text>}
+                </TouchableOpacity>
               ))}
             </View>
           </GlassCard>
@@ -1153,6 +1165,11 @@ export default function SessionsScreen() {
         sessionName={audioPlayerSession?.name}
         isSessionMode={!!audioPlayerSession}
       />
+
+      <UsageAnalyticsModal
+        visible={showUsageAnalytics}
+        onClose={() => setShowUsageAnalytics(false)}
+      />
     </View>
   );
 }
@@ -1536,10 +1553,20 @@ const createStyles = (colors: any, gradients: any, isDark: boolean) => StyleShee
     backgroundColor: isDark ? colors.accentSoft : 'rgba(108,99,255,0.25)',
     borderColor: isDark ? colors.glassBorderBright : 'rgba(108,99,255,0.5)',
   },
+  weekDotToday: {
+    borderColor: colors.gold,
+    borderWidth: 2,
+  },
   weekDayLabel: {
     fontSize: 11,
     color: colors.textMuted,
     fontWeight: '500' as const,
+  },
+  weekTodayLabel: {
+    fontSize: 9,
+    color: colors.gold,
+    fontWeight: '700' as const,
+    marginTop: -2,
   },
   // Section
   sectionHeader: {

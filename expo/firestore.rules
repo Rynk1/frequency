@@ -93,6 +93,16 @@ service cloud.firestore {
       allow read, write: if isOwner(userId);
     }
 
+    // Immutable listening events used for premium analytics
+    match /userUsage/{userId}/events/{eventId} {
+      allow read: if isOwner(userId);
+      allow create: if isOwner(userId)
+        && request.resource.data.id == eventId
+        && request.resource.data.durationMinutes is number
+        && request.resource.data.date is string;
+      allow update, delete: if false;
+    }
+
     // ── Audit logs (admin-only) ──
     match /auditLogs/{logId} {
       allow read: if isAdmin();
