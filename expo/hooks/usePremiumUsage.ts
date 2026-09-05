@@ -1,5 +1,6 @@
 import { useState, useCallback } from 'react';
 import { useAuth } from './useAuth';
+import { DEFAULT_PREMIUM_POLICY } from '@/lib/subscription-service';
 
 interface PremiumUsageConfig {
   freeSessionsPerDay: number;
@@ -8,8 +9,8 @@ interface PremiumUsageConfig {
 }
 
 const DEFAULT_CONFIG: PremiumUsageConfig = {
-  freeSessionsPerDay: 3,
-  freeSessionDuration: 10,
+  freeSessionsPerDay: DEFAULT_PREMIUM_POLICY.dailyFreeSessionsLimit,
+  freeSessionDuration: Math.floor(DEFAULT_PREMIUM_POLICY.freeSessionMaxDuration / 60),
   premiumFeatures: [
     'Extended Sessions',
     'Premium Frequencies',
@@ -33,30 +34,30 @@ export const usePremiumUsage = (config: Partial<PremiumUsageConfig> = {}) => {
 
   const getTodaySessionCount = useCallback(() => {
     if (!userProfile) return 0;
-    
+
     const today = new Date();
     const lastSessionDate = userProfile.usageStats.lastSessionDate;
-    
+
     if (!lastSessionDate) return 0;
-    
-    const isToday = 
+
+    const isToday =
       lastSessionDate.getDate() === today.getDate() &&
       lastSessionDate.getMonth() === today.getMonth() &&
       lastSessionDate.getFullYear() === today.getFullYear();
-    
+
     return isToday ? userProfile.usageStats.sessionsCompleted : 0;
   }, [userProfile]);
 
   const canStartSession = useCallback(() => {
     if (isPremium || isTrialActive) return true;
-    
+
     const todayCount = getTodaySessionCount();
     return todayCount < finalConfig.freeSessionsPerDay;
   }, [isPremium, isTrialActive, getTodaySessionCount, finalConfig.freeSessionsPerDay]);
 
   const getRemainingFreeSessions = useCallback(() => {
     if (isPremium || isTrialActive) return Infinity;
-    
+
     const todayCount = getTodaySessionCount();
     return Math.max(0, finalConfig.freeSessionsPerDay - todayCount);
   }, [isPremium, isTrialActive, getTodaySessionCount, finalConfig.freeSessionsPerDay]);
@@ -102,7 +103,7 @@ export const usePremiumUsage = (config: Partial<PremiumUsageConfig> = {}) => {
     if (!frequency?.trim()) {
       return { allowed: false, reason: 'invalid_frequency' };
     }
-    
+
     // Check session limit
     if (!canStartSession()) {
       showSessionLimitGate();
@@ -117,7 +118,7 @@ export const usePremiumUsage = (config: Partial<PremiumUsageConfig> = {}) => {
 
     // Track the session start
     await trackUsage(0, frequency.trim()); // Duration will be updated when session ends
-    
+
     return { allowed: true };
   }, [
     canStartSession,
@@ -133,7 +134,7 @@ export const usePremiumUsage = (config: Partial<PremiumUsageConfig> = {}) => {
     icon?: any
   ): boolean => {
     if (!feature?.trim()) return false;
-    
+
     if (checkFeatureAccess(feature.trim())) {
       return true;
     }
@@ -143,7 +144,7 @@ export const usePremiumUsage = (config: Partial<PremiumUsageConfig> = {}) => {
       description || `${feature.trim()} is a premium feature. Upgrade to unlock advanced capabilities and enhance your frequency healing experience.`,
       icon
     );
-    
+
     return false;
   }, [checkFeatureAccess, showPremiumGateForFeature]);
 
@@ -182,17 +183,17 @@ export const usePremiumUsage = (config: Partial<PremiumUsageConfig> = {}) => {
     getRemainingFreeSessions,
     getMaxSessionDuration,
     getUsageStats,
-    
+
     // Actions
     attemptStartSession,
     attemptFeatureAccess,
-    
+
     // Premium gate
     showPremiumGate,
     gateConfig,
     closePremiumGate,
     showPremiumGateForFeature,
-    
+
     // Quick access gates
     showSessionLimitGate,
     showDurationLimitGate,
