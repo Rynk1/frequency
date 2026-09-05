@@ -203,19 +203,23 @@ export const handleSubscriptionWebhook = onRequest({ cors: true }, async (req, r
 
     // Idempotency check: prevent duplicate event processing
     if (eventId) {
-      const eventRef = db.collection('subscriptionEvents').doc(eventId);
-      const docSnap = await eventRef.get();
-      if (docSnap.exists) {
-        console.log(`[WEBHOOK] Duplicate event ${eventId} ignored.`);
-        res.status(200).json({ received: true, idempotent: true });
-        return;
+      try {
+        const eventRef = db.collection('subscriptionEvents').doc(eventId);
+        const docSnap = await eventRef.get();
+        if (docSnap && docSnap.exists) {
+          console.log(`[WEBHOOK] Duplicate event ${eventId} ignored.`);
+          res.status(200).json({ received: true, idempotent: true });
+          return;
+        }
+        await eventRef.set({
+          eventType,
+          receivedAt: admin.firestore.FieldValue.serverTimestamp(),
+          processedAt: admin.firestore.FieldValue.serverTimestamp(),
+          status: 'processed',
+        });
+      } catch (e: any) {
+        console.warn('Idempotency check warning:', e?.message || e);
       }
-      await eventRef.set({
-        eventType,
-        receivedAt: admin.firestore.FieldValue.serverTimestamp(),
-        processedAt: admin.firestore.FieldValue.serverTimestamp(),
-        status: 'processed',
-      }).catch((e) => console.warn('Failed to record subscription event idempotency:', e));
     }
 
     // RevenueCat webhook handling
