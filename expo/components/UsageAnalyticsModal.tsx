@@ -8,10 +8,10 @@ import {
   View,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { BarChart3, CalendarDays, Crown, Headphones, Timer, TrendingUp, X, Zap } from 'lucide-react-native';
+import { BarChart3, CalendarDays, ChevronRight, Clock3, Crown, Headphones, LockKeyhole, Sparkles, Timer, TrendingUp, X, Zap } from 'lucide-react-native';
 import { useAuth } from '@/hooks/useAuth';
 import { useUsageAnalytics } from '@/hooks/useUsageAnalytics';
-import { AnalyticsPeriod, summarizeUsage } from '@/lib/analytics';
+import { AnalyticsPeriod, summarizeUsage, UsageEvent } from '@/lib/analytics';
 import { useTheme } from '@/hooks/useTheme';
 import { GlassCard } from './GlassCard';
 import { PremiumGate } from './PremiumGate';
@@ -37,6 +37,12 @@ export const UsageAnalyticsModal: React.FC<UsageAnalyticsModalProps> = ({ visibl
   const { events } = useUsageAnalytics(user?.uid, visible && hasAccess);
   const summary = summarizeUsage(events, period);
   const maxMinutes = Math.max(...summary.dailyMinutes, 1);
+  const visibleHistory = events
+    .filter((event) => {
+      const currentSummary = summarizeUsage([event], period);
+      return currentSummary.sessions > 0;
+    })
+    .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
 
   const handleOpen = () => {
     if (hasAccess) return;
@@ -72,22 +78,24 @@ export const UsageAnalyticsModal: React.FC<UsageAnalyticsModalProps> = ({ visibl
               </GlassCard>
             </TouchableOpacity>
 
-            {hasAccess && (
-              <>
-                <View style={styles.periodTabs} accessibilityRole="tablist">
-                  {PERIODS.map((item) => (
-                    <TouchableOpacity
-                      key={item.id}
-                      style={[styles.periodTab, period === item.id && styles.periodTabActive]}
-                      onPress={() => setPeriod(item.id)}
-                      accessibilityRole="tab"
-                      accessibilityState={{ selected: period === item.id }}
-                    >
-                      <Text style={[styles.periodText, period === item.id && styles.periodTextActive]}>{item.label}</Text>
-                    </TouchableOpacity>
-                  ))}
-                </View>
+            <View style={styles.periodTabs} accessibilityRole="tablist">
+              {PERIODS.map((item) => (
+                <TouchableOpacity
+                  key={item.id}
+                  style={[styles.periodTab, period === item.id && styles.periodTabActive]}
+                  onPress={() => setPeriod(item.id)}
+                  accessibilityRole="tab"
+                  accessibilityState={{ selected: period === item.id }}
+                >
+                  <Text style={[styles.periodText, period === item.id && styles.periodTextActive]}>{item.label}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
 
+            {hasAccess ? (
+              summary.sessions === 0 ? (
+                <EmptyAnalyticsState period={period} styles={styles} colors={colors} />
+              ) : (
                 <>
                     <View style={styles.metricsGrid}>
                       <Metric icon={Timer} value={`${summary.minutes}`} label="Minutes" styles={styles} color={colors.accent} />
@@ -124,8 +132,25 @@ export const UsageAnalyticsModal: React.FC<UsageAnalyticsModalProps> = ({ visibl
                         </Text>
                       </View>
                     </GlassCard>
+                    <HistoryCard events={visibleHistory} styles={styles} colors={colors} period={period} />
                 </>
-              </>
+              )
+            ) : (
+              <TouchableOpacity activeOpacity={0.9} onPress={() => setShowPremiumGate(true)}>
+                <GlassCard style={styles.lockedCard} depth="normal">
+                  <LinearGradient colors={['rgba(212,175,55,0.18)', 'rgba(108,99,255,0.14)']} style={styles.lockedGradient}>
+                    <View style={styles.lockIcon}><LockKeyhole color={colors.gold} size={19} /></View>
+                    <Text style={styles.lockedEyebrow}>Premium view</Text>
+                    <Text style={styles.lockedTitle}>{period === 'day' ? "Today's" : period === 'week' ? "This week's" : "This month's"} listening story</Text>
+                    <Text style={styles.lockedText}>See your sessions, minutes, consistency, and listening history in one calm, private view.</Text>
+                    <View style={styles.unlockRow}>
+                      <Sparkles color={colors.gold} size={15} />
+                      <Text style={styles.unlockText}>Unlock personal analytics</Text>
+                      <ChevronRight color={colors.gold} size={16} />
+                    </View>
+                  </LinearGradient>
+                </GlassCard>
+              </TouchableOpacity>
             )}
             <View style={styles.bottomSpace} />
           </ScrollView>
@@ -151,6 +176,49 @@ function Metric({ icon: Icon, value, label, styles, color }: { icon: React.Compo
       <Text style={styles.metricLabel}>{label}</Text>
     </GlassCard>
   );
+}
+
+function EmptyAnalyticsState({ period, styles, colors }: { period: AnalyticsPeriod; styles: ReturnType<typeof createStyles>; colors: any }) {
+  const periodLabel = period === 'day' ? 'today' : period === 'week' ? 'this week' : 'this month';
+  return (
+    <GlassCard style={styles.emptyCard} depth="light">
+      <View style={styles.emptyIcon}><Sparkles color={colors.gold} size={20} /></View>
+      <Text style={styles.emptyTitle}>Your {periodLabel} is still unfolding</Text>
+      <Text style={styles.emptyText}>Complete a frequency session and your minutes, patterns, and history will appear here.</Text>
+      <View style={styles.emptyRule} />
+      <Text style={styles.emptyHint}>Your private listening journal</Text>
+    </GlassCard>
+  );
+}
+
+function HistoryCard({ events, styles, colors, period }: { events: UsageEvent[]; styles: ReturnType<typeof createStyles>; colors: any; period: AnalyticsPeriod }) {
+  return (
+    <GlassCard style={styles.historyCard} depth="light">
+      <View style={styles.cardHeader}>
+        <View>
+          <Text style={styles.cardEyebrow}>Listening history</Text>
+          <Text style={styles.cardTitle}>{period === 'day' ? 'Today' : period === 'week' ? 'This week' : 'This month'}</Text>
+        </View>
+        <Clock3 color={colors.gold} size={19} />
+      </View>
+      {events.slice(0, 6).map((event) => (
+        <View key={event.id} style={styles.historyRow}>
+          <View style={styles.historyDot} />
+          <View style={styles.historyCopy}>
+            <Text style={styles.historyFrequency} numberOfLines={1}>{event.frequency}</Text>
+            <Text style={styles.historyDate}>{formatEventDate(event.createdAt)}</Text>
+          </View>
+          <Text style={styles.historyDuration}>{event.durationMinutes} min</Text>
+        </View>
+      ))}
+      {events.length > 6 && <Text style={styles.historyMore}>Showing your six most recent sessions</Text>}
+    </GlassCard>
+  );
+}
+
+function formatEventDate(value: string) {
+  const date = new Date(value);
+  return date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) + ' · ' + date.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' });
 }
 
 const createStyles = (colors: any, isDark: boolean) => StyleSheet.create({
@@ -187,6 +255,28 @@ const createStyles = (colors: any, isDark: boolean) => StyleSheet.create({
   insightCard: { borderRadius: 16, padding: 16, flexDirection: 'row', gap: 12, alignItems: 'flex-start' },
   insightCopy: { flex: 1 },
   insightText: { color: colors.textSecondary, fontSize: 13, lineHeight: 19, marginTop: 5 },
+  emptyCard: { borderRadius: 18, padding: 24, alignItems: 'center', marginBottom: 12 },
+  emptyIcon: { width: 48, height: 48, borderRadius: 24, backgroundColor: colors.goldGlow, alignItems: 'center', justifyContent: 'center', marginBottom: 14 },
+  emptyTitle: { color: colors.textPrimary, fontSize: 18, fontWeight: '700', textAlign: 'center' },
+  emptyText: { color: colors.textMuted, fontSize: 13, lineHeight: 19, textAlign: 'center', marginTop: 8, maxWidth: 290 },
+  emptyRule: { width: 42, height: 1, backgroundColor: colors.gold, opacity: 0.55, marginVertical: 18 },
+  emptyHint: { color: colors.gold, fontSize: 11, fontWeight: '700', letterSpacing: 0.8, textTransform: 'uppercase' },
+  lockedCard: { borderRadius: 18, overflow: 'hidden', marginBottom: 12 },
+  lockedGradient: { padding: 22, alignItems: 'center' },
+  lockIcon: { width: 44, height: 44, borderRadius: 22, backgroundColor: colors.goldGlow, alignItems: 'center', justifyContent: 'center', marginBottom: 14 },
+  lockedEyebrow: { color: colors.gold, fontSize: 10, fontWeight: '700', letterSpacing: 1.4, textTransform: 'uppercase' },
+  lockedTitle: { color: colors.textPrimary, fontSize: 20, fontWeight: '700', textAlign: 'center', marginTop: 7 },
+  lockedText: { color: colors.textMuted, fontSize: 13, lineHeight: 19, textAlign: 'center', marginTop: 8, maxWidth: 300 },
+  unlockRow: { flexDirection: 'row', alignItems: 'center', gap: 7, marginTop: 20, paddingVertical: 10, paddingHorizontal: 14, borderRadius: 12, backgroundColor: colors.goldGlow },
+  unlockText: { color: colors.gold, fontSize: 12, fontWeight: '700' },
+  historyCard: { borderRadius: 16, padding: 16, marginBottom: 12 },
+  historyRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 11, borderTopWidth: 1, borderTopColor: colors.divider },
+  historyDot: { width: 7, height: 7, borderRadius: 4, backgroundColor: colors.accent, marginRight: 11 },
+  historyCopy: { flex: 1 },
+  historyFrequency: { color: colors.textPrimary, fontSize: 13, fontWeight: '600' },
+  historyDate: { color: colors.textMuted, fontSize: 11, marginTop: 3 },
+  historyDuration: { color: colors.accent, fontSize: 12, fontWeight: '700' },
+  historyMore: { color: colors.textMuted, fontSize: 11, marginTop: 4 },
   bottomSpace: { height: 30 },
 });
 

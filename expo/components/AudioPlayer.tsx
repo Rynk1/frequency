@@ -568,7 +568,7 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({
           ]}
         >
           <LinearGradient
-            colors={['#1a1a2e', '#0f0f1e', '#16213e'] as const}
+            colors={gradients.bg}
             style={styles.gradient}
           >
               <ScrollView
@@ -585,7 +585,7 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({
                     accessibilityLabel="Close player"
                     accessibilityHint="Double tap to close audio player"
                   >
-                    <ChevronDown color="#FFFFFF" size={28} />
+                    <ChevronDown color={colors.textPrimary} size={28} />
                   </TouchableOpacity>
                   <Text style={styles.headerTitle}>{displayTitle}</Text>
                   <TouchableOpacity
@@ -595,7 +595,7 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({
                     accessibilityLabel="Player options"
                     accessibilityHint="Double tap for more options"
                   >
-                    <MoreVertical color="#FFFFFF" size={24} />
+                    <MoreVertical color={colors.textPrimary} size={24} />
                   </TouchableOpacity>
                 </View>
 
@@ -681,7 +681,7 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({
                       style={styles.shareButton}
                     >
                       <Share2
-                        color="#666"
+                        color={colors.textSecondary}
                         size={24}
                       />
                     </TouchableOpacity>
@@ -778,9 +778,9 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({
                 <View style={styles.volumeSection}>
                   <TouchableOpacity onPress={toggleMute} style={styles.volumeIcon}>
                     {isMuted ? (
-                      <VolumeX color="#666" size={20} />
+                      <VolumeX color={colors.textSecondary} size={20} />
                     ) : (
-                      <Volume2 color="#FFFFFF" size={20} />
+                      <Volume2 color={colors.textPrimary} size={20} />
                     )}
                   </TouchableOpacity>
 
@@ -899,7 +899,7 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({
 const createStyles = (colors: any, gradients: any, isDark: boolean) => StyleSheet.create({
   overlay: {
     flex: 1,
-    backgroundColor: isDark ? 'rgba(0, 0, 0, 0.9)' : 'rgba(0, 0, 0, 0.5)',
+    backgroundColor: isDark ? 'rgba(0, 0, 0, 0.9)' : 'rgba(26, 29, 46, 0.18)',
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -919,7 +919,7 @@ const createStyles = (colors: any, gradients: any, isDark: boolean) => StyleShee
     paddingHorizontal: 20,
   },
   glassEffect: {
-    backgroundColor: Platform.OS === 'web' ? 'rgba(14, 14, 32, 0.92)' : 'transparent',
+    backgroundColor: Platform.OS === 'web' ? colors.glassStrong : 'transparent',
     borderWidth: 1,
     borderColor: colors.glassBorderBright,
     borderRadius: 24,
@@ -977,8 +977,8 @@ const createStyles = (colors: any, gradients: any, isDark: boolean) => StyleShee
     alignItems: 'center',
   },
   previewBadge: {
-    backgroundColor: 'rgba(212,175,55,0.2)',
-    borderColor: '#D4AF37',
+    backgroundColor: colors.goldGlow,
+    borderColor: colors.gold,
     borderWidth: 1,
     borderRadius: 12,
     paddingHorizontal: 10,
@@ -986,7 +986,7 @@ const createStyles = (colors: any, gradients: any, isDark: boolean) => StyleShee
     marginBottom: 6,
   },
   previewBadgeText: {
-    color: '#D4AF37',
+    color: colors.gold,
     fontSize: 10,
     fontWeight: '700',
     letterSpacing: 0.5,
