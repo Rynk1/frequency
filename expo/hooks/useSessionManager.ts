@@ -88,8 +88,15 @@ interface Achievement {
   progress: number;
   target: number;
   reward?: string;
+  rewardId: string;
+  rewardKind: 'setting' | 'premium' | 'badge';
   unlockedDate?: string;
+  earnedAt?: string;
+  claimedAt?: string;
+  active?: boolean;
 }
+
+export type AchievementReward = Achievement & { reward: string; earnedAt: string };
 
 interface DailyChallenge {
   id: string;
@@ -125,15 +132,35 @@ const STORAGE_KEYS = {
   REMINDERS: 'reminders',
 };
 
+const getUserStorageKey = (key: string, userId: string) => userId ? `${key}:${userId}` : key;
+
+const calculateCurrentStreak = (completedDates: string[]) => {
+  const uniqueDates = new Set(completedDates);
+  const today = getLocalDateString();
+  const yesterday = getLocalDateString(new Date(Date.now() - 86400000));
+  const anchor = uniqueDates.has(today) ? today : yesterday;
+  if (!uniqueDates.has(anchor)) return 0;
+
+  const anchorDate = new Date(`${anchor}T00:00:00`);
+  let streak = 0;
+  for (let index = 0; ; index += 1) {
+    const date = new Date(anchorDate);
+    date.setDate(anchorDate.getDate() - index);
+    if (!uniqueDates.has(getLocalDateString(date))) break;
+    streak += 1;
+  }
+  return streak;
+};
+
 const initialAchievements: Achievement[] = [
-  { id: '1', title: 'First Steps', description: 'Complete your first session', icon: 'trophy', unlocked: false, progress: 0, target: 1, reward: 'Unlock custom timer' },
-  { id: '2', title: 'Week Warrior', description: 'Build a 7-day streak', icon: 'fire', unlocked: false, progress: 0, target: 7, reward: 'Unlock advanced frequencies' },
-  { id: '3', title: 'Frequency Explorer', description: 'Try 5 different frequencies', icon: 'star', unlocked: false, progress: 0, target: 5, reward: 'Unlock frequency mixer' },
-  { id: '4', title: 'Dedication', description: 'Complete 30 sessions', icon: 'medal', unlocked: false, progress: 0, target: 30, reward: 'Unlock master badge' },
-  { id: '5', title: 'Night Owl', description: 'Complete 10 sleep sessions', icon: 'moon', unlocked: false, progress: 0, target: 10, reward: 'Unlock dream journal' },
-  { id: '6', title: 'Deep Healer', description: 'Complete 10 healing sessions', icon: 'users', unlocked: false, progress: 0, target: 10, reward: 'Unlock group sessions' },
-  { id: '7', title: 'Zen Master', description: 'Meditate for 500 minutes total', icon: 'brain', unlocked: false, progress: 0, target: 500, reward: 'Unlock master frequencies' },
-  { id: '8', title: 'Century Club', description: 'Complete 100 total sessions', icon: 'sun', unlocked: false, progress: 0, target: 100, reward: 'Unlock sunrise themes' },
+  { id: '1', title: 'First Steps', description: 'Complete your first session', icon: 'trophy', unlocked: false, progress: 0, target: 1, reward: '30-minute custom timer', rewardId: 'custom_timer_30', rewardKind: 'setting' },
+  { id: '2', title: 'Week Warrior', description: 'Build a 7-day streak', icon: 'fire', unlocked: false, progress: 0, target: 7, reward: 'Advanced frequency library', rewardId: 'advanced_frequencies', rewardKind: 'premium' },
+  { id: '3', title: 'Frequency Explorer', description: 'Try 5 different frequencies', icon: 'star', unlocked: false, progress: 0, target: 5, reward: 'Frequency mixer', rewardId: 'frequency_mixer', rewardKind: 'premium' },
+  { id: '4', title: 'Dedication', description: 'Complete 30 sessions', icon: 'medal', unlocked: false, progress: 0, target: 30, reward: 'Dedication badge', rewardId: 'dedication_badge', rewardKind: 'badge' },
+  { id: '5', title: 'Night Owl', description: 'Complete 10 sleep sessions', icon: 'moon', unlocked: false, progress: 0, target: 10, reward: 'Dream journal', rewardId: 'dream_journal', rewardKind: 'premium' },
+  { id: '6', title: 'Deep Healer', description: 'Complete 10 healing sessions', icon: 'users', unlocked: false, progress: 0, target: 10, reward: 'Healing circle badge', rewardId: 'healing_badge', rewardKind: 'badge' },
+  { id: '7', title: 'Zen Master', description: 'Meditate for 500 minutes total', icon: 'brain', unlocked: false, progress: 0, target: 500, reward: 'Master frequency library', rewardId: 'master_frequencies', rewardKind: 'premium' },
+  { id: '8', title: 'Century Club', description: 'Complete 100 total sessions', icon: 'sun', unlocked: false, progress: 0, target: 100, reward: 'Sunrise theme', rewardId: 'sunrise_theme', rewardKind: 'setting' },
 ];
 
 const generateDailyChallenge = (): DailyChallenge => {
@@ -174,6 +201,7 @@ export const [SessionManagerProvider, useSessionManager] = createContextHook(() 
 
   const [sessions, setSessions] = useState<Session[]>([]);
   const [achievements, setAchievements] = useState<Achievement[]>(initialAchievements);
+  const [pendingReward, setPendingReward] = useState<AchievementReward | null>(null);
   const [stats, setStats] = useState<SessionStats>({
     totalMinutes: 0,
     currentStreak: 0,
@@ -217,39 +245,45 @@ export const [SessionManagerProvider, useSessionManager] = createContextHook(() 
           if (!sessionsSnap.empty) {
             const firestoreSessions = sessionsSnap.docs.map(d => ({ ...d.data(), id: d.id } as Session));
             setSessions(firestoreSessions);
-            await AsyncStorage.setItem(STORAGE_KEYS.SESSIONS, JSON.stringify(firestoreSessions));
+            await AsyncStorage.setItem(getUserStorageKey(STORAGE_KEYS.SESSIONS, currentUserId), JSON.stringify(firestoreSessions));
           } else {
             // Fall back to AsyncStorage
-            const localSessions = await AsyncStorage.getItem(STORAGE_KEYS.SESSIONS);
+            const localSessions = await AsyncStorage.getItem(getUserStorageKey(STORAGE_KEYS.SESSIONS, currentUserId));
             if (localSessions) setSessions(JSON.parse(localSessions));
           }
 
           if (!remindersSnap.empty) {
             const firestoreReminders = remindersSnap.docs.map(d => ({ ...d.data(), id: d.id } as Reminder));
             setReminders(firestoreReminders);
-            await AsyncStorage.setItem(STORAGE_KEYS.REMINDERS, JSON.stringify(firestoreReminders));
+            await AsyncStorage.setItem(getUserStorageKey(STORAGE_KEYS.REMINDERS, currentUserId), JSON.stringify(firestoreReminders));
           } else {
-            const localReminders = await AsyncStorage.getItem(STORAGE_KEYS.REMINDERS);
+            const localReminders = await AsyncStorage.getItem(getUserStorageKey(STORAGE_KEYS.REMINDERS, currentUserId));
             if (localReminders) setReminders(JSON.parse(localReminders));
           }
 
           if (statsSnap.exists()) {
             const firestoreStats = statsSnap.data() as SessionStats;
             setStats(firestoreStats);
-            await AsyncStorage.setItem(STORAGE_KEYS.STATS, JSON.stringify(firestoreStats));
+            await AsyncStorage.setItem(getUserStorageKey(STORAGE_KEYS.STATS, currentUserId), JSON.stringify(firestoreStats));
           } else {
-            const localStats = await AsyncStorage.getItem(STORAGE_KEYS.STATS);
+            const localStats = await AsyncStorage.getItem(getUserStorageKey(STORAGE_KEYS.STATS, currentUserId));
             if (localStats) setStats(JSON.parse(localStats));
           }
 
           if (achievementsSnap.exists()) {
             const firestoreAchievements = (achievementsSnap.data() as any).items as Achievement[];
             if (firestoreAchievements?.length) {
-              setAchievements(firestoreAchievements);
-              await AsyncStorage.setItem(STORAGE_KEYS.ACHIEVEMENTS, JSON.stringify(firestoreAchievements));
+              const migratedAchievements = initialAchievements.map((initial) => ({
+                ...initial,
+                ...(firestoreAchievements.find((saved) => saved.id === initial.id) || {}),
+                earnedAt: firestoreAchievements.find((saved) => saved.id === initial.id)?.earnedAt
+                  || firestoreAchievements.find((saved) => saved.id === initial.id)?.unlockedDate,
+              }));
+              setAchievements(migratedAchievements);
+              await AsyncStorage.setItem(getUserStorageKey(STORAGE_KEYS.ACHIEVEMENTS, currentUserId), JSON.stringify(migratedAchievements));
             }
           } else {
-            const localAchievements = await AsyncStorage.getItem(STORAGE_KEYS.ACHIEVEMENTS);
+            const localAchievements = await AsyncStorage.getItem(getUserStorageKey(STORAGE_KEYS.ACHIEVEMENTS, currentUserId));
             if (localAchievements) setAchievements(JSON.parse(localAchievements));
           }
         } catch (firestoreError: any) {
@@ -276,20 +310,20 @@ export const [SessionManagerProvider, useSessionManager] = createContextHook(() 
 
       // Daily challenge (stable for the day, time-aware)
       const dateKey = getLocalDateString();
-      AsyncStorage.getItem(STORAGE_KEYS.DAILY_CHALLENGES).then((challengeData) => {
+      AsyncStorage.getItem(getUserStorageKey(STORAGE_KEYS.DAILY_CHALLENGES, currentUserId)).then((challengeData) => {
         if (challengeData) {
           const challenge = JSON.parse(challengeData);
           if (challenge.date !== dateKey) {
             const newChallenge = getDailyChallenge(currentUserId, dateKey);
             setDailyChallenge(newChallenge);
-            AsyncStorage.setItem(STORAGE_KEYS.DAILY_CHALLENGES, JSON.stringify(newChallenge)).catch(() => {});
+            AsyncStorage.setItem(getUserStorageKey(STORAGE_KEYS.DAILY_CHALLENGES, currentUserId), JSON.stringify(newChallenge)).catch(() => {});
           } else {
             setDailyChallenge(challenge);
           }
         } else {
           const newChallenge = getDailyChallenge(currentUserId, dateKey);
           setDailyChallenge(newChallenge);
-          AsyncStorage.setItem(STORAGE_KEYS.DAILY_CHALLENGES, JSON.stringify(newChallenge)).catch(() => {});
+          AsyncStorage.setItem(getUserStorageKey(STORAGE_KEYS.DAILY_CHALLENGES, currentUserId), JSON.stringify(newChallenge)).catch(() => {});
         }
       }).catch(() => {});
     } catch (error) {
@@ -301,13 +335,21 @@ export const [SessionManagerProvider, useSessionManager] = createContextHook(() 
 
   const loadLocalOnly = async () => {
     const [sessionsData, achievementsData, statsData, remindersData] = await Promise.all([
-      AsyncStorage.getItem(STORAGE_KEYS.SESSIONS),
-      AsyncStorage.getItem(STORAGE_KEYS.ACHIEVEMENTS),
-      AsyncStorage.getItem(STORAGE_KEYS.STATS),
-      AsyncStorage.getItem(STORAGE_KEYS.REMINDERS),
+      AsyncStorage.getItem(getUserStorageKey(STORAGE_KEYS.SESSIONS, userId)),
+      AsyncStorage.getItem(getUserStorageKey(STORAGE_KEYS.ACHIEVEMENTS, userId)),
+      AsyncStorage.getItem(getUserStorageKey(STORAGE_KEYS.STATS, userId)),
+      AsyncStorage.getItem(getUserStorageKey(STORAGE_KEYS.REMINDERS, userId)),
     ]);
     if (sessionsData) setSessions(JSON.parse(sessionsData));
-    if (achievementsData) setAchievements(JSON.parse(achievementsData));
+    if (achievementsData) {
+      const storedAchievements = JSON.parse(achievementsData) as Achievement[];
+      setAchievements(initialAchievements.map((initial) => ({
+        ...initial,
+        ...(storedAchievements.find((saved) => saved.id === initial.id) || {}),
+        earnedAt: storedAchievements.find((saved) => saved.id === initial.id)?.earnedAt
+          || storedAchievements.find((saved) => saved.id === initial.id)?.unlockedDate,
+      })));
+    }
     if (statsData) setStats(JSON.parse(statsData));
     if (remindersData) setReminders(JSON.parse(remindersData));
   };
@@ -326,7 +368,7 @@ export const [SessionManagerProvider, useSessionManager] = createContextHook(() 
 
   const saveData = async (key: string, data: any) => {
     try {
-      await AsyncStorage.setItem(key, JSON.stringify(data));
+      await AsyncStorage.setItem(getUserStorageKey(key, userId), JSON.stringify(data));
     } catch (error) {
       console.error(`Error saving ${key}:`, error);
     }
@@ -674,7 +716,8 @@ export const [SessionManagerProvider, useSessionManager] = createContextHook(() 
     currentStats: SessionStats
   ) => {
     const now = new Date().toISOString();
-    const updatedAchievements = [...achievements];
+    const updatedAchievements = achievements.map((achievement) => ({ ...achievement }));
+    let newlyEarned: AchievementReward | null = null;
     // Preserve previously unlocked state
     for (const a of updatedAchievements) {
       if (achievements.find(pa => pa.id === a.id && pa.unlocked)) {
@@ -684,7 +727,8 @@ export const [SessionManagerProvider, useSessionManager] = createContextHook(() 
     }
 
     const allCompleted = allSessions.filter(s => s.totalSessions > 0 || s.progress >= 100);
-    const totalCompleted = allCompleted.length;
+    const totalCompleted = allCompleted.reduce((total, session) =>
+      total + Math.max(session.totalSessions, session.progress >= 100 ? 1 : 0), 0);
     const totalMinutes = currentStats.totalMinutes;
     const currentStreak = currentStats.currentStreak;
 
@@ -692,8 +736,12 @@ export const [SessionManagerProvider, useSessionManager] = createContextHook(() 
     allCompleted.forEach(s => s.frequencies.forEach(f => uniqueHzs.add(f.hz)));
     const uniqueFreqCount = uniqueHzs.size;
 
-    const sleepCount = allCompleted.filter(s => s.category === 'sleep').length;
-    const healingMedCount = allCompleted.filter(s => s.category === 'healing' || s.category === 'meditation').length;
+    const sleepCount = allCompleted
+      .filter(s => s.category === 'sleep')
+      .reduce((total, session) => total + session.totalSessions, 0);
+    const healingMedCount = allCompleted
+      .filter(s => s.category === 'healing' || s.category === 'meditation')
+      .reduce((total, session) => total + session.totalSessions, 0);
 
     updatedAchievements.forEach(ach => {
       switch (ach.id) {
@@ -730,12 +778,42 @@ export const [SessionManagerProvider, useSessionManager] = createContextHook(() 
           if (totalCompleted >= ach.target) { ach.unlocked = true; ach.unlockedDate = ach.unlockedDate || now; }
           break;
       }
+      if (ach.unlocked && !ach.earnedAt) {
+        ach.earnedAt = now;
+        if (!newlyEarned) newlyEarned = ach as AchievementReward;
+      }
     });
 
     setAchievements(updatedAchievements);
     await saveData(STORAGE_KEYS.ACHIEVEMENTS, updatedAchievements);
     await syncAchievementsToFirestore(updatedAchievements);
+    if (newlyEarned) setPendingReward(newlyEarned);
   }, [achievements]);
+
+  const persistAchievements = useCallback(async (updatedAchievements: Achievement[]) => {
+    setAchievements(updatedAchievements);
+    await saveData(STORAGE_KEYS.ACHIEVEMENTS, updatedAchievements);
+    await syncAchievementsToFirestore(updatedAchievements);
+  }, []);
+
+  const claimReward = useCallback(async (achievementId: string) => {
+    const updatedAchievements = achievements.map((achievement) => achievement.id === achievementId
+      ? { ...achievement, claimedAt: achievement.claimedAt || new Date().toISOString(), active: true }
+      : achievement
+    );
+    await persistAchievements(updatedAchievements);
+    setPendingReward(null);
+    return updatedAchievements.find((achievement) => achievement.id === achievementId) || null;
+  }, [achievements, persistAchievements]);
+
+  const dismissReward = useCallback(() => setPendingReward(null), []);
+
+  const setRewardActive = useCallback(async (achievementId: string, active: boolean) => {
+    await persistAchievements(achievements.map((achievement) => achievement.id === achievementId
+      ? { ...achievement, active }
+      : achievement
+    ));
+  }, [achievements, persistAchievements]);
 
   const { trackUsage } = useAuth();
 
@@ -768,10 +846,15 @@ export const [SessionManagerProvider, useSessionManager] = createContextHook(() 
       await trackUsage(minsToAdd, firstFreq);
     }
 
+    const completedDates = updatedSessions.flatMap(session => session.completedDates || []);
+    const currentStreak = calculateCurrentStreak(completedDates);
+
     const updatedStats = {
       ...stats,
       totalMinutes: stats.totalMinutes + minsToAdd,
       totalSessions: stats.totalSessions + 1,
+      currentStreak,
+      longestStreak: Math.max(stats.longestStreak, currentStreak),
       xp: stats.xp + minsToAdd * 10,
       weeklyProgress: stats.weeklyProgress + minsToAdd,
     };
@@ -812,18 +895,9 @@ export const [SessionManagerProvider, useSessionManager] = createContextHook(() 
   }, [dailyChallenge, stats]);
 
   const updateStreak = useCallback(async () => {
-    const today = new Date().toISOString().split('T')[0];
-    const yesterday = new Date(Date.now() - 86400000).toISOString().split('T')[0];
-
-    const todayCompleted = sessions.some(s => s.completedDates?.includes(today));
-    const yesterdayCompleted = sessions.some(s => s.completedDates?.includes(yesterday));
-
-    let newStreak = stats.currentStreak;
-    if (todayCompleted && !yesterdayCompleted) {
-      newStreak = 1;
-    } else if (todayCompleted && yesterdayCompleted) {
-      newStreak = Math.max(1, stats.currentStreak + 1);
-    }
+    const newStreak = calculateCurrentStreak(
+      sessions.flatMap(session => session.completedDates || [])
+    );
 
     const updatedStats = {
       ...stats,
@@ -914,6 +988,7 @@ export const [SessionManagerProvider, useSessionManager] = createContextHook(() 
     scheduledSessions,
     completedSessions,
     achievements,
+    pendingReward,
     stats,
     dailyChallenge,
     reminders,
@@ -937,5 +1012,8 @@ export const [SessionManagerProvider, useSessionManager] = createContextHook(() 
     deleteReminder,
     getRemindersForSession,
     cancelReminderNotification,
+    claimReward,
+    dismissReward,
+    setRewardActive,
   };
 });

@@ -10,6 +10,7 @@ import {
   Dimensions,
   Animated,
   Image,
+  Alert,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { GlassCard as SharedGlassCard } from '@/components/GlassCard';
@@ -39,6 +40,15 @@ import {
   Check,
   Repeat,
   Users,
+  Trash2,
+  Footprints,
+  CalendarCheck2,
+  Radio,
+  Repeat2,
+  MoonStar,
+  HeartPulse,
+  Milestone,
+  Crown,
 } from 'lucide-react-native';
 import { useSessionManager } from '@/hooks/useSessionManager';
 import CreateSessionModal from '@/components/CreateSessionModal';
@@ -49,6 +59,8 @@ import { FONTS } from '@/constants/theme';
 import { useAuth } from '@/hooks/useAuth';
 import { getDailyAlignment, getLocalDateString } from '@/lib/recommendation';
 import { useTheme } from '@/hooks/useTheme';
+import { useSettings } from '@/hooks/useSettings';
+import { PremiumModal } from '@/components/PremiumModal';
 
 const { width } = Dimensions.get('window');
 
@@ -184,14 +196,14 @@ const CATEGORY_META: Record<string, { color: string; icon: any; gradient: readon
 };
 
 const ACHIEVEMENT_ICON_MAP: Record<string, { icon: any; color: string }> = {
-  trophy: { icon: Trophy, color: '#D4AF37' },
-  fire:   { icon: Zap,    color: '#FF6B35' },
-  star:   { icon: Star,   color: '#FBBF24' },
-  medal:  { icon: Award,  color: '#60A5FA' },
-  moon:   { icon: Moon,   color: '#818CF8' },
-  users:  { icon: Users,  color: '#34D399' },
-  brain:  { icon: Brain,  color: '#A78BFA' },
-  sun:    { icon: Sun,    color: '#F59E0B' },
+  trophy: { icon: Footprints, color: '#D4AF37' },
+  fire:   { icon: CalendarCheck2, color: '#FF6B35' },
+  star:   { icon: Radio, color: '#FBBF24' },
+  medal:  { icon: Repeat2, color: '#60A5FA' },
+  moon:   { icon: MoonStar, color: '#818CF8' },
+  users:  { icon: HeartPulse, color: '#34D399' },
+  brain:  { icon: Timer, color: '#A78BFA' },
+  sun:    { icon: Milestone, color: '#F59E0B' },
 };
 
 const GlassCard = SharedGlassCard;
@@ -199,6 +211,7 @@ const GlassCard = SharedGlassCard;
 export default function SessionsScreen() {
   const insets = useSafeAreaInsets();
   const { colors, gradients, isDark } = useTheme();
+  const { updateSetting } = useSettings();
   const styles = useMemo(() => createStyles(colors, gradients, isDark), [colors, gradients, isDark]);
   const [mainTab, setMainTab] = useState<'journey' | 'programs'>('journey');
   const [activeTab, setActiveTab] = useState<'active' | 'completed' | 'scheduled'>('active');
@@ -208,10 +221,13 @@ export default function SessionsScreen() {
   const [selectedStarterSession, setSelectedStarterSession] = useState<typeof STARTER_SESSIONS[0] | null>(null);
   const [showAudioPlayer, setShowAudioPlayer] = useState(false);
   const [showUsageAnalytics, setShowUsageAnalytics] = useState(false);
+  const [selectedAchievement, setSelectedAchievement] = useState<any | null>(null);
+  const [showRewardPaywall, setShowRewardPaywall] = useState(false);
   const [audioPlayerFrequency, setAudioPlayerFrequency] = useState<any>(null);
   const [audioPlayerSession, setAudioPlayerSession] = useState<{
     frequencies: { hz: number; name: string; duration: number }[];
     name: string;
+    sessionId?: string;
   } | null>(null);
 
   const pulseAnim = useRef(new Animated.Value(1)).current;
@@ -278,14 +294,29 @@ export default function SessionsScreen() {
     createSession,
     startSession,
     completeDailyChallenge,
+    completeSession,
+    deleteSession,
     getSessionsThisWeek,
     createReminder,
     deleteReminder,
     getRemindersForSession,
+    pendingReward,
+    claimReward,
+    dismissReward,
   } = useSessionManager();
 
   const { curatedPrograms: localPrograms } = useCuratedPrograms();
   const { userProfile, isPremium } = useAuth();
+
+  const handleClaimReward = async (achievement: any) => {
+    if (achievement.rewardKind === 'premium' && !isPremium) {
+      setShowRewardPaywall(true);
+      return;
+    }
+    await claimReward(achievement.id);
+    if (achievement.rewardId === 'custom_timer_30') updateSetting('defaultSessionLength', 30);
+    setSelectedAchievement(null);
+  };
 
   const displayStarterSessions = React.useMemo(() => {
     if (!localPrograms || localPrograms.length === 0) return STARTER_SESSIONS;
@@ -346,15 +377,53 @@ export default function SessionsScreen() {
     setAudioPlayerSession({
       frequencies: session.frequencies,
       name: session.name,
+      sessionId: session.id,
     });
     setShowAudioPlayer(true);
     setSelectedSession(null);
   };
 
-  const totalMinutes = userProfile?.usageStats?.totalListeningTime || stats?.totalMinutes || 0;
-  const streakDays = userProfile?.usageStats?.streakDays || stats?.currentStreak || 0;
-  const sessionsCompleted = userProfile?.usageStats?.sessionsCompleted || stats?.totalSessions || 0;
-  const currentLevel = Math.floor(sessionsCompleted / 10) + 1;
+  const handleDeleteSession = (session: Session) => {
+    Alert.alert(
+      'Delete session?',
+      `Remove "${session.name}" and its reminder from My Sessions?`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        { text: 'Delete', style: 'destructive', onPress: () => deleteSession(session.id) },
+      ]
+    );
+  };
+
+  const totalMinutes = stats?.totalMinutes || userProfile?.usageStats?.totalListeningTime || 0;
+  const streakDays = stats?.currentStreak || userProfile?.usageStats?.streakDays || 0;
+  const sessionsCompleted = stats?.totalSessions || userProfile?.usageStats?.sessionsCompleted || 0;
+  const currentLevel = stats?.level || Math.floor(sessionsCompleted / 10) + 1;
+
+  const getAchievementMeta = (achievement: any) => {
+    const iconMetaBase = ACHIEVEMENT_ICON_MAP[achievement.icon] || { icon: Trophy, color: colors.gold };
+    const themeAchievementColors: Record<string, string> = {
+      trophy: colors.gold,
+      fire: colors.solfeggioColor,
+      star: colors.goldLight,
+      medal: colors.researchColor,
+      moon: colors.brainwaveColor,
+      users: colors.chakraColor,
+      brain: colors.accent,
+      sun: colors.gold,
+    };
+    return { ...iconMetaBase, color: themeAchievementColors[achievement.icon] || iconMetaBase.color };
+  };
+
+  const achievementProgressText = (achievement: any) => {
+    if (achievement.unlocked) return 'You completed this achievement. Keep your rhythm going.';
+    const remaining = Math.max(0, achievement.target - achievement.progress);
+    switch (achievement.id) {
+      case '2': return `${remaining} more consecutive day${remaining === 1 ? '' : 's'} to build your streak.`;
+      case '3': return `${remaining} more unique frequenc${remaining === 1 ? 'y' : 'ies'} to explore.`;
+      case '7': return `${remaining} more minute${remaining === 1 ? '' : 's'} of listening to reach this milestone.`;
+      default: return `${remaining} more session${remaining === 1 ? '' : 's'} to reach this milestone.`;
+    }
+  };
 
   // Compute weekly sessions from the user's sessionHistory (stored in Firestore per-user)
   // Falls back to useSessionManager's getSessionsThisWeek if sessionHistory is unavailable
@@ -705,6 +774,14 @@ export default function SessionsScreen() {
               >
                 <Play color={meta.color} size={16} fill={meta.color} />
               </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.deleteBtn}
+                onPress={() => handleDeleteSession(session)}
+                accessibilityRole="button"
+                accessibilityLabel={`Delete ${session.name}`}
+              >
+                <Trash2 color={colors.textMuted} size={16} />
+              </TouchableOpacity>
             </GlassCard>
           </TouchableOpacity>
         );
@@ -745,6 +822,14 @@ export default function SessionsScreen() {
                     )}
                   </View>
                 </View>
+                <TouchableOpacity
+                  style={styles.deleteBtn}
+                  onPress={() => handleDeleteSession(session)}
+                  accessibilityRole="button"
+                  accessibilityLabel={`Delete ${session.name}`}
+                >
+                  <Trash2 color={colors.textMuted} size={16} />
+                </TouchableOpacity>
               </GlassCard>
             );
           })
@@ -775,6 +860,14 @@ export default function SessionsScreen() {
                     <Text style={[styles.sessionMetaText, { color: '#34D399' }]}>Completed</Text>
                   </View>
                 </View>
+                <TouchableOpacity
+                  style={styles.deleteBtn}
+                  onPress={() => handleDeleteSession(session)}
+                  accessibilityRole="button"
+                  accessibilityLabel={`Delete ${session.name}`}
+                >
+                  <Trash2 color={colors.textMuted} size={16} />
+                </TouchableOpacity>
               </GlassCard>
             );
           })
@@ -797,61 +890,68 @@ export default function SessionsScreen() {
             contentContainerStyle={styles.achievementsRowContent}
           >
             {syncedAchievements.map((ach: any) => {
-              const iconMeta = ACHIEVEMENT_ICON_MAP[ach.icon] || { icon: Trophy, color: '#D4AF37' };
+              const iconMeta = getAchievementMeta(ach);
               const IconComp = iconMeta.icon;
               const progressPct = Math.min(100, Math.round((ach.progress / ach.target) * 100));
               return (
-                <GlassCard
+                <TouchableOpacity
                   key={ach.id}
-                  style={[
-                    styles.achievementCard,
-                    ach.unlocked && { borderColor: iconMeta.color + '50' },
-                  ]}
-                  depth="light"
+                  onPress={() => setSelectedAchievement(ach)}
+                  activeOpacity={0.88}
+                  accessibilityRole="button"
+                  accessibilityLabel={`${ach.title} achievement, ${progressPct}% complete`}
                 >
-                  {ach.unlocked && (
-                    <View style={[styles.achievementUnlockedGlow, { backgroundColor: iconMeta.color + '12' }]} />
-                  )}
-                  <View style={[
-                    styles.achievementIconWrap,
-                    {
-                      backgroundColor: ach.unlocked ? iconMeta.color + '22' : colors.glass,
-                      borderColor: ach.unlocked ? iconMeta.color + '40' : colors.glassBorder,
-                    },
-                  ]}>
-                    <IconComp
-                      color={ach.unlocked ? iconMeta.color : colors.textMuted}
-                      size={22}
-                    />
-                    {ach.unlocked && (
-                      <View style={styles.achievementCheckmark}>
-                        <Check color="#fff" size={8} />
-                      </View>
-                    )}
-                  </View>
-                  <Text
-                    style={[styles.achievementTitle, ach.unlocked && { color: colors.textPrimary }]}
-                    numberOfLines={2}
+                  <GlassCard
+                    style={[
+                      styles.achievementCard,
+                      { borderColor: iconMeta.color + (ach.unlocked ? '90' : '55') },
+                    ]}
+                    depth="light"
                   >
-                    {ach.title}
-                  </Text>
-                  <View style={styles.achievementProgressWrap}>
-                    <View style={styles.achievementProgress}>
-                      <View
-                        style={[
-                          styles.achievementBar,
-                          {
-                            width: `${progressPct}%` as any,
-                            backgroundColor: ach.unlocked ? iconMeta.color : colors.accent,
-                          },
-                        ]}
-                      />
+                    <LinearGradient
+                      colors={[iconMeta.color + (ach.unlocked ? '32' : '1C'), colors.glass, colors.bgSecondary + '88']}
+                      style={styles.achievementGradient}
+                      pointerEvents="none"
+                    />
+                    <View style={[styles.achievementColorRail, { backgroundColor: iconMeta.color }]} />
+                    <View style={[
+                      styles.achievementIconWrap,
+                      {
+                        backgroundColor: iconMeta.color + (ach.unlocked ? '32' : '1C'),
+                        borderColor: iconMeta.color + (ach.unlocked ? '90' : '55'),
+                      },
+                    ]}>
+                      <IconComp color={iconMeta.color} size={22} />
+                      {ach.unlocked && (
+                        <View style={styles.achievementCheckmark}>
+                          <Check color="#fff" size={8} />
+                        </View>
+                      )}
                     </View>
-                    <Text style={[styles.achievementPct, ach.unlocked && { color: iconMeta.color }]}>
-                      {progressPct}%
+                    <Text
+                      style={[styles.achievementTitle, { color: ach.unlocked ? colors.textPrimary : colors.textSecondary }]}
+                      numberOfLines={2}
+                    >
+                      {ach.title}
                     </Text>
-                  </View>
-                </GlassCard>
+                    <View style={styles.achievementProgressWrap}>
+                      <View style={[styles.achievementProgress, { backgroundColor: iconMeta.color + '20' }]}>
+                        <View
+                          style={[
+                            styles.achievementBar,
+                            {
+                              width: `${progressPct}%` as any,
+                              backgroundColor: iconMeta.color,
+                            },
+                          ]}
+                        />
+                      </View>
+                      <Text style={[styles.achievementPct, { color: iconMeta.color }]}>
+                        {progressPct}%
+                      </Text>
+                    </View>
+                  </GlassCard>
+                </TouchableOpacity>
               );
             })}
           </ScrollView>
@@ -879,7 +979,7 @@ export default function SessionsScreen() {
             <GlassCard style={styles.programCard} depth="normal">
               <LinearGradient
                 colors={[meta.color + '28', meta.color + '08', 'transparent']}
-                style={StyleSheet.absoluteFillObject}
+                style={StyleSheet.absoluteFill}
                 start={{ x: 0, y: 0 }}
                 end={{ x: 1, y: 1 }}
                 pointerEvents="none"
@@ -942,7 +1042,7 @@ export default function SessionsScreen() {
 
   return (
     <View style={[styles.container, { backgroundColor: colors.bg }]}>
-      <LinearGradient colors={gradients.bg} style={StyleSheet.absoluteFillObject} pointerEvents="none" />
+      <LinearGradient colors={gradients.bg} style={StyleSheet.absoluteFill} pointerEvents="none" />
 
       {/* Ambient orb background */}
       <View style={styles.bgOrb1} pointerEvents="none" />
@@ -1011,7 +1111,7 @@ export default function SessionsScreen() {
       {selectedStarterSession && (
         <Modal visible={showStarterDetails} animationType="slide" presentationStyle="pageSheet">
           <View style={styles.detailModal}>
-            <LinearGradient colors={gradients.bg} style={StyleSheet.absoluteFillObject} pointerEvents="none" />
+            <LinearGradient colors={gradients.bg} style={StyleSheet.absoluteFill} pointerEvents="none" />
             <View style={[styles.detailContent, { paddingTop: insets.top + 16 }]}>
               <TouchableOpacity onPress={() => setShowStarterDetails(false)} style={styles.detailClose}>
                 <X color={colors.textSecondary} size={22} />
@@ -1098,7 +1198,7 @@ export default function SessionsScreen() {
       {selectedSession && (
         <Modal visible={!!selectedSession} animationType="slide" presentationStyle="pageSheet">
           <View style={styles.detailModal}>
-            <LinearGradient colors={gradients.bg} style={StyleSheet.absoluteFillObject} pointerEvents="none" />
+            <LinearGradient colors={gradients.bg} style={StyleSheet.absoluteFill} pointerEvents="none" />
             <View style={[styles.detailContent, { paddingTop: insets.top + 16 }]}>
               <TouchableOpacity onPress={() => setSelectedSession(null)} style={styles.detailClose}>
                 <X color={colors.textSecondary} size={22} />
@@ -1157,12 +1257,189 @@ export default function SessionsScreen() {
         </Modal>
       )}
 
+      {selectedAchievement && (() => {
+        const achievementMeta = getAchievementMeta(selectedAchievement);
+        const AchievementIcon = achievementMeta.icon;
+        const progressPct = Math.min(100, Math.round((selectedAchievement.progress / selectedAchievement.target) * 100));
+        const remaining = Math.max(0, selectedAchievement.target - selectedAchievement.progress);
+
+        return (
+          <Modal
+            visible
+            animationType="slide"
+            presentationStyle="pageSheet"
+            onRequestClose={() => setSelectedAchievement(null)}
+          >
+            <View style={styles.achievementModal}>
+              <LinearGradient colors={gradients.bg} style={StyleSheet.absoluteFill} pointerEvents="none" />
+              <View style={[styles.achievementModalGlow, { backgroundColor: achievementMeta.color + '26' }]} />
+              <View style={[styles.achievementModalContent, { paddingTop: insets.top + 12 }]}>
+                <View style={styles.achievementModalHeader}>
+                  <Text style={styles.achievementModalEyebrow}>ACHIEVEMENT DETAILS</Text>
+                  <TouchableOpacity
+                    onPress={() => setSelectedAchievement(null)}
+                    style={styles.detailClose}
+                    accessibilityRole="button"
+                    accessibilityLabel="Close achievement details"
+                  >
+                    <X color={colors.textSecondary} size={22} />
+                  </TouchableOpacity>
+                </View>
+
+                <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.achievementModalScroll}>
+                  <LinearGradient
+                    colors={[achievementMeta.color + '42', achievementMeta.color + '12', colors.glass]}
+                    style={[styles.achievementHero, { borderColor: achievementMeta.color + '75' }]}
+                  >
+                    <View style={[styles.achievementHeroIcon, { backgroundColor: achievementMeta.color + '32', borderColor: achievementMeta.color + '80' }]}>
+                      <AchievementIcon color={achievementMeta.color} size={34} />
+                      {selectedAchievement.unlocked && (
+                        <View style={styles.achievementHeroCheck}>
+                          <Check color="#fff" size={11} />
+                        </View>
+                      )}
+                    </View>
+                    <Text style={styles.achievementModalTitle}>{selectedAchievement.title}</Text>
+                    <Text style={styles.achievementModalDescription}>{selectedAchievement.description}</Text>
+                    <View style={styles.achievementStatusPill}>
+                      <View style={[styles.achievementStatusDot, { backgroundColor: achievementMeta.color }]} />
+                      <Text style={[styles.achievementStatusText, { color: achievementMeta.color }] }>
+                        {selectedAchievement.unlocked ? 'Completed' : `${progressPct}% in progress`}
+                      </Text>
+                    </View>
+                  </LinearGradient>
+
+                  <View style={styles.achievementMetricRow}>
+                    <View style={styles.achievementMetric}>
+                      <Text style={[styles.achievementMetricValue, { color: achievementMeta.color }]}>{selectedAchievement.progress}</Text>
+                      <Text style={styles.achievementMetricLabel}>Current</Text>
+                    </View>
+                    <View style={[styles.achievementMetricDivider, { backgroundColor: achievementMeta.color + '35' }]} />
+                    <View style={styles.achievementMetric}>
+                      <Text style={[styles.achievementMetricValue, { color: colors.textPrimary }]}>{selectedAchievement.target}</Text>
+                      <Text style={styles.achievementMetricLabel}>Goal</Text>
+                    </View>
+                    <View style={[styles.achievementMetricDivider, { backgroundColor: achievementMeta.color + '35' }]} />
+                    <View style={styles.achievementMetric}>
+                      <Text style={[styles.achievementMetricValue, { color: colors.gold }]}>{remaining}</Text>
+                      <Text style={styles.achievementMetricLabel}>Remaining</Text>
+                    </View>
+                  </View>
+
+                  <GlassCard style={styles.achievementGuideCard} depth="light">
+                    <View style={[styles.achievementGuideIcon, { backgroundColor: achievementMeta.color + '20' }]}>
+                      <Target color={achievementMeta.color} size={18} />
+                    </View>
+                    <View style={styles.achievementGuideCopy}>
+                      <Text style={styles.achievementGuideTitle}>{selectedAchievement.unlocked ? 'Milestone reached' : 'Your next step'}</Text>
+                      <Text style={styles.achievementGuideText}>{achievementProgressText(selectedAchievement)}</Text>
+                    </View>
+                  </GlassCard>
+
+                  {selectedAchievement.reward && (
+                    <GlassCard style={styles.achievementRewardCard} depth="light">
+                      <Award color={colors.gold} size={18} />
+                      <View style={styles.achievementGuideCopy}>
+                        <Text style={styles.achievementGuideTitle}>Reward</Text>
+                        <Text style={styles.achievementGuideText}>{selectedAchievement.reward}</Text>
+                      </View>
+                    </GlassCard>
+                  )}
+
+                  {selectedAchievement.unlocked && !selectedAchievement.claimedAt && (
+                    <TouchableOpacity
+                      style={[styles.achievementAction, { backgroundColor: achievementMeta.color }]}
+                      onPress={() => handleClaimReward(selectedAchievement)}
+                      activeOpacity={0.85}
+                    >
+                      <Crown color="#fff" size={16} />
+                      <Text style={styles.achievementActionText}>
+                        {selectedAchievement.rewardKind === 'premium' && !isPremium ? 'Unlock with Premium' : 'Claim reward'}
+                      </Text>
+                    </TouchableOpacity>
+                  )}
+
+                  {selectedAchievement.claimedAt && (
+                    <View style={[styles.achievementClaimed, { borderColor: achievementMeta.color + '50' }]}>
+                      <Check color={achievementMeta.color} size={16} />
+                      <Text style={[styles.achievementClaimedText, { color: achievementMeta.color }]}>Reward claimed</Text>
+                    </View>
+                  )}
+
+                  {!selectedAchievement.unlocked && (
+                    <TouchableOpacity
+                      style={[styles.achievementAction, { backgroundColor: achievementMeta.color }]}
+                      onPress={() => {
+                        setSelectedAchievement(null);
+                        setActiveTab('active');
+                      }}
+                      activeOpacity={0.85}
+                    >
+                      <Play color="#fff" size={16} fill="#fff" />
+                      <Text style={styles.achievementActionText}>Keep the journey going</Text>
+                    </TouchableOpacity>
+                  )}
+                  <View style={{ height: 32 }} />
+                </ScrollView>
+              </View>
+            </View>
+          </Modal>
+        );
+      })()}
+
+      {pendingReward && (
+        <Modal visible transparent animationType="fade" onRequestClose={dismissReward}>
+          <View style={styles.rewardOverlay}>
+            <View style={styles.rewardCelebration}>
+              <LinearGradient
+                colors={[colors.gold + '42', colors.accent + '28', colors.bgSecondary]}
+                style={StyleSheet.absoluteFill}
+                pointerEvents="none"
+              />
+              <View style={[styles.rewardBurst, { backgroundColor: colors.gold + '24', borderColor: colors.gold + '60' }]}>
+                <Crown color={colors.gold} size={34} />
+              </View>
+              <Text style={styles.rewardEyebrow}>MILESTONE UNLOCKED</Text>
+              <Text style={styles.rewardTitle}>{pendingReward.title}</Text>
+              <Text style={styles.rewardSubtitle}>You earned a reward</Text>
+              <View style={styles.rewardPrizeRow}>
+                <Sparkles color={colors.gold} size={18} />
+                <Text style={styles.rewardPrize}>{pendingReward.reward}</Text>
+              </View>
+              <TouchableOpacity
+                style={[styles.rewardClaimButton, { backgroundColor: colors.gold }]}
+                onPress={() => handleClaimReward(pendingReward)}
+                activeOpacity={0.85}
+              >
+                <Crown color="#1a1200" size={17} />
+                <Text style={styles.rewardClaimButtonText}>
+                  {pendingReward.rewardKind === 'premium' && !isPremium ? 'See Premium Access' : 'Claim reward'}
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity onPress={dismissReward} style={styles.rewardLaterButton}>
+                <Text style={styles.rewardLaterText}>Claim later</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </Modal>
+      )}
+
+      <PremiumModal
+        visible={showRewardPaywall}
+        onClose={() => setShowRewardPaywall(false)}
+        onStartTrial={() => setShowRewardPaywall(false)}
+        onUpgrade={() => setShowRewardPaywall(false)}
+        trigger="engagement_milestone"
+      />
+
       <AudioPlayer
         visible={showAudioPlayer}
         onClose={() => setShowAudioPlayer(false)}
         frequency={audioPlayerFrequency}
         sessionFrequencies={audioPlayerSession?.frequencies}
         sessionName={audioPlayerSession?.name}
+        sessionId={audioPlayerSession?.sessionId}
+        onSessionComplete={completeSession}
         isSessionMode={!!audioPlayerSession}
       />
 
@@ -1389,7 +1666,7 @@ const createStyles = (colors: any, gradients: any, isDark: boolean) => StyleShee
     elevation: 20,
   },
   orbGradient: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     borderRadius: 70,
   },
   orbContent: {
@@ -1684,6 +1961,16 @@ const createStyles = (colors: any, gradients: any, isDark: boolean) => StyleShee
     borderWidth: 1,
     backgroundColor: isDark ? colors.glass : 'rgba(255,255,255,0.05)',
   },
+  deleteBtn: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: isDark ? colors.glass : 'rgba(255,255,255,0.08)',
+    borderWidth: 1,
+    borderColor: colors.glassBorder,
+  },
   // Empty state
   emptyCard: {
     alignItems: 'center',
@@ -1734,7 +2021,7 @@ const createStyles = (colors: any, gradients: any, isDark: boolean) => StyleShee
     fontWeight: '600' as const,
   },
   achievementCard: {
-    width: 108,
+    width: 136,
     alignItems: 'center',
     padding: 14,
     borderRadius: 20,
@@ -1742,8 +2029,18 @@ const createStyles = (colors: any, gradients: any, isDark: boolean) => StyleShee
     position: 'relative' as const,
     overflow: 'hidden' as const,
   },
+  achievementGradient: {
+    ...StyleSheet.absoluteFill,
+  },
+  achievementColorRail: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    height: 3,
+  },
   achievementUnlockedGlow: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     borderRadius: 20,
   },
   achievementIconWrap: {
@@ -1796,6 +2093,287 @@ const createStyles = (colors: any, gradients: any, isDark: boolean) => StyleShee
     color: colors.textMuted,
     fontWeight: '600' as const,
     letterSpacing: 0.3,
+  },
+  achievementModal: {
+    flex: 1,
+    backgroundColor: colors.bg,
+  },
+  achievementModalGlow: {
+    position: 'absolute',
+    width: 280,
+    height: 280,
+    borderRadius: 140,
+    top: -110,
+    alignSelf: 'center',
+  },
+  achievementModalContent: {
+    flex: 1,
+    paddingHorizontal: 22,
+  },
+  achievementModalHeader: {
+    minHeight: 42,
+    justifyContent: 'center',
+  },
+  achievementModalEyebrow: {
+    fontSize: 11,
+    fontWeight: '700' as const,
+    letterSpacing: 1.6,
+    color: colors.textMuted,
+  },
+  achievementModalScroll: {
+    paddingTop: 14,
+    paddingBottom: 28,
+  },
+  achievementHero: {
+    alignItems: 'center',
+    borderRadius: 24,
+    borderWidth: 1,
+    paddingHorizontal: 22,
+    paddingVertical: 28,
+    overflow: 'hidden',
+  },
+  achievementHeroIcon: {
+    width: 78,
+    height: 78,
+    borderRadius: 24,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    position: 'relative',
+    marginBottom: 16,
+  },
+  achievementHeroCheck: {
+    position: 'absolute',
+    right: -5,
+    bottom: -5,
+    width: 23,
+    height: 23,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#34D399',
+    borderWidth: 2,
+    borderColor: colors.bg,
+  },
+  achievementModalTitle: {
+    fontSize: 25,
+    fontWeight: '700' as const,
+    color: colors.textPrimary,
+    textAlign: 'center',
+    marginBottom: 7,
+  },
+  achievementModalDescription: {
+    fontSize: 14,
+    lineHeight: 21,
+    color: colors.textSecondary,
+    textAlign: 'center',
+    maxWidth: 320,
+  },
+  achievementStatusPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 7,
+    marginTop: 17,
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    borderRadius: 20,
+    backgroundColor: colors.glass,
+    borderWidth: 1,
+    borderColor: colors.glassBorder,
+  },
+  achievementStatusDot: {
+    width: 7,
+    height: 7,
+    borderRadius: 4,
+  },
+  achievementStatusText: {
+    fontSize: 12,
+    fontWeight: '700' as const,
+  },
+  achievementMetricRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-around',
+    marginVertical: 16,
+    paddingVertical: 15,
+    borderRadius: 18,
+    backgroundColor: colors.glass,
+    borderWidth: 1,
+    borderColor: colors.glassBorder,
+  },
+  achievementMetric: {
+    flex: 1,
+    alignItems: 'center',
+    gap: 3,
+  },
+  achievementMetricValue: {
+    fontSize: 22,
+    fontWeight: '700' as const,
+  },
+  achievementMetricLabel: {
+    fontSize: 11,
+    color: colors.textMuted,
+  },
+  achievementMetricDivider: {
+    width: 1,
+    height: 30,
+  },
+  achievementGuideCard: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 12,
+    padding: 16,
+    borderRadius: 18,
+    marginBottom: 10,
+  },
+  achievementRewardCard: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 12,
+    padding: 16,
+    borderRadius: 18,
+    marginBottom: 18,
+  },
+  achievementGuideIcon: {
+    width: 36,
+    height: 36,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  achievementGuideCopy: {
+    flex: 1,
+    gap: 3,
+  },
+  achievementGuideTitle: {
+    fontSize: 13,
+    fontWeight: '700' as const,
+    color: colors.textPrimary,
+  },
+  achievementGuideText: {
+    fontSize: 13,
+    lineHeight: 19,
+    color: colors.textSecondary,
+  },
+  achievementAction: {
+    minHeight: 50,
+    borderRadius: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 9,
+    paddingHorizontal: 18,
+  },
+  achievementActionText: {
+    fontSize: 14,
+    fontWeight: '700' as const,
+    color: '#fff',
+  },
+  achievementClaimed: {
+    width: '100%',
+    minHeight: 42,
+    borderRadius: 14,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexDirection: 'row',
+    gap: 7,
+    backgroundColor: colors.glass,
+  },
+  achievementClaimedText: {
+    fontSize: 13,
+    fontWeight: '700' as const,
+  },
+  rewardOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(3, 5, 12, 0.88)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 22,
+  },
+  rewardCelebration: {
+    width: '100%',
+    maxWidth: 380,
+    alignItems: 'center',
+    borderRadius: 28,
+    paddingHorizontal: 24,
+    paddingTop: 34,
+    paddingBottom: 24,
+    borderWidth: 1,
+    borderColor: colors.gold + '55',
+    overflow: 'hidden',
+  },
+  rewardBurst: {
+    width: 82,
+    height: 82,
+    borderRadius: 41,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    marginBottom: 20,
+  },
+  rewardEyebrow: {
+    fontSize: 11,
+    fontWeight: '800' as const,
+    letterSpacing: 2,
+    color: colors.gold,
+    marginBottom: 10,
+  },
+  rewardTitle: {
+    fontSize: 28,
+    fontWeight: '700' as const,
+    color: colors.textPrimary,
+    textAlign: 'center',
+    marginBottom: 5,
+  },
+  rewardSubtitle: {
+    fontSize: 14,
+    color: colors.textSecondary,
+    marginBottom: 22,
+  },
+  rewardPrizeRow: {
+    width: '100%',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 9,
+    paddingVertical: 14,
+    paddingHorizontal: 12,
+    borderRadius: 16,
+    backgroundColor: colors.gold + '14',
+    borderWidth: 1,
+    borderColor: colors.gold + '35',
+    marginBottom: 20,
+  },
+  rewardPrize: {
+    flexShrink: 1,
+    fontSize: 15,
+    fontWeight: '700' as const,
+    color: colors.goldLight,
+    textAlign: 'center',
+  },
+  rewardClaimButton: {
+    width: '100%',
+    minHeight: 52,
+    borderRadius: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexDirection: 'row',
+    gap: 8,
+  },
+  rewardClaimButtonText: {
+    fontSize: 15,
+    fontWeight: '800' as const,
+    color: '#1a1200',
+  },
+  rewardLaterButton: {
+    paddingVertical: 14,
+    paddingHorizontal: 20,
+  },
+  rewardLaterText: {
+    fontSize: 13,
+    fontWeight: '600' as const,
+    color: colors.textMuted,
   },
   // Programs
   programsSubtitle: {

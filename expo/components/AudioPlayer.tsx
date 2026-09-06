@@ -69,6 +69,8 @@ interface AudioPlayerProps {
   frequency?: any;
   sessionFrequencies?: Frequency[];
   sessionName?: string;
+  sessionId?: string;
+  onSessionComplete?: (sessionId: string, durationSeconds: number) => Promise<void>;
   isSessionMode?: boolean;
 }
 
@@ -78,6 +80,8 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({
   frequency,
   sessionFrequencies = [],
   sessionName = '',
+  sessionId,
+  onSessionComplete,
   isSessionMode = false,
 }) => {
   const [duration, setDuration] = useState<number>(15); // minutes
@@ -324,7 +328,11 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({
             stopFrequency();
             setSessionProgress(100);
             const totalMinutes = st.sessionFrequencies.reduce((sum, f) => sum + f.duration, 0);
-            trackUsage(totalMinutes, st.sessionFrequencies[st.currentFrequencyIndex]?.name || 'session').catch(() => {});
+            if (sessionId && onSessionComplete) {
+              onSessionComplete(sessionId, totalMinutes * 60).catch(() => {});
+            } else {
+              trackUsage(totalMinutes, st.sessionFrequencies[st.currentFrequencyIndex]?.name || 'session').catch(() => {});
+            }
             return 0;
           }
           return newTime;
@@ -360,7 +368,7 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({
         tickRaf.current = null;
       }
     };
-  }, [isPlaying, isTimerActive, isSessionActive, isSessionMode]);
+  }, [isPlaying, isTimerActive, isSessionActive, isSessionMode, onSessionComplete, sessionId, trackUsage]);
 
   useEffect(() => {
     if (!isPreviewActive) {

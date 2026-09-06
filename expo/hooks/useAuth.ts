@@ -423,7 +423,10 @@ export const [AuthProvider, useAuth] = createContextHook((): AuthContextType => 
     let streakDays = userProfile.usageStats.streakDays;
     if (lastSessionDate) {
       const daysDiff = Math.floor((now.getTime() - lastSessionDate.getTime()) / (1000 * 60 * 60 * 24));
-      if (daysDiff === 1) {
+      if (daysDiff === 0) {
+        // Multiple completions on the same local day keep one streak day.
+        streakDays = Math.max(1, streakDays);
+      } else if (daysDiff === 1) {
         streakDays += 1;
       } else if (daysDiff > 1) {
         streakDays = 1;

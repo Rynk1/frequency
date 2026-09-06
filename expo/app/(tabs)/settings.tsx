@@ -38,6 +38,7 @@ import { useSettings } from '@/hooks/useSettings';
 import { useFavorites } from '@/hooks/useFavorites';
 import { useAuth } from '@/hooks/useAuth';
 import { useTheme } from '@/hooks/useTheme';
+import { useSessionManager } from '@/hooks/useSessionManager';
 import { PremiumModal } from '@/components/PremiumModal';
 import { DataModeIndicator } from '@/components/DataModeIndicator';
 import { router } from 'expo-router';
@@ -138,6 +139,17 @@ export default function SettingsScreen() {
   const { mode, colors, gradients, isDark, toggleTheme } = useTheme();
   const insets = useSafeAreaInsets();
   const [showPremiumModal, setShowPremiumModal] = React.useState(false);
+  const { achievements, claimReward, setRewardActive } = useSessionManager();
+  const earnedRewards = achievements.filter((achievement) => achievement.unlocked);
+
+  const handleClaimReward = async (achievement: any) => {
+    if (achievement.rewardKind === 'premium' && !isPremium) {
+      setShowPremiumModal(true);
+      return;
+    }
+    await claimReward(achievement.id);
+    if (achievement.rewardId === 'custom_timer_30') updateSetting('defaultSessionLength', 30);
+  };
 
   const handleSignOut = async () => {
     try { await signOut(); } catch (e) { console.error(e); }
@@ -167,7 +179,7 @@ export default function SettingsScreen() {
 
   return (
     <View style={[styles.container, { backgroundColor: colors.bg }]}>
-      <LinearGradient colors={gradients.bg as any} style={StyleSheet.absoluteFillObject} pointerEvents="none" />
+      <LinearGradient colors={gradients.bg as any} style={StyleSheet.absoluteFill} pointerEvents="none" />
       <View style={[styles.ambientOrb, { backgroundColor: isDark ? 'rgba(108,99,255,0.09)' : 'rgba(108,99,255,0.06)' }]} pointerEvents="none" />
       <View style={[styles.ambientOrb2, { backgroundColor: isDark ? 'rgba(212,175,55,0.06)' : 'rgba(212,175,55,0.04)' }]} pointerEvents="none" />
       <View style={[styles.ambientOrb3, { backgroundColor: isDark ? 'rgba(52,211,153,0.05)' : 'rgba(52,211,153,0.03)' }]} pointerEvents="none" />
@@ -256,6 +268,51 @@ export default function SettingsScreen() {
                 </Text>
               </TouchableOpacity>
             </View>
+          </GlassCard>
+
+          <Text style={[styles.islandLabel, { color: colors.textMuted }]}>Rewards</Text>
+          <GlassCard style={styles.island} depth="normal">
+            {earnedRewards.length === 0 ? (
+              <View style={styles.rewardEmptyRow}>
+                <Sparkles color={colors.textMuted} size={18} />
+                <View style={styles.islandText}>
+                  <Text style={[styles.islandRowTitle, { color: colors.textPrimary }]}>No rewards earned yet</Text>
+                  <Text style={[styles.islandRowSub, { color: colors.textMuted }]}>Complete achievements to unlock rewards.</Text>
+                </View>
+              </View>
+            ) : earnedRewards.map((achievement, index) => (
+              <React.Fragment key={achievement.id}>
+                {index > 0 && <View style={[styles.islandSep, { backgroundColor: colors.divider }]} />}
+                <View style={styles.islandRow}>
+                  <View style={[styles.islandIcon, islandIconBg(colors.gold)]}>
+                    <Sparkles color={colors.gold} size={18} />
+                  </View>
+                  <View style={styles.islandText}>
+                    <Text style={[styles.islandRowTitle, { color: colors.textPrimary }]}>{achievement.reward}</Text>
+                    <Text style={[styles.islandRowSub, { color: colors.textMuted }]}>
+                      {achievement.claimedAt ? (achievement.active ? 'Active' : 'Claimed · inactive') : 'Earned · ready to claim'}
+                    </Text>
+                  </View>
+                  {!achievement.claimedAt ? (
+                    <TouchableOpacity
+                      style={[styles.rewardClaimChip, { backgroundColor: colors.gold + '18', borderColor: colors.gold + '40' }]}
+                      onPress={() => handleClaimReward(achievement)}
+                    >
+                      <Text style={[styles.rewardClaimChipText, { color: colors.gold }]}>
+                        {achievement.rewardKind === 'premium' && !isPremium ? 'Premium' : 'Claim'}
+                      </Text>
+                    </TouchableOpacity>
+                  ) : (
+                    <Switch
+                      value={achievement.active !== false}
+                      onValueChange={(active) => setRewardActive(achievement.id, active)}
+                      trackColor={{ false: colors.glass, true: colors.gold + '70' }}
+                      thumbColor={achievement.active !== false ? colors.gold : colors.textMuted}
+                    />
+                  )}
+                </View>
+              </React.Fragment>
+            ))}
           </GlassCard>
 
           {/* — GROUPED: Account — */}
@@ -558,6 +615,9 @@ const styles = StyleSheet.create({
   islandSep: { height: 1, marginHorizontal: 16 },
   statBadge: { borderWidth: 1, paddingHorizontal: 10, paddingVertical: 4, borderRadius: 10 },
   statBadgeText: { fontSize: 12, fontWeight: '700' as const },
+  rewardEmptyRow: { flexDirection: 'row', alignItems: 'center', padding: 16, gap: 12 },
+  rewardClaimChip: { borderWidth: 1, borderRadius: 10, paddingHorizontal: 11, paddingVertical: 7 },
+  rewardClaimChipText: { fontSize: 12, fontWeight: '700' as const },
   sliderRow: { paddingHorizontal: 16, paddingVertical: 14 },
   sliderRowHeader: { flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 10 },
   sliderValue: { fontSize: 13, fontWeight: '600' as const, minWidth: 36, textAlign: 'right' },
