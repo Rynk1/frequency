@@ -31,6 +31,7 @@ import {
   Zap,
   Sparkles,
   TrendingUp,
+  Bookmark,
   Sun,
   Moon,
 } from 'lucide-react-native';
@@ -40,6 +41,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { useTheme } from '@/hooks/useTheme';
 import { useSessionManager } from '@/hooks/useSessionManager';
 import { PremiumModal } from '@/components/PremiumModal';
+import { LibraryModal } from '@/components/LibraryModal';
 import { DataModeIndicator } from '@/components/DataModeIndicator';
 import { router } from 'expo-router';
 import { FONTS } from '@/constants/theme';
@@ -139,6 +141,8 @@ export default function SettingsScreen() {
   const { mode, colors, gradients, isDark, toggleTheme } = useTheme();
   const insets = useSafeAreaInsets();
   const [showPremiumModal, setShowPremiumModal] = React.useState(false);
+  const [showLibraryModal, setShowLibraryModal] = React.useState(false);
+  const [librarySection, setLibrarySection] = React.useState<'favorites' | 'history' | 'listening' | 'bookmarks'>('favorites');
   const { achievements, claimReward, setRewardActive } = useSessionManager();
   const earnedRewards = achievements.filter((achievement) => achievement.unlocked);
 
@@ -159,6 +163,11 @@ export default function SettingsScreen() {
     if (isPremium) return 'Premium Active';
     if (isTrialActive) return `Free Trial · ${trialDaysLeft} days left`;
     return 'Free Plan';
+  };
+
+  const openLibrary = (section: typeof librarySection) => {
+    setLibrarySection(section);
+    setShowLibraryModal(true);
   };
 
   const membershipGradient: readonly [string, string] = isPremium
@@ -471,7 +480,7 @@ export default function SettingsScreen() {
           {/* — GROUPED: Library — */}
           <Text style={[styles.islandLabel, { color: colors.textMuted }]}>Your Library</Text>
           <GlassCard style={styles.island} depth="normal">
-            <TouchableOpacity style={styles.islandRow} onPress={() => router.push('/(tabs)/categories' as any)}>
+            <TouchableOpacity style={styles.islandRow} onPress={() => openLibrary('favorites')}>
               <View style={[styles.islandIcon, islandIconBg('#F472B6')]}>
                 <Heart color="#F472B6" size={18} />
               </View>
@@ -484,7 +493,7 @@ export default function SettingsScreen() {
               </View>
             </TouchableOpacity>
             <View style={[styles.islandSep, { backgroundColor: colors.divider }]} />
-            <TouchableOpacity style={styles.islandRow} onPress={() => router.push('/(tabs)/sessions' as any)}>
+            <TouchableOpacity style={styles.islandRow} onPress={() => openLibrary('history')}>
               <View style={[styles.islandIcon, islandIconBg(colors.gold)]}>
                 <Star color={colors.gold} size={18} />
               </View>
@@ -497,7 +506,7 @@ export default function SettingsScreen() {
               </View>
             </TouchableOpacity>
             <View style={[styles.islandSep, { backgroundColor: colors.divider }]} />
-            <TouchableOpacity style={styles.islandRow} onPress={() => router.push('/(tabs)/sessions' as any)}>
+            <TouchableOpacity style={styles.islandRow} onPress={() => openLibrary('listening')}>
               <View style={[styles.islandIcon, islandIconBg('#60A5FA')]}>
                 <TrendingUp color="#60A5FA" size={18} />
               </View>
@@ -507,6 +516,19 @@ export default function SettingsScreen() {
               </View>
               <View style={[styles.statBadge, { backgroundColor: '#60A5FA15', borderColor: '#60A5FA30' }]}>
                 <Text style={[styles.statBadgeText, { color: '#60A5FA' }]}>{userProfile?.usageStats?.totalListeningTime || 0}m</Text>
+              </View>
+            </TouchableOpacity>
+            <View style={[styles.islandSep, { backgroundColor: colors.divider }]} />
+            <TouchableOpacity style={styles.islandRow} onPress={() => openLibrary('bookmarks')}>
+              <View style={[styles.islandIcon, islandIconBg(colors.accent)]}>
+                <Bookmark color={colors.accent} size={18} />
+              </View>
+              <View style={styles.islandText}>
+                <Text style={[styles.islandRowTitle, { color: colors.textPrimary }]}>Bookmarks</Text>
+                <Text style={[styles.islandRowSub, { color: colors.textMuted }]}>Saved learning guides</Text>
+              </View>
+              <View style={[styles.statBadge, { backgroundColor: colors.accentSoft, borderColor: colors.accent + '30' }]}>
+                <Text style={[styles.statBadgeText, { color: colors.accent }]}>Learn</Text>
               </View>
             </TouchableOpacity>
           </GlassCard>
@@ -576,6 +598,11 @@ export default function SettingsScreen() {
       </View>
 
       <PremiumModal visible={showPremiumModal} onClose={() => setShowPremiumModal(false)} />
+      <LibraryModal
+        visible={showLibraryModal}
+        initialSection={librarySection}
+        onClose={() => setShowLibraryModal(false)}
+      />
     </View>
   );
 }

@@ -103,6 +103,11 @@ service cloud.firestore {
       allow update, delete: if false;
     }
 
+    // ── User frequency library ──
+    match /userFavorites/{userId} {
+      allow read, write: if isOwner(userId);
+    }
+
     // ── Audit logs (admin-only) ──
     match /auditLogs/{logId} {
       allow read: if isAdmin();

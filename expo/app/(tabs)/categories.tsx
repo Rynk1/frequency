@@ -13,6 +13,7 @@ import {
 } from 'react-native';
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 import { LinearGradient } from 'expo-linear-gradient';
+import { useGlobalSearchParams } from 'expo-router';
 import { GlassCard as SharedGlassCard } from '@/components/GlassCard';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Zap, Brain, Sparkles, Eye, Grid, List, Info, Play, Search, X, Crown, SlidersHorizontal } from 'lucide-react-native';
@@ -32,6 +33,7 @@ type CategoryType = 'all' | 'scientific' | 'binaural' | 'solfeggio' | 'chakra';
 const GlassCard = SharedGlassCard;
 
 export default function CategoriesScreen() {
+  const params = useGlobalSearchParams<{ frequencyHz?: string }>();
   const insets = useSafeAreaInsets();
   const { colors, gradients, isDark } = useTheme();
   const styles = useMemo(() => createStyles(colors, isDark), [colors, isDark]);
@@ -67,6 +69,16 @@ export default function CategoriesScreen() {
   const { isInitialized, isLoading } = useDataInitialization();
   const { isPremium } = useAuth();
   const { showPremiumGate, gateConfig, closePremiumGate, attemptFeatureAccess } = usePremiumUsage();
+
+  useEffect(() => {
+    if (!params.frequencyHz) return;
+    const target = getAllFrequencies().find((frequency) => String(frequency.hz) === String(params.frequencyHz));
+    if (target) {
+      setActiveTab('library');
+      setSelectedCategory('all');
+      setSelectedFrequency(target);
+    }
+  }, [params.frequencyHz, scientific, brainwave, solfeggio, chakra]);
 
   const categories = [
     {

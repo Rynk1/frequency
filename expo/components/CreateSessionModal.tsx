@@ -36,17 +36,12 @@ import {
   Music,
   Timer,
   Repeat,
+  Crown,
 } from 'lucide-react-native';
-import {
-  SOLFEGGIO_FREQUENCIES,
-  CHAKRA_FREQUENCIES,
-  BINAURAL_BEATS,
-  HEALING_FREQUENCIES,
-  SLEEP_FREQUENCIES,
-  WEALTH_FREQUENCIES,
-} from '@/constants/frequencies';
 import { FONTS, type ThemeColors } from '@/constants/theme';
 import { useTheme } from '@/hooks/useTheme';
+import { useBackendData } from '@/hooks/useBackendData';
+import { PremiumModal } from '@/components/PremiumModal';
 
 interface CreateSessionModalProps {
   visible: boolean;
@@ -58,6 +53,8 @@ interface SelectedFrequency {
   hz: number;
   name: string;
   duration: number;
+  isPremium?: boolean;
+  category?: string;
 }
 
 const categories = [
@@ -69,9 +66,9 @@ const categories = [
 ];
 
 const intensities = [
-  { id: 'gentle', name: 'Gentle', emoji: '🌱', color: '#34D399' },
-  { id: 'moderate', name: 'Moderate', emoji: '⚡', color: '#FBBF24' },
-  { id: 'intense', name: 'Intense', emoji: '🔥', color: '#F472B6' },
+  { id: 'gentle', name: 'Gentle', emoji: '🌱', color: '#34D399', description: 'Longer, softer tracks with more space to settle.', durationMultiplier: 1.25 },
+  { id: 'moderate', name: 'Moderate', emoji: '⚡', color: '#FBBF24', description: 'Balanced pacing for a dependable daily practice.', durationMultiplier: 1 },
+  { id: 'intense', name: 'Intense', emoji: '🔥', color: '#F472B6', description: 'Shorter, concentrated tracks with a stronger pace.', durationMultiplier: 0.75 },
 ];
 
 const schedules = [
@@ -87,15 +84,6 @@ const schedules = [
   'Sunday',
 ];
 
-const allFrequencies = [
-  ...SOLFEGGIO_FREQUENCIES.map(f => ({ ...f, category: 'Solfeggio' })),
-  ...CHAKRA_FREQUENCIES.map(f => ({ ...f, category: 'Chakra' })),
-  ...BINAURAL_BEATS.map(f => ({ ...f, category: 'Binaural' })),
-  ...HEALING_FREQUENCIES.map(f => ({ ...f, category: 'Healing' })),
-  ...SLEEP_FREQUENCIES.map(f => ({ ...f, category: 'Sleep' })),
-  ...WEALTH_FREQUENCIES.map(f => ({ ...f, category: 'Wealth' })),
-];
-
 const HOURS = Array.from({ length: 12 }, (_, i) => String(i + 1).padStart(2, '0'));
 const MINUTES = ['00', '15', '30', '45'];
 const PERIODS = ['AM', 'PM'];
@@ -107,7 +95,8 @@ const GlassCard = SharedGlassCard;
 export default function CreateSessionModal({ visible, onClose, onCreateSession }: CreateSessionModalProps) {
   const insets = useSafeAreaInsets();
   const { colors, gradients, isDark } = useTheme();
-  const { user } = useAuth();
+  const { user, capabilities } = useAuth();
+  const { frequencies, curatedPrograms } = useBackendData();
   const { createReminder, requestNotificationPermission } = useSessionManager();
   const [sessionName, setSessionName] = useState('');
   const [goal, setGoal] = useState('');
@@ -117,8 +106,8 @@ export default function CreateSessionModal({ visible, onClose, onCreateSession }
   const [selectedFrequencies, setSelectedFrequencies] = useState<SelectedFrequency[]>([]);
   const [notes, setNotes] = useState('');
   const [showFrequencyPicker, setShowFrequencyPicker] = useState(false);
+  const [showPremiumModal, setShowPremiumModal] = useState(false);
   const [currentFrequencyDuration, setCurrentFrequencyDuration] = useState(10);
-  const [freqFilterCat, setFreqFilterCat] = useState<string>('all');
 
   const [notificationsEnabled, setNotificationsEnabled] = useState(false);
   const [notifHour, setNotifHour] = useState('07');
@@ -130,16 +119,46 @@ export default function CreateSessionModal({ visible, onClose, onCreateSession }
   const totalDuration = selectedFrequencies.reduce((sum, f) => sum + f.duration, 0);
   const selectedCatMeta = categories.find(c => c.id === selectedCategory) || categories[0];
 
-  const freqCategories = ['all', 'Solfeggio', 'Chakra', 'Binaural', 'Healing', 'Sleep', 'Wealth'];
-  const filteredFreqs = freqFilterCat === 'all'
-    ? allFrequencies
-    : allFrequencies.filter(f => f.category === freqFilterCat);
+  const selectedIntensityMeta = intensities.find((item) => item.id === selectedIntensity) || intensities[1];
+  const programmeFrequencyRefs = curatedPrograms
+    .filter((program) => program.category.toLowerCase() === selectedCategory)
+    .flatMap((program) => program.frequencies);
+  const categoryAliases: Record<string, string[]> = {
+    healing: ['healing', 'solfeggio', 'chakra'],
+    meditation: ['binaural', 'solfeggio', 'scientific', 'healing'],
+    sleep: ['sleep', 'binaural'],
+    focus: ['binaural', 'scientific'],
+    manifestation: ['wealth', 'solfeggio', 'binaural'],
+  };
+  const availableFrequencies = frequencies.filter((frequency) => {
+    const allowedCategories = categoryAliases[selectedCategory] || [];
+    const normalizedHz = Number(frequency.hz);
+    const isReferencedByProgramme = programmeFrequencyRefs.some((reference) => {
+      const referenceHz = Number(reference.split('-').pop());
+      return frequency.id === reference || (Number.isFinite(referenceHz) && referenceHz === normalizedHz);
+    });
+    const matchesCategoryFallback = allowedCategories.includes(String(frequency.category).toLowerCase())
+      && (frequency.intentTags || []).some((tag) => tag.toLowerCase() === selectedCategory);
+    return isReferencedByProgramme || matchesCategoryFallback;
+  }).filter((frequency, index, list) => list.findIndex((item) => item.id === frequency.id || item.hz === frequency.hz) === index);
+
+  const handleCategoryChange = (categoryId: string) => {
+    setSelectedCategory(categoryId);
+    // A session's tracks must remain explainable by its selected programme.
+    setSelectedFrequencies([]);
+  };
 
   const handleAddFrequency = (frequency: any) => {
     const newFrequency: SelectedFrequency = {
       hz: frequency.hz,
       name: frequency.name,
-      duration: currentFrequencyDuration,
+      duration: Math.max(5, Math.round(currentFrequencyDuration * selectedIntensityMeta.durationMultiplier)),
+      isPremium: Boolean(frequency.isPremium),
+      category: frequency.category,
+    };
+    if (frequency.isPremium && !capabilities.premiumFrequencies) {
+      setShowPremiumModal(true);
+      return;
     };
     setSelectedFrequencies([...selectedFrequencies, newFrequency]);
     setShowFrequencyPicker(false);
@@ -182,6 +201,11 @@ export default function CreateSessionModal({ visible, onClose, onCreateSession }
       notes,
       category: selectedCategory,
       intensity: selectedIntensity,
+      intensityProfile: {
+        name: selectedIntensityMeta.name,
+        description: selectedIntensityMeta.description,
+        durationMultiplier: selectedIntensityMeta.durationMultiplier,
+      },
       notificationEnabled: notificationsEnabled,
       notificationTime: notificationsEnabled ? `${notifHour}:${notifMinute} ${notifPeriod}` : null,
       notificationId: null,
@@ -242,7 +266,6 @@ export default function CreateSessionModal({ visible, onClose, onCreateSession }
     setNotifMinute('00');
     setNotifPeriod('AM');
     setStep(1);
-    setFreqFilterCat('all');
   };
 
   const canProceed = sessionName.trim().length > 0;
@@ -257,7 +280,7 @@ export default function CreateSessionModal({ visible, onClose, onCreateSession }
       onRequestClose={onClose}
     >
       <View style={styles.container}>
-        <LinearGradient colors={gradients.bg} style={StyleSheet.absoluteFillObject} pointerEvents="none" />
+        <LinearGradient colors={gradients.bg} style={StyleSheet.absoluteFill} pointerEvents="none" />
         <View style={styles.bgOrb1} pointerEvents="none" />
         <View style={styles.bgOrb2} pointerEvents="none" />
 
@@ -345,7 +368,7 @@ export default function CreateSessionModal({ visible, onClose, onCreateSession }
                             styles.categoryChip,
                             isSelected && { backgroundColor: category.color + '22', borderColor: category.color + '60' }
                           ]}
-                          onPress={() => setSelectedCategory(category.id)}
+                          onPress={() => handleCategoryChange(category.id)}
                         >
                           <View style={[styles.catChipIcon, { backgroundColor: isSelected ? category.color + '25' : 'rgba(255,255,255,0.06)' }]}>
                             <IconComponent size={14} color={isSelected ? category.color : colors.textMuted} />
@@ -396,6 +419,7 @@ export default function CreateSessionModal({ visible, onClose, onCreateSession }
                       );
                     })}
                   </View>
+                  <Text style={styles.intensityDescription}>{selectedIntensityMeta.description}</Text>
                 </GlassCard>
 
                 {/* Frequencies */}
@@ -596,7 +620,7 @@ export default function CreateSessionModal({ visible, onClose, onCreateSession }
                           <View style={styles.timePreview}>
                             <Bell size={14} color={colors.gold} />
                             <Text style={styles.timePreviewText}>
-                              You'll be reminded at{' '}
+                              You&apos;ll be reminded at{' '}
                               <Text style={{ color: colors.gold, fontWeight: '700' }}>
                                 {notifHour}:{notifMinute} {notifPeriod}
                               </Text>
@@ -622,7 +646,7 @@ export default function CreateSessionModal({ visible, onClose, onCreateSession }
                 <GlassCard style={styles.summaryCard} depth="deep">
                   <LinearGradient
                     colors={[selectedCatMeta.color + '18', selectedCatMeta.color + '06', 'transparent']}
-                    style={StyleSheet.absoluteFillObject}
+                    style={StyleSheet.absoluteFill}
                     start={{ x: 0, y: 0 }}
                     end={{ x: 1, y: 1 }}
                     pointerEvents="none"
@@ -694,7 +718,7 @@ export default function CreateSessionModal({ visible, onClose, onCreateSession }
             onRequestClose={() => setShowFrequencyPicker(false)}
           >
             <View style={styles.pickerContainer}>
-              <LinearGradient colors={gradients.bg} style={StyleSheet.absoluteFillObject} pointerEvents="none" />
+              <LinearGradient colors={gradients.bg} style={StyleSheet.absoluteFill} pointerEvents="none" />
               <View style={styles.bgOrb1} pointerEvents="none" />
 
               <View style={[styles.pickerContent, { paddingTop: insets.top + 8 }]}>
@@ -722,37 +746,24 @@ export default function CreateSessionModal({ visible, onClose, onCreateSession }
                         onPress={() => setCurrentFrequencyDuration(duration)}
                       >
                         <Text style={[styles.durationChipText, currentFrequencyDuration === duration && styles.durationChipTextActive]}>
-                          {duration}m
+                          {Math.max(5, Math.round(duration * selectedIntensityMeta.durationMultiplier))}m
                         </Text>
                       </TouchableOpacity>
                     ))}
                   </View>
                 </GlassCard>
 
-                {/* Category filter */}
-                <ScrollView
-                  horizontal
-                  showsHorizontalScrollIndicator={false}
-                  style={styles.freqCatScroll}
-                  contentContainerStyle={styles.freqCatScrollContent}
-                >
-                  {freqCategories.map(cat => (
-                    <TouchableOpacity
-                      key={cat}
-                      style={[styles.freqCatChip, freqFilterCat === cat && styles.freqCatChipActive]}
-                      onPress={() => setFreqFilterCat(cat)}
-                    >
-                      <Text style={[styles.freqCatChipText, freqFilterCat === cat && styles.freqCatChipTextActive]}>
-                        {cat}
-                      </Text>
-                    </TouchableOpacity>
-                  ))}
-                </ScrollView>
+                <View style={styles.programmeFilterNote}>
+                  <Sparkles size={14} color={selectedCatMeta.color} />
+                  <Text style={styles.programmeFilterText}>
+                    Showing {selectedCatMeta.name.toLowerCase()} frequencies from matching programmes. Overlapping frequencies appear once.
+                  </Text>
+                </View>
 
-                <ScrollView showsVerticalScrollIndicator={false} style={{ flex: 1 }}>
-                  {filteredFreqs.map((freq, index) => (
+                <ScrollView showsVerticalScrollIndicator={false} style={styles.frequencyPickerList} contentContainerStyle={styles.frequencyPickerListContent}>
+                  {availableFrequencies.map((freq, index) => (
                     <TouchableOpacity
-                      key={`${freq.hz}-${index}`}
+                      key={`${freq.id}-${index}`}
                       onPress={() => handleAddFrequency(freq)}
                     >
                       <GlassCard style={styles.frequencyOptionCard} depth="light">
@@ -762,20 +773,31 @@ export default function CreateSessionModal({ visible, onClose, onCreateSession }
                         </View>
                         <View style={styles.freqOptionInfo}>
                           <Text style={styles.frequencyOptionName}>{freq.name}</Text>
-                          <Text style={styles.frequencyOptionDetails}>{freq.category}</Text>
+                          <Text style={styles.frequencyOptionDetails}>{String(freq.category)}{freq.isPremium ? ' · Premium' : ''}</Text>
                         </View>
                         <View style={styles.freqAddBtn}>
-                          <Plus size={14} color={colors.accent} />
+                          {freq.isPremium && !capabilities.premiumFrequencies ? <Crown size={14} color={colors.gold} /> : <Plus size={14} color={colors.accent} />}
                         </View>
                       </GlassCard>
                     </TouchableOpacity>
                   ))}
+                  {availableFrequencies.length === 0 && (
+                    <View style={styles.emptyPickerState}>
+                      <Text style={styles.emptyPickerTitle}>No programme frequencies available yet</Text>
+                      <Text style={styles.emptyPickerText}>The catalogue is still syncing. Try again in a moment.</Text>
+                    </View>
+                  )}
                   <View style={{ height: 60 }} />
                 </ScrollView>
               </View>
             </View>
           </Modal>
         )}
+        <PremiumModal
+          visible={showPremiumModal}
+          onClose={() => setShowPremiumModal(false)}
+          trigger="premium_content"
+        />
       </View>
     </Modal>
   );
@@ -1428,33 +1450,33 @@ const createStyles = (colors: ThemeColors, isDark: boolean) => StyleSheet.create
   durationChipTextActive: {
     color: colors.accent,
   },
-  freqCatScroll: { marginBottom: 14 },
-  freqCatScrollContent: {
-    gap: 8,
-    paddingRight: 8,
-  },
-  freqCatChip: {
-    paddingHorizontal: 14,
-    paddingVertical: 7,
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: colors.glassBorder,
-    backgroundColor: colors.glass,
-    marginRight: 6,
-  },
-  freqCatChipActive: {
-    backgroundColor: isDark ? colors.accentSoft : 'rgba(108,99,255,0.2)',
-    borderColor: isDark ? colors.glassBorderBright : 'rgba(108,99,255,0.5)',
-  },
-  freqCatChipText: {
-    fontSize: 12,
-    fontWeight: '500' as const,
+  intensityDescription: {
     color: colors.textMuted,
+    fontSize: 12,
+    lineHeight: 18,
+    marginTop: 12,
   },
-  freqCatChipTextActive: {
-    color: colors.accent,
-    fontWeight: '600' as const,
+  programmeFilterNote: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    backgroundColor: colors.accentSoft,
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    marginBottom: 12,
   },
+  programmeFilterText: {
+    flex: 1,
+    color: colors.textSecondary,
+    fontSize: 12,
+    lineHeight: 17,
+  },
+  frequencyPickerList: { flex: 1 },
+  frequencyPickerListContent: { paddingBottom: 24 },
+  emptyPickerState: { alignItems: 'center', paddingVertical: 44, paddingHorizontal: 24 },
+  emptyPickerTitle: { color: colors.textPrimary, fontSize: 15, fontWeight: '600', textAlign: 'center' },
+  emptyPickerText: { color: colors.textMuted, fontSize: 13, lineHeight: 19, textAlign: 'center', marginTop: 7 },
   frequencyOptionCard: {
     flexDirection: 'row',
     alignItems: 'center',

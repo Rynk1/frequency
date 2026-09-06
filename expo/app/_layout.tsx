@@ -55,6 +55,7 @@ function RootLayoutNav() {
       <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
       <Stack.Screen name="admin" options={{ headerShown: false }} />
       <Stack.Screen name="setup" options={{ title: "Admin Setup" }} />
+      <Stack.Screen name="onboarding" options={{ headerShown: false }} />
       <Stack.Screen name="subscription-result" options={{ headerShown: false, animation: 'fade' }} />
     </Stack>
   );

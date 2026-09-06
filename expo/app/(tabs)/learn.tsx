@@ -45,6 +45,7 @@ import {
   SCIENTIFIC_FREQUENCIES,
 } from '@/constants/frequencies';
 import { useTheme } from '@/hooks/useTheme';
+import { useGlobalSearchParams } from 'expo-router';
 
 interface Article {
   id: string;
@@ -278,6 +279,7 @@ const DIFFICULTY_COLORS: Record<string, string> = {
 const GlassCard = SharedGlassCard;
 
 export default function LearnScreen() {
+  const params = useGlobalSearchParams<{ articleId?: string }>();
   const insets = useSafeAreaInsets();
   const { colors, gradients, isDark } = useTheme();
   const { articles: rawArticles } = useLearningArticles();
@@ -326,6 +328,12 @@ export default function LearnScreen() {
   };
 
   const bookmarkedArticles = progress?.favoriteArticles || [];
+
+  useEffect(() => {
+    if (!params.articleId) return;
+    const target = articles.find((article) => article.id === params.articleId);
+    if (target) setSelectedArticle(target);
+  }, [articles, params.articleId]);
 
   const handleCloseArticle = useCallback(() => {
     endReadingSession();

@@ -102,7 +102,6 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({
   const [showTimerSettings, setShowTimerSettings] = useState<boolean>(false);
   const [showMoreMenu, setShowMoreMenu] = useState<boolean>(false);
   const [showStats, setShowStats] = useState<boolean>(false);
-  const [customDuration, setCustomDuration] = useState<number>(15);
   const [fadeOutEnabled, setFadeOutEnabled] = useState<boolean>(true);
   const [autoRepeat, setAutoRepeat] = useState<boolean>(false);
   const [sessionIntensity, setSessionIntensity] = useState<'low' | 'medium' | 'high'>('medium');
@@ -392,7 +391,8 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({
   const handlePlayPause = useCallback(() => {
     // Layer 2 Authorization Check
     const targetFreq = isSessionMode ? sessionFrequencies[currentFrequencyIndex] : frequency;
-    const isFreqLocked = targetFreq?.isPremium || targetFreq?.category === 'Chakra' || targetFreq?.category === 'Binaural';
+    const targetCategory = String(targetFreq?.category || '').toLowerCase();
+    const isFreqLocked = targetFreq?.isPremium || targetCategory === 'chakra' || targetCategory === 'binaural';
     const isLockedForUser = isFreqLocked && !capabilities?.premiumFrequencies;
 
     if (isSessionMode) {
@@ -487,6 +487,24 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({
     });
   }, []);
 
+  const openPremiumFeature = useCallback((trigger: PremiumTrigger) => {
+    setShowMoreMenu(false);
+    setPremiumModalTrigger(trigger);
+    setShowPremiumModal(true);
+  }, []);
+
+  const closePlayerPanel = useCallback(() => {
+    setShowMoreMenu(false);
+    setShowInfo(false);
+    setShowSettings(false);
+    setShowPlaylist(false);
+    setShowDurationPicker(false);
+    setShowTimerSettings(false);
+    setShowStats(false);
+  }, []);
+
+  const showPanel = showMoreMenu || showInfo || showSettings || showPlaylist || showDurationPicker || showTimerSettings || showStats;
+
   const progress = isSessionMode ? sessionProgress : ((duration * 60 - timeLeft) / (duration * 60)) * 100;
   const isCurrentlyPlaying = isSessionMode ?
     (isPlaying && isSessionActive) :
@@ -543,7 +561,7 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({
         <FrequencyVisualizer
           frequency={currentFrequency || displayFrequency?.hz || 0}
           isPlaying={isCurrentlyPlaying}
-          color={colors.primary}
+          color={isCurrentlyPlaying ? colors.accent : colors.primary}
         />
       </Animated.View>
     );
@@ -614,6 +632,10 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({
                     onPress={cycleVisualizerMode}
                     activeOpacity={0.9}
                   >
+                    <LinearGradient
+                      colors={[colors.primary + '26', colors.glowSoft, colors.bgTertiary + 'CC'] as const}
+                      style={styles.visualizerSurface}
+                    />
                     <Animated.View style={[
                       styles.visualizerGlow,
                       {
@@ -823,7 +845,13 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({
                     </Text>
                     <TouchableOpacity
                       style={styles.customDurationButton}
-                      onPress={() => setShowDurationPicker(true)}
+                      onPress={() => {
+                        if (!isPremium) {
+                          openPremiumFeature('duration_limit');
+                          return;
+                        }
+                        setShowDurationPicker(true);
+                      }}
                     >
                       <Timer color={colors.primary} size={16} />
                       <Text style={styles.customDurationText}>Custom</Text>
@@ -895,6 +923,121 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({
         </Animated.View>
       </Animated.View>
 
+      <Modal
+        visible={showPanel}
+        transparent
+        animationType="slide"
+        onRequestClose={closePlayerPanel}
+      >
+        <View style={styles.panelBackdrop}>
+          <TouchableOpacity style={styles.panelDismissArea} onPress={closePlayerPanel} />
+          <View style={[styles.panel, { paddingBottom: insets.bottom + 18 }]}>
+            <View style={styles.panelHandle} />
+            {showMoreMenu && (
+              <>
+                <Text style={styles.panelTitle}>Player controls</Text>
+                <TouchableOpacity style={styles.menuRow} onPress={() => { setShowMoreMenu(false); setShowInfo(true); }}>
+                  <Info color={colors.accent} size={20} />
+                  <View style={styles.menuCopy}><Text style={styles.menuTitle}>Frequency details</Text><Text style={styles.menuSubtitle}>Learn about this tone and how it is used</Text></View>
+                </TouchableOpacity>
+                <TouchableOpacity style={styles.menuRow} onPress={() => { setShowMoreMenu(false); setShowSettings(true); }}>
+                  <Settings color={colors.accent} size={20} />
+                  <View style={styles.menuCopy}><Text style={styles.menuTitle}>Playback settings</Text><Text style={styles.menuSubtitle}>Fade-out, repeat, intensity, and visualizer</Text></View>
+                </TouchableOpacity>
+                {isSessionMode && (
+                  <TouchableOpacity style={styles.menuRow} onPress={() => { setShowMoreMenu(false); setShowPlaylist(true); }}>
+                    <List color={colors.accent} size={20} />
+                    <View style={styles.menuCopy}><Text style={styles.menuTitle}>Session playlist</Text><Text style={styles.menuSubtitle}>{sessionFrequencies.length} frequencies in this session</Text></View>
+                  </TouchableOpacity>
+                )}
+                <TouchableOpacity style={styles.menuRow} onPress={() => { setShowMoreMenu(false); setShowTimerSettings(true); }}>
+                  <Timer color={colors.accent} size={20} />
+                  <View style={styles.menuCopy}><Text style={styles.menuTitle}>Timer and fade</Text><Text style={styles.menuSubtitle}>Configure how this listening session ends</Text></View>
+                </TouchableOpacity>
+                <TouchableOpacity style={styles.menuRow} onPress={() => {
+                  if (!capabilities?.advancedAnalytics) {
+                    openPremiumFeature('advanced_analytics');
+                    return;
+                  }
+                  setShowMoreMenu(false);
+                  setShowStats(true);
+                }}>
+                  <BarChart3 color={capabilities?.advancedAnalytics ? colors.accent : colors.gold} size={20} />
+                  <View style={styles.menuCopy}><Text style={styles.menuTitle}>Listening insights{!capabilities?.advancedAnalytics ? ' · Premium' : ''}</Text><Text style={styles.menuSubtitle}>Review your listening patterns and progress</Text></View>
+                </TouchableOpacity>
+              </>
+            )}
+
+            {showInfo && (
+              <>
+                <Text style={styles.panelEyebrow}>FREQUENCY PROFILE</Text>
+                <Text style={styles.panelTitle}>{displayFrequency?.name || 'Frequency details'}</Text>
+                <Text style={styles.detailFrequency}>{displayFrequency?.hz || 0} Hz</Text>
+                <Text style={styles.panelBody}>{displayFrequency?.description || 'A focused frequency for mindful listening and a calmer audio environment.'}</Text>
+                <View style={styles.detailGrid}>
+                  <View><Text style={styles.detailLabel}>CATEGORY</Text><Text style={styles.detailValue}>{displayFrequency?.category || 'Healing'}</Text></View>
+                  <View><Text style={styles.detailLabel}>CURRENT MODE</Text><Text style={styles.detailValue}>{visualizerMode}</Text></View>
+                </View>
+                <TouchableOpacity style={styles.panelButton} onPress={closePlayerPanel}><Text style={styles.panelButtonText}>Done</Text></TouchableOpacity>
+              </>
+            )}
+
+            {showSettings && (
+              <>
+                <Text style={styles.panelTitle}>Playback settings</Text>
+                <TouchableOpacity style={styles.settingRow} onPress={() => setFadeOutEnabled(value => !value)}><Text style={styles.menuTitle}>Fade out at end</Text><Text style={styles.settingValue}>{fadeOutEnabled ? 'On' : 'Off'}</Text></TouchableOpacity>
+                <TouchableOpacity style={styles.settingRow} onPress={() => setAutoRepeat(value => !value)}><Text style={styles.menuTitle}>Repeat session</Text><Text style={styles.settingValue}>{autoRepeat ? 'On' : 'Off'}</Text></TouchableOpacity>
+                <TouchableOpacity style={styles.settingRow} onPress={cycleVisualizerMode}><Text style={styles.menuTitle}>Visualizer style</Text><Text style={styles.settingValue}>{visualizerMode}</Text></TouchableOpacity>
+                <TouchableOpacity style={styles.panelButton} onPress={closePlayerPanel}><Text style={styles.panelButtonText}>Done</Text></TouchableOpacity>
+              </>
+            )}
+
+            {showTimerSettings && (
+              <>
+                <Text style={styles.panelTitle}>Timer and fade</Text>
+                <Text style={styles.panelBody}>Your current session is set to {isSessionMode ? formatTime(sessionTimeLeft) : formatTime(duration * 60)}. Free listening is available for up to {maxFreeDuration} minutes.</Text>
+                <TouchableOpacity style={styles.settingRow} onPress={() => setFadeOutEnabled(value => !value)}><Text style={styles.menuTitle}>Fade out in final 10 seconds</Text><Text style={styles.settingValue}>{fadeOutEnabled ? 'On' : 'Off'}</Text></TouchableOpacity>
+                <TouchableOpacity style={styles.panelButton} onPress={() => { closePlayerPanel(); if (!isPremium) openPremiumFeature('duration_limit'); else setShowDurationPicker(true); }}><Text style={styles.panelButtonText}>{isPremium ? 'Choose duration' : 'Unlock extended timer'}</Text></TouchableOpacity>
+              </>
+            )}
+
+            {showDurationPicker && (
+              <>
+                <Text style={styles.panelTitle}>Choose session length</Text>
+                <Text style={styles.panelBody}>Set the timer for this frequency. Premium gives you longer uninterrupted sessions.</Text>
+                <View style={styles.durationPickerGrid}>
+                  {durationPresets.map((preset) => (
+                    <TouchableOpacity key={preset} style={[styles.durationPickerOption, duration === preset && styles.durationPickerSelected]} onPress={() => { setDuration(preset); setTimeLeft(preset * 60); closePlayerPanel(); }}>
+                      <Text style={styles.durationPickerText}>{preset} min</Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              </>
+            )}
+
+            {showPlaylist && (
+              <>
+                <Text style={styles.panelTitle}>Session playlist</Text>
+                {sessionFrequencies.map((item, index) => (
+                  <TouchableOpacity key={`${item.hz}-${index}`} style={[styles.playlistRow, index === currentFrequencyIndex && styles.playlistRowActive]} onPress={() => { setCurrentFrequencyIndex(index); closePlayerPanel(); }}>
+                    <Text style={styles.playlistIndex}>{String(index + 1).padStart(2, '0')}</Text><Text style={styles.menuTitle}>{item.name}</Text><Text style={styles.playlistDuration}>{item.duration}m</Text>
+                  </TouchableOpacity>
+                ))}
+              </>
+            )}
+
+            {showStats && (
+              <>
+                <Text style={styles.panelTitle}>Listening insights</Text>
+                <Text style={styles.panelBody}>Your session insights are available while you listen. Keep building a consistent practice to see more meaningful trends here.</Text>
+                <View style={styles.statsCard}><Activity color={colors.accent} size={22} /><Text style={styles.statsText}>Current session: {formatTime(displayTimeLeft)} remaining</Text></View>
+                <TouchableOpacity style={styles.panelButton} onPress={closePlayerPanel}><Text style={styles.panelButtonText}>Done</Text></TouchableOpacity>
+              </>
+            )}
+          </View>
+        </View>
+      </Modal>
+
       <PremiumModal
         visible={showPremiumModal}
         onClose={() => setShowPremiumModal(false)}
@@ -965,6 +1108,9 @@ const createStyles = (colors: any, gradients: any, isDark: boolean) => StyleShee
     justifyContent: 'center',
     alignItems: 'center',
     position: 'relative',
+  },
+  visualizerSurface: {
+    ...StyleSheet.absoluteFill,
   },
   visualizerGlow: {
     position: 'absolute',
@@ -1296,6 +1442,185 @@ const createStyles = (colors: any, gradients: any, isDark: boolean) => StyleShee
     fontSize: 12,
     textAlign: 'center',
     fontWeight: '500',
+  },
+  panelBackdrop: {
+    flex: 1,
+    justifyContent: 'flex-end',
+    backgroundColor: 'rgba(0, 0, 0, 0.42)',
+  },
+  panelDismissArea: {
+    flex: 1,
+  },
+  panel: {
+    backgroundColor: colors.bgSecondary,
+    borderTopLeftRadius: 28,
+    borderTopRightRadius: 28,
+    borderTopWidth: 1,
+    borderColor: colors.glassBorderBright,
+    paddingHorizontal: 22,
+    paddingTop: 12,
+  },
+  panelHandle: {
+    alignSelf: 'center',
+    width: 42,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: colors.textMuted,
+    marginBottom: 18,
+  },
+  panelEyebrow: {
+    color: colors.accent,
+    fontSize: 11,
+    fontWeight: '700',
+    letterSpacing: 1.4,
+    marginBottom: 8,
+  },
+  panelTitle: {
+    color: colors.textPrimary,
+    fontSize: 22,
+    fontWeight: '700',
+    marginBottom: 14,
+  },
+  panelBody: {
+    color: colors.textSecondary,
+    fontSize: 15,
+    lineHeight: 22,
+    marginBottom: 18,
+  },
+  menuRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    minHeight: 64,
+    borderTopWidth: 1,
+    borderTopColor: colors.divider,
+    gap: 14,
+  },
+  menuCopy: {
+    flex: 1,
+  },
+  menuTitle: {
+    color: colors.textPrimary,
+    fontSize: 15,
+    fontWeight: '600',
+  },
+  menuSubtitle: {
+    color: colors.textMuted,
+    fontSize: 12,
+    marginTop: 3,
+  },
+  detailFrequency: {
+    color: colors.accent,
+    fontSize: 38,
+    fontWeight: '700',
+    marginBottom: 8,
+  },
+  detailGrid: {
+    flexDirection: 'row',
+    gap: 42,
+    borderTopWidth: 1,
+    borderTopColor: colors.divider,
+    paddingTop: 16,
+    marginBottom: 20,
+  },
+  detailLabel: {
+    color: colors.textMuted,
+    fontSize: 10,
+    fontWeight: '700',
+    letterSpacing: 1,
+    marginBottom: 5,
+  },
+  detailValue: {
+    color: colors.textPrimary,
+    fontSize: 14,
+    textTransform: 'capitalize',
+  },
+  settingRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    minHeight: 56,
+    borderTopWidth: 1,
+    borderTopColor: colors.divider,
+  },
+  settingValue: {
+    color: colors.accent,
+    fontSize: 14,
+    fontWeight: '600',
+    textTransform: 'capitalize',
+  },
+  panelButton: {
+    minHeight: 50,
+    borderRadius: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.primary,
+    marginTop: 8,
+  },
+  panelButtonText: {
+    color: '#FFFFFF',
+    fontSize: 15,
+    fontWeight: '700',
+  },
+  playlistRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    minHeight: 52,
+    borderTopWidth: 1,
+    borderTopColor: colors.divider,
+    gap: 12,
+    paddingHorizontal: 8,
+  },
+  playlistRowActive: {
+    backgroundColor: colors.accentSoft,
+    borderRadius: 10,
+  },
+  playlistIndex: {
+    color: colors.textMuted,
+    fontSize: 12,
+    width: 24,
+  },
+  playlistDuration: {
+    color: colors.textMuted,
+    fontSize: 12,
+    marginLeft: 'auto',
+  },
+  statsCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    backgroundColor: colors.accentSoft,
+    borderRadius: 14,
+    padding: 16,
+    marginBottom: 18,
+  },
+  statsText: {
+    color: colors.textPrimary,
+    fontSize: 14,
+  },
+  durationPickerGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 10,
+    marginBottom: 10,
+  },
+  durationPickerOption: {
+    width: '30%',
+    minHeight: 48,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: colors.glassBorder,
+    backgroundColor: colors.glass,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  durationPickerSelected: {
+    borderColor: colors.accent,
+    backgroundColor: colors.accentSoft,
+  },
+  durationPickerText: {
+    color: colors.textPrimary,
+    fontSize: 14,
+    fontWeight: '600',
   },
   playIcon: {
     marginLeft: 4,

@@ -23,6 +23,12 @@ interface UserProfile {
   subscriptionEndsAt?: Date;
   createdAt: Date;
   lastLoginAt: Date;
+  onboardingCompleted: boolean;
+  onboardingPreferences?: {
+    primaryGoal: 'focus' | 'sleep' | 'meditation' | 'healing';
+    sessionLength: number;
+    notifications: boolean;
+  };
   cancelAtPeriodEnd?: boolean;
   stripeCustomerId?: string;
   stripeSubscriptionId?: string;
@@ -115,6 +121,7 @@ export const [AuthProvider, useAuth] = createContextHook((): AuthContextType => 
       subscriptionStatus: 'free',
       createdAt: now,
       lastLoginAt: now,
+      onboardingCompleted: false,
       usageStats: {
         sessionsCompleted: 0,
         totalListeningTime: 0,
@@ -141,6 +148,11 @@ export const [AuthProvider, useAuth] = createContextHook((): AuthContextType => 
       subscriptionEndsAt,
       createdAt,
       lastLoginAt,
+      // Profiles created before onboarding was introduced are already active users.
+      onboardingCompleted: data.onboardingCompleted === undefined
+        ? true
+        : Boolean(data.onboardingCompleted),
+      onboardingPreferences: data.onboardingPreferences,
       cancelAtPeriodEnd: data.cancelAtPeriodEnd || false,
       stripeCustomerId: data.stripeCustomerId || undefined,
       stripeSubscriptionId: data.stripeSubscriptionId || undefined,
@@ -251,13 +263,16 @@ export const [AuthProvider, useAuth] = createContextHook((): AuthContextType => 
     }, 1500);
 
     try {
-      const unsubscribe = authService.onAuthStateChanged((authUser) => {
-        if (!mounted || resolved) return;
-        resolved = true;
+        const unsubscribe = authService.onAuthStateChanged((authUser) => {
+          if (!mounted) return;
 
-        // Clear safety timeouts — we got a response from Firebase
-        clearTimeout(safetyTimeout);
-        clearTimeout(fastSafetyTimeout);
+          // The first callback resolves startup; subsequent callbacks are real
+          // sign-in/sign-out transitions and must continue updating the app.
+          if (!resolved) {
+            resolved = true;
+            clearTimeout(safetyTimeout);
+            clearTimeout(fastSafetyTimeout);
+          }
 
         if (!authUser?.uid?.trim()) {
           // No signed-in user — resolve immediately, no Firestore needed

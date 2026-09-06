@@ -144,10 +144,11 @@ export const FrequencyVisualizer: React.FC<FrequencyVisualizerProps> = ({
 
 const styles = StyleSheet.create({
   container: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-  barsRow: { flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'center', height: 100, gap: 2 },
-  barColumn: { alignItems: 'center', justifyContent: 'flex-end', height: 100 },
+  barsRow: { width: '100%', flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between', height: 100, gap: 3, paddingHorizontal: 18 },
+  barColumn: { flex: 1, alignItems: 'center', justifyContent: 'flex-end', height: 100 },
   bar: {
-    width: 3.5,
+    width: '100%',
+    maxWidth: 7,
     height: 90,
     borderRadius: 2,
     marginBottom: 0,

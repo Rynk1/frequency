@@ -1,5 +1,9 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { doc, getDoc, setDoc } from 'firebase/firestore';
+import { db } from '@/lib/firebase';
+import { useAuth } from './useAuth';
+import { useDataMode } from './useDataMode';
 
 interface Frequency {
   name: string;
@@ -12,63 +16,72 @@ interface Frequency {
 const FAVORITES_KEY = 'frequency_favorites';
 
 export const useFavorites = () => {
+  const { user } = useAuth();
+  const { shouldUseFirestore } = useDataMode();
+  const storageKey = user?.uid ? `${FAVORITES_KEY}_${user.uid}` : FAVORITES_KEY;
   const [favorites, setFavorites] = useState<Frequency[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(true);
 
-  // Load favorites from storage
+  // Cloud is authoritative when available; device storage keeps the library usable offline.
   useEffect(() => {
-    loadFavorites();
-  }, []);
-
-  const loadFavorites = async () => {
-    try {
-      const stored = await AsyncStorage.getItem(FAVORITES_KEY);
-      if (stored) {
-        setFavorites(JSON.parse(stored));
+    let mounted = true;
+    const load = async () => {
+      try {
+        let loaded: Frequency[] | null = null;
+        if (user?.uid && shouldUseFirestore) {
+          const snapshot = await getDoc(doc(db, 'userFavorites', user.uid));
+          if (snapshot.exists()) loaded = (snapshot.data().favorites || []) as Frequency[];
+        }
+        if (!loaded) {
+          const stored = await AsyncStorage.getItem(storageKey);
+          loaded = stored ? JSON.parse(stored) : [];
+        }
+        if (mounted) setFavorites(loaded || []);
+      } catch (error) {
+        console.error('Error loading favorites:', error);
+      } finally {
+        if (mounted) setIsLoading(false);
       }
-    } catch (error) {
-      console.error('Error loading favorites:', error);
-    } finally {
-      setIsLoading(false);
-    }
-  };
+    };
+    load();
+    return () => { mounted = false; };
+  }, [shouldUseFirestore, storageKey, user?.uid]);
 
   const saveFavorites = async (newFavorites: Frequency[]) => {
     try {
-      await AsyncStorage.setItem(FAVORITES_KEY, JSON.stringify(newFavorites));
+      await AsyncStorage.setItem(storageKey, JSON.stringify(newFavorites));
+      if (user?.uid && shouldUseFirestore) {
+        await setDoc(doc(db, 'userFavorites', user.uid), { favorites: newFavorites }, { merge: true });
+      }
     } catch (error) {
       console.error('Error saving favorites:', error);
     }
   };
 
-  const toggleFavorite = useCallback((frequency: Frequency) => {
-    setFavorites(prev => {
-      const isAlreadyFavorite = prev.some(fav => fav.hz === frequency.hz);
-      let newFavorites: Frequency[];
-      
-      if (isAlreadyFavorite) {
-        newFavorites = prev.filter(fav => fav.hz !== frequency.hz);
-      } else {
-        newFavorites = [...prev, frequency];
-      }
-      
-      saveFavorites(newFavorites);
-      return newFavorites;
-    });
-  }, []);
+  const toggleFavorite = async (frequency: Frequency) => {
+    const isAlreadyFavorite = favorites.some((fav) => fav.hz === frequency.hz);
+    const newFavorites = isAlreadyFavorite
+      ? favorites.filter((fav) => fav.hz !== frequency.hz)
+      : [...favorites, frequency];
+    setFavorites(newFavorites);
+    await saveFavorites(newFavorites);
+  };
 
-  const isFavorite = useCallback((hz: number) => {
+  const isFavorite = (hz: number) => {
     return favorites.some(fav => fav.hz === hz);
-  }, [favorites]);
+  };
 
-  const clearFavorites = useCallback(async () => {
+  const clearFavorites = async () => {
     try {
-      await AsyncStorage.removeItem(FAVORITES_KEY);
+      await AsyncStorage.removeItem(storageKey);
+      if (user?.uid && shouldUseFirestore) {
+        await setDoc(doc(db, 'userFavorites', user.uid), { favorites: [] }, { merge: true });
+      }
       setFavorites([]);
     } catch (error) {
       console.error('Error clearing favorites:', error);
     }
-  }, []);
+  };
 
   return {
     favorites,

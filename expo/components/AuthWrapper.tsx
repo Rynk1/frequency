@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { View, StyleSheet, ActivityIndicator, Text, Animated } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
+import { Redirect } from 'expo-router';
 import { useAuth } from '@/hooks/useAuth';
 import { AuthScreen } from './AuthScreen';
 import { FONTS, COLORS } from '@/constants/theme';
@@ -18,7 +19,7 @@ interface AuthWrapperProps {
  * fully interactive while profile data is fetched from Firestore.
  */
 export const AuthWrapper: React.FC<AuthWrapperProps> = ({ children }) => {
-  const { isAuthenticated, isLoading } = useAuth();
+  const { isAuthenticated, isLoading, userProfile } = useAuth();
   const [authMode, setAuthMode] = useState<'signin' | 'signup'>('signin');
   const fadeAnim = useRef(new Animated.Value(1)).current;
   const [showLoader, setShowLoader] = useState(true);
@@ -58,6 +59,10 @@ export const AuthWrapper: React.FC<AuthWrapperProps> = ({ children }) => {
         onToggleMode={() => setAuthMode(authMode === 'signin' ? 'signup' : 'signin')}
       />
     );
+  }
+
+  if (userProfile && !userProfile.onboardingCompleted) {
+    return <Redirect href={'/onboarding' as any} />;
   }
 
   return <>{children}</>;
