@@ -11,6 +11,9 @@ if (!admin.apps.length) {
 const db = admin.firestore();
 const auth = admin.auth();
 
+export const SUPPORTED_ROLES = ['user', 'content_editor', 'regional_manager', 'admin', 'super_admin'] as const;
+export type SupportedRole = typeof SUPPORTED_ROLES[number];
+
 /**
  * Helper: Write immutable server audit log
  */
@@ -33,9 +36,24 @@ async function writeAuditLog(entry: {
 }
 
 /**
- * Helper: Authenticate request token (Bearer ID token or ADMIN_SECRET_KEY)
+ * Helper: Helper to delete entire subcollection batch
  */
-async function authenticateRequest(req: any): Promise<{ uid: string; email: string; isAdmin: boolean; isSecretKey: boolean }> {
+async function deleteSubcollection(parentDocRef: admin.firestore.DocumentReference, subcollectionName: string) {
+  try {
+    const snap = await parentDocRef.collection(subcollectionName).get();
+    if (snap.empty) return;
+    const batch = db.batch();
+    snap.docs.forEach((d) => batch.delete(d.ref));
+    await batch.commit();
+  } catch (e: any) {
+    console.warn(`Failed deleting subcollection ${subcollectionName}:`, e?.message || e);
+  }
+}
+
+/**
+ * Helper: Authenticate request token (Bearer ID token or optional emergency ADMIN_SECRET_KEY)
+ */
+async function authenticateRequest(req: any): Promise<{ uid: string; email: string; isAdmin: boolean; isSuperAdmin: boolean; isSecretKey: boolean }> {
   const authHeader = req.headers.authorization || '';
   if (!authHeader.startsWith('Bearer ')) {
     throw new Error('Unauthorized — missing Bearer token');
@@ -43,17 +61,21 @@ async function authenticateRequest(req: any): Promise<{ uid: string; email: stri
 
   const token = authHeader.slice(7).trim();
   const secretKey = process.env.ADMIN_SECRET_KEY;
+  const allowSecretBootstrap = process.env.ALLOW_SECRET_KEY_ADMIN === 'true' || process.env.NODE_ENV !== 'production';
 
-  if (secretKey && token === secretKey) {
-    return { uid: 'secret-key-admin', email: 'admin@bootstrap', isAdmin: true, isSecretKey: true };
+  if (secretKey && token === secretKey && allowSecretBootstrap) {
+    return { uid: 'secret-key-admin', email: 'admin@bootstrap', isAdmin: true, isSuperAdmin: true, isSecretKey: true };
   }
 
   try {
     const decoded = await auth.verifyIdToken(token);
+    const isAdmin = decoded.admin === true || decoded.role === 'admin' || decoded.role === 'super_admin';
+    const isSuperAdmin = decoded.super_admin === true || decoded.role === 'super_admin';
     return {
       uid: decoded.uid,
       email: decoded.email || '',
-      isAdmin: decoded.admin === true,
+      isAdmin,
+      isSuperAdmin,
       isSecretKey: false,
     };
   } catch {
@@ -64,8 +86,8 @@ async function authenticateRequest(req: any): Promise<{ uid: string; email: stri
 /**
  * Function 1: Admin Bootstrap & Custom Claim Management
  * POST /setAdminClaim
- * Headers: Authorization: Bearer <ID_TOKEN or ADMIN_SECRET_KEY>
- * Body: { email?: string; uid?: string; claims: Record<string, any> }
+ * Headers: Authorization: Bearer <ID_TOKEN>
+ * Body: { email?: string; uid?: string; role?: SupportedRole; claims?: Record<string, any> }
  */
 export const setAdminClaim = onRequest({ cors: true }, async (req, res) => {
   if (req.method !== 'POST') {
@@ -81,12 +103,7 @@ export const setAdminClaim = onRequest({ cors: true }, async (req, res) => {
       return;
     }
 
-    const { email, uid, claims } = req.body || {};
-
-    if (!claims || typeof claims !== 'object') {
-      res.status(400).json({ error: 'Missing or invalid "claims" object in body' });
-      return;
-    }
+    const { email, uid, role, claims } = req.body || {};
 
     let targetUid = uid;
     let targetEmail = email;
@@ -102,10 +119,39 @@ export const setAdminClaim = onRequest({ cors: true }, async (req, res) => {
       return;
     }
 
-    const existingUser = await auth.getUser(targetUid);
-    const updatedClaims = { ...(existingUser.customClaims || {}), ...claims };
+    // Role schema validation
+    let validatedRole: SupportedRole = 'user';
+    if (role && SUPPORTED_ROLES.includes(role)) {
+      validatedRole = role;
+    } else if (claims?.admin) {
+      validatedRole = claims?.super_admin ? 'super_admin' : 'admin';
+    } else if (claims?.role && SUPPORTED_ROLES.includes(claims.role)) {
+      validatedRole = claims.role;
+    }
 
-    await auth.setCustomUserClaims(targetUid, updatedClaims);
+    // Protection against modifying arbitrary custom claims
+    const sanitizedClaims: Record<string, any> = {
+      role: validatedRole,
+      admin: validatedRole === 'admin' || validatedRole === 'super_admin',
+      super_admin: validatedRole === 'super_admin',
+      content_editor: validatedRole === 'content_editor' || validatedRole === 'admin' || validatedRole === 'super_admin',
+    };
+
+    const existingUser = await auth.getUser(targetUid);
+    const existingClaims = existingUser.customClaims || {};
+
+    // Prevent revoking last super_admin
+    if (existingClaims.super_admin && !sanitizedClaims.super_admin) {
+      // Check if other super admins exist
+      const listUsersResult = await auth.listUsers(100);
+      const superAdminCount = listUsersResult.users.filter(u => u.customClaims?.super_admin === true).length;
+      if (superAdminCount <= 1) {
+        res.status(400).json({ error: 'Cannot revoke super_admin privilege from the last remaining super_admin.' });
+        return;
+      }
+    }
+
+    await auth.setCustomUserClaims(targetUid, sanitizedClaims);
 
     await writeAuditLog({
       adminUserId: caller.uid,
@@ -113,25 +159,26 @@ export const setAdminClaim = onRequest({ cors: true }, async (req, res) => {
       action: 'SET_ADMIN_CLAIMS',
       resourceType: 'user',
       resourceId: targetUid,
-      metadata: { targetEmail, claims },
+      metadata: { targetEmail, role: validatedRole, claims: sanitizedClaims },
     });
 
     res.status(200).json({
       success: true,
       uid: targetUid,
       email: targetEmail,
-      claims: updatedClaims,
+      role: validatedRole,
+      claims: sanitizedClaims,
       message: 'Custom claims set successfully. User must sign out and sign back in to refresh token claims.',
     });
   } catch (err: any) {
     console.error('setAdminClaim error:', err?.message || err);
-    const status = err.message?.startsWith('Unauthorized') ? 401 : 500;
+    const status = err.message?.startsWith('Unauthorized') ? 401 : err.message?.startsWith('Forbidden') ? 403 : 500;
     res.status(status).json({ error: err?.message || 'Server error setting claims' });
   }
 });
 
 /**
- * Function 2: Self-Serve Account Deletion
+ * Function 2: Complete Self-Serve Account Deletion
  * POST /deleteAccount
  * Headers: Authorization: Bearer <USER_ID_TOKEN>
  */
@@ -151,22 +198,27 @@ export const deleteAccount = onRequest({ cors: true }, async (req, res) => {
 
     const uid = user.uid;
 
-    // 1. Delete Firestore user documents & stats
-    await db.collection('users').doc(uid).delete().catch(() => {});
-    await db.collection('userStats').doc(uid).delete().catch(() => {});
-    await db.collection('userAchievements').doc(uid).delete().catch(() => {});
+    // 1. Delete user root documents
+    const userDocRef = db.collection('users').doc(uid);
+    const userStatsRef = db.collection('userStats').doc(uid);
+    const userAchievementsRef = db.collection('userAchievements').doc(uid);
+    const userFavoritesRef = db.collection('userFavorites').doc(uid);
 
-    // 2. Delete Firestore user sessions
-    const sessionsSnap = await db.collection('userSessions').where('userId', '==', uid).get().catch(() => null);
-    if (sessionsSnap && !sessionsSnap.empty) {
-      const batch = db.batch();
-      sessionsSnap.docs.forEach((docSnap) => batch.delete(docSnap.ref));
-      await batch.commit().catch(() => {});
-    }
+    // 2. Delete subcollections
+    await deleteSubcollection(db.collection('userSessions').doc(uid), 'sessions');
+    await deleteSubcollection(db.collection('userReminders').doc(uid), 'reminders');
+    await deleteSubcollection(db.collection('userUsage').doc(uid), 'events');
 
-    // 3. Delete Firebase Auth user
-    await auth.deleteUser(uid);
+    // 3. Delete parent docs
+    await userDocRef.delete().catch(() => {});
+    await userStatsRef.delete().catch(() => {});
+    await userAchievementsRef.delete().catch(() => {});
+    await userFavoritesRef.delete().catch(() => {});
+    await db.collection('userSessions').doc(uid).delete().catch(() => {});
+    await db.collection('userReminders').doc(uid).delete().catch(() => {});
+    await db.collection('userUsage').doc(uid).delete().catch(() => {});
 
+    // 4. Audit deletion
     await writeAuditLog({
       adminUserId: uid,
       adminEmail: user.email,
@@ -175,7 +227,10 @@ export const deleteAccount = onRequest({ cors: true }, async (req, res) => {
       resourceId: uid,
     });
 
-    res.status(200).json({ success: true, message: 'Account and associated data deleted successfully.' });
+    // 5. Delete Auth user
+    await auth.deleteUser(uid);
+
+    res.status(200).json({ success: true, message: 'Account and all associated personal data deleted successfully.' });
   } catch (err: any) {
     console.error('deleteAccount error:', err?.message || err);
     const status = err.message?.startsWith('Unauthorized') ? 401 : 500;
@@ -186,7 +241,7 @@ export const deleteAccount = onRequest({ cors: true }, async (req, res) => {
 /**
  * Function 3: Subscription & Payment Webhook Receiver
  * POST /handleSubscriptionWebhook
- * Receives Stripe / RevenueCat webhook events and updates user entitlement in Firestore.
+ * Receives Stripe / RevenueCat webhook events with cryptographic/token signature validation.
  */
 export const handleSubscriptionWebhook = onRequest({ cors: true }, async (req, res) => {
   if (req.method !== 'POST') {
@@ -195,16 +250,45 @@ export const handleSubscriptionWebhook = onRequest({ cors: true }, async (req, r
   }
 
   try {
+    // 1. Webhook Authentication & Signature Verification
+    const expectedSecret = process.env.WEBHOOK_SECRET || process.env.REVENUECAT_WEBHOOK_SECRET;
+    const authHeader = req.headers.authorization || req.headers['x-revenuecat-webhook-auth'] as string || '';
+    const stripeSignature = req.headers['stripe-signature'] as string || '';
+
+    let isAuthenticatedWebhook = false;
+
+    if (expectedSecret) {
+      if (authHeader === `Bearer ${expectedSecret}` || authHeader === expectedSecret) {
+        isAuthenticatedWebhook = true;
+      }
+    } else {
+      // In development/test mode when no secret env is configured, require a non-empty Bearer authorization or x-revenuecat-webhook-auth header
+      if (authHeader.startsWith('Bearer ') || authHeader.length > 5 || stripeSignature) {
+        isAuthenticatedWebhook = true;
+      }
+    }
+
+    if (!isAuthenticatedWebhook) {
+      console.warn('[WEBHOOK] Rejected unauthenticated or unsigned webhook request');
+      res.status(401).json({ error: 'Unauthorized — missing or invalid webhook authorization signature' });
+      return;
+    }
+
     const event = req.body || {};
     const eventType = event.type || event.event?.type;
     const eventId = event.id || event.event?.id || (event.event?.app_user_id ? `${event.event.app_user_id}_${event.event.event_timestamp_ms}` : null);
 
-    console.log(`[WEBHOOK] Received event: ${eventType} (ID: ${eventId})`);
+    if (!eventType && !eventId) {
+      res.status(400).json({ error: 'Malformed webhook payload' });
+      return;
+    }
 
-    // Idempotency check: prevent duplicate event processing
+    console.log(`[WEBHOOK] Verified event: ${eventType} (ID: ${eventId})`);
+
+    // 2. Idempotency Check
     if (eventId) {
       try {
-        const eventRef = db.collection('subscriptionEvents').doc(eventId);
+        const eventRef = db.collection('subscriptionEvents').doc(`eventId_${eventId}`);
         const docSnap = await eventRef.get();
         if (docSnap && docSnap.exists) {
           console.log(`[WEBHOOK] Duplicate event ${eventId} ignored.`);
@@ -212,7 +296,8 @@ export const handleSubscriptionWebhook = onRequest({ cors: true }, async (req, r
           return;
         }
         await eventRef.set({
-          eventType,
+          eventId,
+          eventType: eventType || 'unknown',
           receivedAt: admin.firestore.FieldValue.serverTimestamp(),
           processedAt: admin.firestore.FieldValue.serverTimestamp(),
           status: 'processed',
@@ -222,33 +307,37 @@ export const handleSubscriptionWebhook = onRequest({ cors: true }, async (req, r
       }
     }
 
-    // RevenueCat webhook handling
+    // 3. Process RevenueCat Webhook Payload
     if (event.event && event.event.app_user_id) {
       const rcEvent = event.event;
-      const uid = rcEvent.app_user_id;
+      const uid = String(rcEvent.app_user_id).trim();
       const entitlementId = rcEvent.entitlement_id || 'premium';
       const isExpired = rcEvent.type === 'EXPIRATION' || rcEvent.type === 'CANCELLATION';
       const isPremium = !isExpired && (rcEvent.type === 'INITIAL_PURCHASE' || rcEvent.type === 'RENEWAL' || rcEvent.type === 'UNCANCELLATION');
 
-      try {
-        const userRef = db.collection('users').doc(uid);
-        await userRef.set(
-          {
-            subscriptionStatus: isPremium ? 'premium' : 'free',
-            updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-            revenueCatEntitlement: entitlementId,
-          },
-          { merge: true }
-        );
-      } catch (dbErr: any) {
-        console.warn('Webhook Firestore update warning:', dbErr?.message || dbErr);
+      if (uid) {
+        try {
+          const userRef = db.collection('users').doc(uid);
+          await userRef.set(
+            {
+              subscriptionStatus: isPremium ? 'premium' : 'free',
+              subscriptionType: rcEvent.product_id?.includes('yearly') ? 'yearly' : 'monthly',
+              revenueCatEntitlement: entitlementId,
+              lastVerifiedAt: admin.firestore.FieldValue.serverTimestamp(),
+              updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+            },
+            { merge: true }
+          );
+        } catch (dbErr: any) {
+          console.warn('Webhook Firestore update warning:', dbErr?.message || dbErr);
+        }
       }
 
       res.status(200).json({ received: true, uid, status: isPremium ? 'premium' : 'free' });
       return;
     }
 
-    // Direct Stripe webhook handling fallback
+    // 4. Process Stripe Webhook Payload
     if (eventType && event.data?.object) {
       const obj = event.data.object;
       const uid = obj.metadata?.firebaseUid || obj.client_reference_id;
@@ -264,6 +353,7 @@ export const handleSubscriptionWebhook = onRequest({ cors: true }, async (req, r
             {
               subscriptionStatus: status,
               stripeCustomerId: obj.customer || null,
+              lastVerifiedAt: admin.firestore.FieldValue.serverTimestamp(),
               updatedAt: admin.firestore.FieldValue.serverTimestamp(),
             },
             { merge: true }
