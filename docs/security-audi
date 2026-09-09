@@ -1,0 +1,84 @@
+I found one critical premium-entitlement vulnerability, several high-risk authorization/data-retention issues, and a major payment integration gap.
+Critical Findings
+1.	Unauthenticated webhook can grant premium access
+o	index.ts:188-280 accepts RevenueCat- and Stripe-shaped JSON without verifying a RevenueCat authorization header or Stripe signature.
+o	An attacker can submit an event containing another user’s Firebase UID and set subscriptionStatus: 'premium'.
+o	The existing regression test explicitly accepts an unsigned webhook payload in functions-regression.ts:99-118.
+o	Impact: premium bypass, unauthorized entitlement changes, UID/account probing.
+o	Fix: require and verify provider signatures before parsing or writing anything. Reject unsigned requests with 401.
+2.	Payment API is not present in this repository
+o	The client calls /api/subscription/checkout, /portal, /status, /cancel, and /resume from subscription-service.ts:130-180.
+o	The checked-in backend contains only Firebase Functions and no implementation of those routes.
+o	The deployed external API is therefore an unreviewed trust boundary. The existing AUDIT_REPORT.md:280-310 describes a Hono backend that is not currently present.
+o	Action: obtain and audit the actual deployed payment API before production use.
+3.	Premium access is enforced primarily on the client
+o	useAuth.ts:90-115 derives premium access from the cached Firestore profile.
+o	usePremiumUsage.ts:55-125 performs local limits and gates.
+o	Public content collections are readable by everyone in firestore.rules:24-42.
+o	Anyone can retrieve premium catalogue metadata, and client-side gates can be bypassed by modifying the app, intercepting requests, or replaying cached state.
+o	Fix: enforce every paid capability server-side. Never rely on isPremium, local timers, AsyncStorage, or UI gates as authorization.
+4.	Stale premium state survives failed verification
+o	useAuth.ts:425-455 catches subscription refresh failures and retains the cached entitlement.
+o	There is no effective check that lastVerifiedAt or subscriptionEndsAt is still valid before granting premium access.
+o	Impact: revoked, expired, refunded, or charged-back users may retain access indefinitely while offline or while the API is unavailable.
+o	Fix: implement bounded offline grace with an enforced expiry, then fail closed.
+High-Risk Findings
+5.	Account deletion is incomplete and reports false success
+o	index.ts:138-181 deletes only selected documents, catches deletion failures, then deletes the Firebase Auth user and returns success.
+o	It does not clearly delete userUsage, userFavorites, reminders under the nested path, audit records, AsyncStorage data, or Stripe customer/subscription data.
+o	The Firestore paths are defined in firestore.rules:77-111.
+o	Impact: GDPR/UK GDPR erasure failures, retained personal data, continued billing, inconsistent account state.
+o	Fix: use an idempotent deletion job, enumerate every user-scoped collection, cancel/refund subscriptions according to policy, delete local data, and return success only after verified completion.
+6.	Admin bootstrap depends on a shared secret
+o	setup.tsx:68-115 asks users to enter ADMIN_SECRET_KEY and sends it to a user-supplied backend URL.
+o	The repository does not contain the referenced /admin/setup implementation, but the existing audit documentation says it grants admin claims.
+o	Impact: anyone who obtains the shared key can grant admin access to arbitrary accounts. Users can also accidentally submit the key to an attacker-controlled URL.
+o	Fix: remove bootstrap from production, or use a one-time, server-generated setup flow restricted by deployment identity, allowlisted origin, and an already authenticated owner.
+7.	Admin claim endpoint is overly powerful
+o	index.ts:66-126 accepts arbitrary custom claims and merges them into a target user.
+o	Impact: any compromised admin can grant arbitrary privileges, not just admin: true.
+o	Fix: allow only an explicit schema of supported roles/permissions, prohibit changing the last super-admin, and require step-up authentication for role changes.
+8.	Admin user management conflicts with Firestore rules
+o	app/admin/(dashboard)/users.tsx/users.tsx#L40-L75) directly reads the entire users collection.
+o	firestore.rules:47-65 permits only the document owner to read their profile, not an admin.
+o	This currently appears to fail closed rather than leak data, but it indicates authorization logic is split and inconsistent.
+o	Fix: route admin user queries through a server endpoint that verifies the admin claim and returns only the minimum fields required.
+9.	User profile updates are too broad
+o	useAuth.ts:396-423 accepts Partial<UserProfile> and serializes the complete profile.
+o	Firestore rules protect subscription fields, but do not strictly restrict fields such as uid, email, usage statistics, or timestamps.
+o	Users can tamper with their own analytics, streaks, and usage records.
+o	Fix: use allowlisted update schemas and move all authoritative usage/account fields to trusted server writes.
+Financial-data Protection
+The client does not appear to process raw card numbers, which is good. Stripe secrets are also kept server-side in stripe-server.ts:20-57.
+However:
+•	The actual payment API is missing from the repository.
+•	Its portal-session ownership checks cannot be verified.
+•	Its webhook authenticity cannot be verified.
+•	Stripe customer IDs are stored in user profiles and exposed to the owning user; these are not card numbers, but they are still personal/payment identifiers.
+•	Do not return payment methods, invoices, billing addresses, or raw Stripe objects to the mobile client.
+•	Billing portal URLs must always be created for the authenticated user’s server-resolved Stripe customer, never from a client-supplied customer ID.
+Privacy and Legal Readiness
+The app is not currently demonstrably ready for GDPR, UK GDPR, EU ePrivacy, CCPA/CPRA, US state privacy laws, PIPEDA, or Quebec Law 25.
+Missing or unclear controls include:
+•	Public, complete privacy notice and data-processing disclosures.
+•	Controller identity, DPO/contact details, lawful bases, purposes, retention periods, and subprocessors.
+•	Consent handling for optional analytics, notifications, tracking, and local storage.
+•	Access, correction, portability, objection, restriction, and deletion workflows.
+•	Verified deletion across Firebase, Stripe/RevenueCat, logs, backups, and local storage.
+•	Data Processing Agreements and international transfer mechanisms for Firebase, Stripe, RevenueCat, hosting, and analytics.
+•	A retention/deletion policy for audit logs and usage events.
+•	Age/minor handling and COPPA/UK Children’s Code assessment.
+•	Health-data assessment: the app makes claims relating to sleep, healing, pain, mental health, DNA, trauma, and medical conditions. These can create health-related inferences and increase GDPR/UK GDPR sensitivity.
+•	US health claims should be reviewed for FTC advertising substantiation and consumer-protection risk. HIPAA likely does not automatically apply, but that depends on the business model and partners.
+•	EU/UK/Canada consumer requirements for free trials, automatic renewal, cancellation, pricing, VAT/taxes, and withdrawal rights.
+The in-app “Privacy Policy” text in app/(tabs)/settings.tsx/settings.tsx#L560-L590) is not a substitute for a legally complete, publicly accessible privacy notice and currently makes broad claims that require verification.
+Required Remediation Order
+1.	Disable the subscription webhook and payment production flow until signature verification is implemented.
+2.	Audit and secure the external /api/subscription/* service.
+3.	Move premium authorization to trusted server-side checks.
+4.	Remove or redesign shared-secret admin bootstrap.
+5.	Implement complete, verified account deletion and subscription cancellation.
+6.	Tighten Firestore update schemas and admin access paths.
+7.	Publish privacy/terms documents and implement rights, retention, consent, and subprocessor controls.
+8.	Complete Google Play/App Store billing compliance review. Stripe Checkout for digital subscriptions is generally not acceptable on Google Play or iOS where platform billing is required.
+This was a static repository audit. I did not have access to the deployed payment API, Firebase production project, Stripe dashboard, RevenueCat configuration, cloud IAM, logs, or production Firestore, so those require a separate authenticated penetration and configuration review.
