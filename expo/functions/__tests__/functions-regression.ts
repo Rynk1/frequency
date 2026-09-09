@@ -8,6 +8,7 @@ async function runFunctionsRegressionTests() {
   let failed = 0;
 
   process.env.ADMIN_SECRET_KEY = 'test-secret-key-12345';
+  process.env.WEBHOOK_SECRET = 'test-webhook-secret-67890';
 
   function createMockResponse() {
     const res: any = new EventEmitter();
@@ -96,7 +97,7 @@ async function runFunctionsRegressionTests() {
     }
   }
 
-  // 5. handleSubscriptionWebhook - RevenueCat Event Payload
+  // 5. handleSubscriptionWebhook - Unsigned/Unauthenticated Webhook Request Rejection
   {
     const req: any = {
       method: 'POST',
@@ -111,11 +112,37 @@ async function runFunctionsRegressionTests() {
     };
     const res = createMockResponse();
     await (handleSubscriptionWebhook as any)(req, res);
-    if (res.getStatus() === 200 && res.getBody()?.status === 'premium') {
-      console.log('[PASS] handleSubscriptionWebhook (RevenueCat Payload)');
+    if (res.getStatus() === 401) {
+      console.log('[PASS] handleSubscriptionWebhook (Rejects Unsigned Request with 401)');
       passed++;
     } else {
-      console.error('[FAIL] handleSubscriptionWebhook (RevenueCat Payload):', res.getStatus(), res.getBody());
+      console.error('[FAIL] handleSubscriptionWebhook (Rejects Unsigned Request):', res.getStatus(), res.getBody());
+      failed++;
+    }
+  }
+
+  // 6. handleSubscriptionWebhook - Authenticated RevenueCat Event Payload
+  {
+    const req: any = {
+      method: 'POST',
+      headers: {
+        authorization: 'Bearer test-webhook-secret-67890',
+      },
+      body: {
+        event: {
+          app_user_id: 'test-user-123',
+          type: 'INITIAL_PURCHASE',
+          entitlement_id: 'premium',
+        },
+      },
+    };
+    const res = createMockResponse();
+    await (handleSubscriptionWebhook as any)(req, res);
+    if (res.getStatus() === 200 && res.getBody()?.status === 'premium') {
+      console.log('[PASS] handleSubscriptionWebhook (Authenticated RevenueCat Payload)');
+      passed++;
+    } else {
+      console.error('[FAIL] handleSubscriptionWebhook (Authenticated RevenueCat Payload):', res.getStatus(), res.getBody());
       failed++;
     }
   }

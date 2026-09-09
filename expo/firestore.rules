@@ -1,12 +1,5 @@
 // ── Firestore Security Rules for HarmonyFrequency ──
 // Deploy with: firebase deploy --only firestore:rules
-//
-// Security model:
-//   - Curated content (frequencies, curatedPrograms, articles): public read, admin-only write
-//   - User profiles: authenticated owner read/write
-//   - User sessions: authenticated owner read/write (scoped by userId)
-//   - User progress/stats: authenticated owner read/write
-//   - User reminders: authenticated owner read/write
 
 rules_version = '2';
 service cloud.firestore {
@@ -18,7 +11,7 @@ service cloud.firestore {
     }
 
     function isAdmin() {
-      return isAuthenticated() && request.auth.token.admin == true;
+      return isAuthenticated() && (request.auth.token.admin == true || request.auth.token.super_admin == true || request.auth.token.role == 'admin' || request.auth.token.role == 'super_admin');
     }
 
     function isOwner(userId) {
@@ -26,7 +19,6 @@ service cloud.firestore {
     }
 
     // ── Curated content: frequencies ──
-    // Anyone can read; only admins can write
     match /frequencies/{docId} {
       allow read: if true;
       allow create, update, delete: if isAdmin();
@@ -45,35 +37,33 @@ service cloud.firestore {
     }
 
     // ── User profiles ──
-    // Only the owning user can read/write their own profile.
-    // Subscription fields are SERVER-ONLY: they are written by the Stripe
-    // webhook (firebase-admin) and must NEVER be mutated by the client.
-    // The rules below allow the client to update only non-subscription fields.
     match /users/{userId} {
-      allow read: if isOwner(userId);
+      allow read: if isOwner(userId) || isAdmin();
       allow create: if isOwner(userId)
-        // On initial create, subscriptionStatus must be 'free'
         && request.resource.data.subscriptionStatus == 'free'
         && !('subscriptionType' in request.resource.data || request.resource.data.subscriptionType == null)
         && !('subscriptionEndsAt' in request.resource.data || request.resource.data.subscriptionEndsAt == null)
         && !('trialEndsAt' in request.resource.data || request.resource.data.trialEndsAt == null)
         && !('stripeCustomerId' in request.resource.data)
         && !('stripeSubscriptionId' in request.resource.data)
-        && !('cancelAtPeriodEnd' in request.resource.data);
+        && !('cancelAtPeriodEnd' in request.resource.data)
+        && !('role' in request.resource.data)
+        && !('admin' in request.resource.data);
+
       allow update: if isOwner(userId)
-        // Client cannot change any subscription-related field
+        // Client cannot change subscription or admin role fields
         && request.resource.data.subscriptionStatus == resource.data.subscriptionStatus
-        && request.resource.data.subscriptionType == resource.data.subscriptionType
-        && request.resource.data.subscriptionEndsAt == resource.data.subscriptionEndsAt
-        && request.resource.data.trialEndsAt == resource.data.trialEndsAt
-        && request.resource.data.stripeCustomerId == resource.data.stripeCustomerId
-        && request.resource.data.stripeSubscriptionId == resource.data.stripeSubscriptionId
-        && request.resource.data.cancelAtPeriodEnd == resource.data.cancelAtPeriodEnd;
-      // Server-side writes (firebase-admin service account) bypass these rules.
+        && (!('subscriptionType' in request.resource.data) || request.resource.data.subscriptionType == resource.data.subscriptionType)
+        && (!('subscriptionEndsAt' in request.resource.data) || request.resource.data.subscriptionEndsAt == resource.data.subscriptionEndsAt)
+        && (!('trialEndsAt' in request.resource.data) || request.resource.data.trialEndsAt == resource.data.trialEndsAt)
+        && (!('stripeCustomerId' in request.resource.data) || request.resource.data.stripeCustomerId == resource.data.stripeCustomerId)
+        && (!('stripeSubscriptionId' in request.resource.data) || request.resource.data.stripeSubscriptionId == resource.data.stripeSubscriptionId)
+        && (!('cancelAtPeriodEnd' in request.resource.data) || request.resource.data.cancelAtPeriodEnd == resource.data.cancelAtPeriodEnd)
+        && (!('role' in request.resource.data) || request.resource.data.role == resource.data.role)
+        && (!('admin' in request.resource.data) || request.resource.data.admin == resource.data.admin);
     }
 
-    // ── User sessions (personal schedule/progress) ──
-    // Only the owning user can read/write their sessions
+    // ── User sessions ──
     match /userSessions/{userId}/sessions/{sessionId} {
       allow read, write: if isOwner(userId);
     }
@@ -93,7 +83,7 @@ service cloud.firestore {
       allow read, write: if isOwner(userId);
     }
 
-    // Immutable listening events used for premium analytics
+    // Immutable listening events
     match /userUsage/{userId}/events/{eventId} {
       allow read: if isOwner(userId);
       allow create: if isOwner(userId)
@@ -108,10 +98,16 @@ service cloud.firestore {
       allow read, write: if isOwner(userId);
     }
 
+    // ── Subscription Events (Idempotency) ──
+    match /subscriptionEvents/{eventId} {
+      allow read: if isAdmin();
+      allow write: if false; // Only written by Cloud Functions
+    }
+
     // ── Audit logs (admin-only) ──
     match /auditLogs/{logId} {
       allow read: if isAdmin();
-      allow write: if false; // Audit logs are append-only, written server-side
+      allow write: if false; // Append-only, written server-side
     }
 
     // ── Default deny ──

@@ -2,11 +2,13 @@ import { useState, useEffect, useCallback } from 'react';
 import { FrequencyAudioSpec, AudioPlaybackState } from '../lib/audio/AudioTypes';
 import { AudioResolver } from '../lib/audio/AudioResolver';
 import { globalAudioEngine } from '../lib/audio/FrequencyAudioEngine';
+import { useAuth } from './useAuth';
 
 export const useAudioPlayer = () => {
   const [engineState, setEngineState] = useState<AudioPlaybackState>(
     globalAudioEngine.getState()
   );
+  const { entitlementState } = useAuth();
 
   useEffect(() => {
     const unsubscribe = globalAudioEngine.subscribe((state) => {
@@ -22,8 +24,8 @@ export const useAudioPlayer = () => {
   }, []);
 
   const playAudioSpec = useCallback(async (spec: FrequencyAudioSpec, name: string = '') => {
-    await globalAudioEngine.play(spec, name);
-  }, []);
+    await globalAudioEngine.play(spec, name, entitlementState);
+  }, [entitlementState]);
 
   /**
    * playFrequency supports legacy callers:
@@ -41,13 +43,13 @@ export const useAudioPlayer = () => {
           spec = AudioResolver.resolve(itemOrHz);
         }
         const displayName = name || itemOrHz?.name || `${spec.modality === 'pure_tone' ? spec.frequency : spec.beatFrequency} Hz`;
-        await globalAudioEngine.play(spec, displayName);
+        await globalAudioEngine.play(spec, displayName, entitlementState);
       } catch (error: any) {
         console.error('Error in playFrequency:', error);
         alert(`Error playing audio: ${error?.message || error}`);
       }
     },
-    []
+    [entitlementState]
   );
 
   const setVolume = useCallback(async (volume: number) => {

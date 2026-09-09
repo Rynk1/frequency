@@ -4,6 +4,8 @@ import { FrequencyAudioSpec, AudioPlaybackState } from './AudioTypes';
 import { AudioValidator } from './AudioValidator';
 import { WebAudioRenderer } from './platform/WebAudioRenderer';
 import { NativeAudioRenderer } from './platform/NativeAudioRenderer';
+import { EntitlementState } from '../entitlements/entitlement-types';
+import { EntitlementValidator } from '../entitlements/entitlement-validator';
 
 export class FrequencyAudioEngine {
   private webRenderer: WebAudioRenderer | null = null;
@@ -46,14 +48,29 @@ export class FrequencyAudioEngine {
 
   /**
    * Atomic playback transition:
-   * Validates spec -> Prepares renderer -> Stops old sound -> Starts new sound -> Updates state
+   * Validates spec & entitlement -> Prepares renderer -> Stops old sound -> Starts new sound -> Updates state
    */
-  public async play(spec: FrequencyAudioSpec, name: string = ''): Promise<void> {
+  public async play(
+    spec: FrequencyAudioSpec,
+    name: string = '',
+    entitlementState?: EntitlementState
+  ): Promise<void> {
+    // 1. Audio Specification Validation
     const validation = AudioValidator.validate(spec);
     if (!validation.isValid) {
       const errorMsg = `Invalid audio specification: ${validation.error}`;
       this.updateState({ error: errorMsg, isPlaying: false });
       throw new Error(errorMsg);
+    }
+
+    // 2. Entitlement Enforcement (Fail Closed)
+    if (entitlementState) {
+      const entitlementCheck = EntitlementValidator.validatePlayback(spec, entitlementState);
+      if (!entitlementCheck.allowed && entitlementCheck.reason === 'requires_premium') {
+        const errorMsg = 'Premium subscription required to play this frequency modality.';
+        this.updateState({ error: errorMsg, isPlaying: false });
+        throw new Error(errorMsg);
+      }
     }
 
     try {
