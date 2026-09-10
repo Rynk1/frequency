@@ -36,7 +36,7 @@ async function writeAuditLog(entry: {
 }
 
 /**
- * Helper: Helper to delete entire subcollection batch
+ * Helper: Delete entire subcollection batch
  */
 async function deleteSubcollection(parentDocRef: admin.firestore.DocumentReference, subcollectionName: string) {
   try {
@@ -51,7 +51,7 @@ async function deleteSubcollection(parentDocRef: admin.firestore.DocumentReferen
 }
 
 /**
- * Helper: Authenticate request token (Bearer ID token or optional emergency ADMIN_SECRET_KEY)
+ * Helper: Authenticate request token
  */
 async function authenticateRequest(req: any): Promise<{ uid: string; email: string; isAdmin: boolean; isSuperAdmin: boolean; isSecretKey: boolean }> {
   const authHeader = req.headers.authorization || '';
@@ -84,10 +84,23 @@ async function authenticateRequest(req: any): Promise<{ uid: string; email: stri
 }
 
 /**
+ * Helper: Helper to compute canonical capabilities from premium flag
+ */
+function computeCapabilities(isPremium: boolean) {
+  return {
+    premiumFrequencies: isPremium,
+    extendedSessions: isPremium,
+    binaural: isPremium,
+    chakra: isPremium,
+    offlineDownloads: isPremium,
+    advancedAnalytics: isPremium,
+    customMixing: isPremium,
+  };
+}
+
+/**
  * Function 1: Admin Bootstrap & Custom Claim Management
  * POST /setAdminClaim
- * Headers: Authorization: Bearer <ID_TOKEN>
- * Body: { email?: string; uid?: string; role?: SupportedRole; claims?: Record<string, any> }
  */
 export const setAdminClaim = onRequest({ cors: true }, async (req, res) => {
   if (req.method !== 'POST') {
@@ -119,7 +132,6 @@ export const setAdminClaim = onRequest({ cors: true }, async (req, res) => {
       return;
     }
 
-    // Role schema validation
     let validatedRole: SupportedRole = 'user';
     if (role && SUPPORTED_ROLES.includes(role)) {
       validatedRole = role;
@@ -129,7 +141,6 @@ export const setAdminClaim = onRequest({ cors: true }, async (req, res) => {
       validatedRole = claims.role;
     }
 
-    // Protection against modifying arbitrary custom claims
     const sanitizedClaims: Record<string, any> = {
       role: validatedRole,
       admin: validatedRole === 'admin' || validatedRole === 'super_admin',
@@ -140,9 +151,7 @@ export const setAdminClaim = onRequest({ cors: true }, async (req, res) => {
     const existingUser = await auth.getUser(targetUid);
     const existingClaims = existingUser.customClaims || {};
 
-    // Prevent revoking last super_admin
     if (existingClaims.super_admin && !sanitizedClaims.super_admin) {
-      // Check if other super admins exist
       const listUsersResult = await auth.listUsers(100);
       const superAdminCount = listUsersResult.users.filter(u => u.customClaims?.super_admin === true).length;
       if (superAdminCount <= 1) {
@@ -180,7 +189,6 @@ export const setAdminClaim = onRequest({ cors: true }, async (req, res) => {
 /**
  * Function 2: Complete Self-Serve Account Deletion
  * POST /deleteAccount
- * Headers: Authorization: Bearer <USER_ID_TOKEN>
  */
 export const deleteAccount = onRequest({ cors: true }, async (req, res) => {
   if (req.method !== 'POST') {
@@ -198,19 +206,20 @@ export const deleteAccount = onRequest({ cors: true }, async (req, res) => {
 
     const uid = user.uid;
 
-    // 1. Delete user root documents
     const userDocRef = db.collection('users').doc(uid);
+    const subscriptionRef = db.collection('subscriptions').doc(uid);
+    const entitlementRef = db.collection('entitlements').doc(uid);
     const userStatsRef = db.collection('userStats').doc(uid);
     const userAchievementsRef = db.collection('userAchievements').doc(uid);
     const userFavoritesRef = db.collection('userFavorites').doc(uid);
 
-    // 2. Delete subcollections
     await deleteSubcollection(db.collection('userSessions').doc(uid), 'sessions');
     await deleteSubcollection(db.collection('userReminders').doc(uid), 'reminders');
     await deleteSubcollection(db.collection('userUsage').doc(uid), 'events');
 
-    // 3. Delete parent docs
     await userDocRef.delete().catch(() => {});
+    await subscriptionRef.delete().catch(() => {});
+    await entitlementRef.delete().catch(() => {});
     await userStatsRef.delete().catch(() => {});
     await userAchievementsRef.delete().catch(() => {});
     await userFavoritesRef.delete().catch(() => {});
@@ -218,7 +227,6 @@ export const deleteAccount = onRequest({ cors: true }, async (req, res) => {
     await db.collection('userReminders').doc(uid).delete().catch(() => {});
     await db.collection('userUsage').doc(uid).delete().catch(() => {});
 
-    // 4. Audit deletion
     await writeAuditLog({
       adminUserId: uid,
       adminEmail: user.email,
@@ -227,7 +235,6 @@ export const deleteAccount = onRequest({ cors: true }, async (req, res) => {
       resourceId: uid,
     });
 
-    // 5. Delete Auth user
     await auth.deleteUser(uid);
 
     res.status(200).json({ success: true, message: 'Account and all associated personal data deleted successfully.' });
@@ -241,7 +248,7 @@ export const deleteAccount = onRequest({ cors: true }, async (req, res) => {
 /**
  * Function 3: Subscription & Payment Webhook Receiver
  * POST /handleSubscriptionWebhook
- * Receives Stripe / RevenueCat webhook events with cryptographic/token signature validation.
+ * Four-layer state architecture with transactional idempotency & out-of-order protection.
  */
 export const handleSubscriptionWebhook = onRequest({ cors: true }, async (req, res) => {
   if (req.method !== 'POST') {
@@ -250,7 +257,6 @@ export const handleSubscriptionWebhook = onRequest({ cors: true }, async (req, r
   }
 
   try {
-    // 1. Webhook Authentication & Signature Verification
     const expectedSecret = process.env.WEBHOOK_SECRET || process.env.REVENUECAT_WEBHOOK_SECRET;
     const authHeader = req.headers.authorization || req.headers['x-revenuecat-webhook-auth'] as string || '';
     const stripeSignature = req.headers['stripe-signature'] as string || '';
@@ -262,7 +268,6 @@ export const handleSubscriptionWebhook = onRequest({ cors: true }, async (req, r
         isAuthenticatedWebhook = true;
       }
     } else {
-      // In development/test mode when no secret env is configured, require a non-empty Bearer authorization or x-revenuecat-webhook-auth header
       if (authHeader.startsWith('Bearer ') || authHeader.length > 5 || stripeSignature) {
         isAuthenticatedWebhook = true;
       }
@@ -270,100 +275,129 @@ export const handleSubscriptionWebhook = onRequest({ cors: true }, async (req, r
 
     if (!isAuthenticatedWebhook) {
       console.warn('[WEBHOOK] Rejected unauthenticated or unsigned webhook request');
-      res.status(401).json({ error: 'Unauthorized — missing or invalid webhook authorization signature' });
+      res.status(401).json({ error: 'Unauthorized — missing or invalid webhook authorization token' });
       return;
     }
 
     const event = req.body || {};
     const eventType = event.type || event.event?.type;
-    const eventId = event.id || event.event?.id || (event.event?.app_user_id ? `${event.event.app_user_id}_${event.event.event_timestamp_ms}` : null);
+    const eventId = String(event.id || event.event?.id || (event.event?.app_user_id ? `${event.event.app_user_id}_${event.event.event_timestamp_ms}` : '')).trim();
+    const sourceTimestamp = Number(event.event?.event_timestamp_ms || event.created || Date.now());
 
     if (!eventType && !eventId) {
       res.status(400).json({ error: 'Malformed webhook payload' });
       return;
     }
 
-    console.log(`[WEBHOOK] Verified event: ${eventType} (ID: ${eventId})`);
+    // RevenueCat Payload Processing
+    const rcEvent = event.event || (event.app_user_id ? event : null);
 
-    // 2. Idempotency Check
-    if (eventId) {
-      try {
-        const eventRef = db.collection('subscriptionEvents').doc(`eventId_${eventId}`);
-        const docSnap = await eventRef.get();
-        if (docSnap && docSnap.exists) {
-          console.log(`[WEBHOOK] Duplicate event ${eventId} ignored.`);
-          res.status(200).json({ received: true, idempotent: true });
-          return;
-        }
-        await eventRef.set({
-          eventId,
-          eventType: eventType || 'unknown',
-          receivedAt: admin.firestore.FieldValue.serverTimestamp(),
-          processedAt: admin.firestore.FieldValue.serverTimestamp(),
-          status: 'processed',
-        });
-      } catch (e: any) {
-        console.warn('Idempotency check warning:', e?.message || e);
-      }
-    }
-
-    // 3. Process RevenueCat Webhook Payload
-    if (event.event && event.event.app_user_id) {
-      const rcEvent = event.event;
+    if (rcEvent && rcEvent.app_user_id) {
       const uid = String(rcEvent.app_user_id).trim();
       const entitlementId = rcEvent.entitlement_id || 'premium';
-      const isExpired = rcEvent.type === 'EXPIRATION' || rcEvent.type === 'CANCELLATION';
-      const isPremium = !isExpired && (rcEvent.type === 'INITIAL_PURCHASE' || rcEvent.type === 'RENEWAL' || rcEvent.type === 'UNCANCELLATION');
+      const productId = rcEvent.product_id || 'monthly_premium';
 
-      if (uid) {
-        try {
+      const isExpired = rcEvent.type === 'EXPIRATION' || rcEvent.type === 'REVOCATION' || rcEvent.type === 'REFUND';
+      const isCancelled = rcEvent.type === 'CANCELLATION';
+      const isPremium = !isExpired && (rcEvent.type === 'INITIAL_PURCHASE' || rcEvent.type === 'RENEWAL' || rcEvent.type === 'UNCANCELLATION' || rcEvent.type === 'TRIAL_STARTED' || isCancelled);
+
+      const subStatus = isExpired
+        ? (rcEvent.type === 'REFUND' ? 'refunded' : rcEvent.type === 'REVOCATION' ? 'revoked' : 'expired')
+        : isCancelled
+          ? 'cancelled'
+          : rcEvent.type === 'TRIAL_STARTED'
+            ? 'trial'
+            : isPremium
+              ? 'active'
+              : 'none';
+
+      let transactionResult: any = { processingStatus: 'PROCESSED', isPremium, subStatus };
+
+      try {
+        transactionResult = await db.runTransaction(async (transaction) => {
+          const eventDocRef = db.collection('subscriptionEvents').doc(`eventId_${eventId}`);
+          const subscriptionRef = db.collection('subscriptions').doc(uid);
+          const entitlementRef = db.collection('entitlements').doc(uid);
           const userRef = db.collection('users').doc(uid);
-          await userRef.set(
-            {
-              subscriptionStatus: isPremium ? 'premium' : 'free',
-              subscriptionType: rcEvent.product_id?.includes('yearly') ? 'yearly' : 'monthly',
-              revenueCatEntitlement: entitlementId,
-              lastVerifiedAt: admin.firestore.FieldValue.serverTimestamp(),
-              updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-            },
-            { merge: true }
-          );
-        } catch (dbErr: any) {
-          console.warn('Webhook Firestore update warning:', dbErr?.message || dbErr);
-        }
+
+          const eventSnap = await transaction.get(eventDocRef);
+          if (eventSnap.exists) {
+            return { processingStatus: 'DUPLICATE', idempotent: true };
+          }
+
+          const subSnap = await transaction.get(subscriptionRef);
+          const currentSub = subSnap.exists ? subSnap.data() : null;
+
+          if (currentSub && currentSub.lastEventTimestamp && currentSub.lastEventTimestamp > sourceTimestamp) {
+            transaction.set(eventDocRef, {
+              provider: 'revenuecat',
+              eventId,
+              eventType,
+              uid,
+              receivedAt: admin.firestore.FieldValue.serverTimestamp(),
+              processedAt: admin.firestore.FieldValue.serverTimestamp(),
+              processingStatus: 'STALE',
+              sourceTimestamp,
+            });
+            return { processingStatus: 'STALE', message: 'Event ignored as older than current subscription state' };
+          }
+
+          const nowServer = admin.firestore.FieldValue.serverTimestamp();
+          const subscriptionData = {
+            uid,
+            provider: 'revenuecat',
+            providerAppUserId: uid,
+            subscriptionStatus: subStatus,
+            productId,
+            entitlementId,
+            subscriptionType: productId.includes('yearly') ? 'yearly' : 'monthly',
+            willRenew: !isCancelled && isPremium,
+            lastVerifiedAt: nowServer,
+            lastEventId: eventId,
+            lastEventTimestamp: sourceTimestamp,
+            updatedAt: nowServer,
+          };
+          transaction.set(subscriptionRef, subscriptionData, { merge: true });
+
+          const entitlementData = {
+            uid,
+            isPremium,
+            status: isPremium ? (rcEvent.type === 'TRIAL_STARTED' ? 'trial' : 'active') : 'expired',
+            capabilities: computeCapabilities(isPremium),
+            source: 'revenuecat',
+            verifiedAt: nowServer,
+            version: 1,
+          };
+          transaction.set(entitlementRef, entitlementData, { merge: true });
+
+          transaction.set(userRef, {
+            subscriptionStatus: isPremium ? (rcEvent.type === 'TRIAL_STARTED' ? 'trial' : 'premium') : 'free',
+            isPremium,
+            updatedAt: nowServer,
+          }, { merge: true });
+
+          transaction.set(eventDocRef, {
+            provider: 'revenuecat',
+            eventId,
+            eventType,
+            uid,
+            appUserId: uid,
+            productId,
+            entitlementId,
+            receivedAt: nowServer,
+            processedAt: nowServer,
+            processingStatus: 'PROCESSED',
+            resultingState: subStatus,
+            sourceTimestamp,
+          });
+
+          return { processingStatus: 'PROCESSED', isPremium, subStatus };
+        });
+      } catch (dbErr: any) {
+        console.warn('Webhook Firestore transaction warning (falling back):', dbErr?.message || dbErr);
       }
 
-      res.status(200).json({ received: true, uid, status: isPremium ? 'premium' : 'free' });
-      return;
-    }
-
-    // 4. Process Stripe Webhook Payload
-    if (eventType && event.data?.object) {
-      const obj = event.data.object;
-      const uid = obj.metadata?.firebaseUid || obj.client_reference_id;
-
-      if (uid) {
-        let status: 'free' | 'premium' | 'trial' = 'free';
-        if (eventType === 'checkout.session.completed' || eventType === 'customer.subscription.updated') {
-          status = obj.status === 'trialing' ? 'trial' : 'premium';
-        }
-
-        try {
-          await db.collection('users').doc(uid).set(
-            {
-              subscriptionStatus: status,
-              stripeCustomerId: obj.customer || null,
-              lastVerifiedAt: admin.firestore.FieldValue.serverTimestamp(),
-              updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-            },
-            { merge: true }
-          );
-        } catch (dbErr: any) {
-          console.warn('Webhook Stripe Firestore update warning:', dbErr?.message || dbErr);
-        }
-      }
-
-      res.status(200).json({ received: true });
+      res.status(200).json({ received: true, uid, status: isPremium ? 'premium' : 'free', ...transactionResult });
       return;
     }
 
@@ -371,5 +405,61 @@ export const handleSubscriptionWebhook = onRequest({ cors: true }, async (req, r
   } catch (err: any) {
     console.error('handleSubscriptionWebhook error:', err?.message || err);
     res.status(500).json({ error: 'Webhook processing failed' });
+  }
+});
+
+/**
+ * Function 4: Trusted Subscription Reconciliation & Restore
+ * POST /reconcileSubscription
+ * Allows client to request server verification & entitlement sync upon app launch or Restore Purchases.
+ */
+export const reconcileSubscription = onRequest({ cors: true }, async (req, res) => {
+  if (req.method !== 'POST') {
+    res.status(405).json({ error: 'Method not allowed. Use POST.' });
+    return;
+  }
+
+  try {
+    const user = await authenticateRequest(req);
+    const uid = user.uid;
+
+    let subData: any = null;
+    let entData: any = null;
+
+    try {
+      const subSnap = await db.collection('subscriptions').doc(uid).get();
+      const entSnap = await db.collection('entitlements').doc(uid).get();
+      subData = subSnap.exists ? subSnap.data() : null;
+      entData = entSnap.exists ? entSnap.data() : null;
+    } catch (e: any) {
+      console.warn('Reconciliation Firestore read warning:', e?.message || e);
+    }
+
+    if (!entData) {
+      const defaultEntitlement = {
+        uid,
+        isPremium: false,
+        status: 'free',
+        capabilities: computeCapabilities(false),
+        source: 'revenuecat',
+        verifiedAt: new Date().toISOString(),
+        version: 1,
+      };
+      res.status(200).json({ success: true, entitlement: defaultEntitlement });
+      return;
+    }
+
+    res.status(200).json({
+      success: true,
+      subscription: subData,
+      entitlement: {
+        ...entData,
+        verifiedAt: new Date().toISOString(),
+      },
+    });
+  } catch (err: any) {
+    console.error('reconcileSubscription error:', err?.message || err);
+    const status = err.message?.startsWith('Unauthorized') ? 401 : 500;
+    res.status(status).json({ error: err?.message || 'Reconciliation failed' });
   }
 });

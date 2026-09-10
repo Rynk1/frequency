@@ -4,19 +4,14 @@ import {
   EntitlementState,
   EntitlementStatus,
 } from './entitlement-types';
+import {
+  CANONICAL_PREMIUM_POLICY,
+  TRUST_TRIANGLE_FREQUENCIES,
+} from '../usage/PremiumPolicy';
 
-export const DEFAULT_ENTITLEMENT_POLICY: EntitlementPolicy = {
-  freeSessionMaxDuration: 15 * 60, // 15 minutes
-  dailyFreeSessionsLimit: 3,
-  premiumPreviewDuration: 180, // 3 minutes preview
-  offlineGracePeriodHours: 72, // 72 hours max offline grace
-};
+export const DEFAULT_ENTITLEMENT_POLICY: EntitlementPolicy = CANONICAL_PREMIUM_POLICY;
+export const TRUST_TRIANGLE_HZ = TRUST_TRIANGLE_FREQUENCIES;
 
-export const TRUST_TRIANGLE_HZ = [432, 528, 639, 7.83, 8];
-
-/**
- * Derives capability matrix from premium status
- */
 export function computeCapabilities(isPremiumOrTrial: boolean): EntitlementCapabilities {
   if (isPremiumOrTrial) {
     return {
@@ -49,7 +44,7 @@ export class EntitlementEngine {
 
   /**
    * Evaluates user profile / raw entitlement fields with bounded offline grace period enforcement.
-   * If lastVerifiedAt is older than offlineGracePeriodHours (e.g. 72h), entitlement fails closed to free status.
+   * Server-anchored verifiedAt is required to maintain offline access up to 72 hours.
    */
   public evaluateEntitlement(rawState: {
     subscriptionStatus?: 'free' | 'premium' | 'trial';
@@ -61,7 +56,6 @@ export class EntitlementEngine {
     const now = new Date();
     const lastVerified = rawState.lastVerifiedAt ? new Date(rawState.lastVerifiedAt) : undefined;
 
-    // Bounded offline grace check
     let offlineGraceValid = true;
     if (rawState.isOffline && lastVerified) {
       const hoursSinceVerification = (now.getTime() - lastVerified.getTime()) / (1000 * 60 * 60);

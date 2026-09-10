@@ -4,61 +4,65 @@ import {
   AudioPlaybackEntitlementCheck,
   EntitlementState,
 } from './entitlement-types';
-import { TRUST_TRIANGLE_HZ } from './entitlement-service';
+import { CapabilityRegistry, CANONICAL_PREMIUM_POLICY } from '../usage/PremiumPolicy';
 
 export class EntitlementValidator {
   /**
    * Validates whether an audio playback request is permitted under the given EntitlementState.
+   * Explicitly isolates preview mode (mode: 'preview') from premium status mutation.
    */
   public static validatePlayback(
     spec: FrequencyAudioSpec,
     entitlement: EntitlementState,
-    requestedDurationSeconds: number = 0
+    requestedDurationSeconds: number = 0,
+    mode: 'full' | 'preview' = 'full'
   ): AudioPlaybackEntitlementCheck {
-    // 1. Audio spec structural validation
     const specCheck = AudioValidator.validate(spec);
     if (!specCheck.isValid) {
       return { allowed: false, reason: 'requires_premium' };
     }
 
-    // 2. Premium / Active trial users have unrestricted access
+    // Unrestricted access for active premium/trial entitlement
     if (entitlement.isPremium) {
       return { allowed: true, reason: 'granted' };
     }
 
-    // 3. Free User Logic:
-    // Binaural beats require premium
-    if (spec.modality === 'binaural_beat') {
+    // Isolated preview mode check (does NOT grant isPremium = true)
+    if (mode === 'preview') {
       return {
-        allowed: false,
-        reason: 'requires_premium',
-        maxAllowedDurationSeconds: 180, // 3 minute preview
+        allowed: true,
+        reason: 'preview_allowed',
+        maxAllowedDurationSeconds: CANONICAL_PREMIUM_POLICY.premiumPreviewDuration,
       };
     }
 
-    // Check if pure tone frequency is in Trust Triangle (432, 528, 639, 7.83, 8 Hz)
-    const hz = spec.frequency;
-    const isTrustTriangle = TRUST_TRIANGLE_HZ.includes(hz);
+    // Capability evaluation using CapabilityRegistry
+    const requiredCap = CapabilityRegistry.getRequiredCapability(
+      spec.frequency || spec.targetCarrierFrequency || 0,
+      spec.modality,
+    );
 
-    if (!isTrustTriangle) {
-      // Non-trust triangle frequencies require premium capability or preview
+    if (requiredCap && !entitlement.capabilities[requiredCap]) {
       return {
         allowed: false,
         reason: 'requires_premium',
-        maxAllowedDurationSeconds: 180,
+        maxAllowedDurationSeconds: CANONICAL_PREMIUM_POLICY.premiumPreviewDuration,
       };
     }
 
-    // Trust Triangle frequency requested
-    // Check duration limits for free user (15 minutes max = 900s)
-    if (requestedDurationSeconds > 15 * 60) {
+    // Free Trust Triangle frequency requested
+    if (requestedDurationSeconds > CANONICAL_PREMIUM_POLICY.freeSessionMaxDuration) {
       return {
         allowed: false,
         reason: 'duration_exceeded',
-        maxAllowedDurationSeconds: 15 * 60,
+        maxAllowedDurationSeconds: CANONICAL_PREMIUM_POLICY.freeSessionMaxDuration,
       };
     }
 
-    return { allowed: true, reason: 'granted', maxAllowedDurationSeconds: 15 * 60 };
+    return {
+      allowed: true,
+      reason: 'granted',
+      maxAllowedDurationSeconds: CANONICAL_PREMIUM_POLICY.freeSessionMaxDuration,
+    };
   }
 }

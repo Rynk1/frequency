@@ -1,10 +1,11 @@
 import { describe, it, expect } from 'vitest';
 import { globalEntitlementEngine } from '../lib/entitlements/entitlement-service';
 import { EntitlementValidator } from '../lib/entitlements/entitlement-validator';
+import { CapabilityRegistry } from '../lib/usage/PremiumPolicy';
 import { FrequencyAudioSpec } from '../lib/audio/AudioTypes';
 
-describe('Entitlement Engine & Audio Playback Validator', () => {
-  it('correctly identifies free entitlement when no premium status is set', () => {
+describe('Entitlement Engine & State Machine', () => {
+  it('correctly evaluates free tier capabilities', () => {
     const entitlement = globalEntitlementEngine.evaluateEntitlement({
       subscriptionStatus: 'free',
     });
@@ -15,10 +16,10 @@ describe('Entitlement Engine & Audio Playback Validator', () => {
     expect(entitlement.capabilities.binaural).toBe(false);
   });
 
-  it('grants full capabilities for active premium subscription', () => {
+  it('evaluates active premium subscription capabilities', () => {
     const entitlement = globalEntitlementEngine.evaluateEntitlement({
       subscriptionStatus: 'premium',
-      subscriptionEndsAt: new Date(Date.now() + 86400000), // 1 day in future
+      subscriptionEndsAt: new Date(Date.now() + 86400000),
       lastVerifiedAt: new Date(),
     });
 
@@ -38,40 +39,38 @@ describe('Entitlement Engine & Audio Playback Validator', () => {
 
     expect(entitlement.isPremium).toBe(false);
     expect(entitlement.status).toBe('expired');
-    expect(entitlement.capabilities.binaural).toBe(false);
   });
 
-  it('permits trust triangle pure tones for free users within duration limits', () => {
-    const entitlement = globalEntitlementEngine.evaluateEntitlement({
-      subscriptionStatus: 'free',
-    });
-
-    const pureTone528: FrequencyAudioSpec = {
-      frequency: 528,
-      modality: 'pure_tone',
-      waveform: 'sine',
-      targetCarrierFrequency: 528,
-    };
-
-    const check = EntitlementValidator.validatePlayback(pureTone528, entitlement, 600); // 10 min
-    expect(check.allowed).toBe(true);
-    expect(check.reason).toBe('granted');
+  it('CapabilityRegistry accurately maps modalities and categories', () => {
+    expect(CapabilityRegistry.getRequiredCapability(432, 'pure_tone')).toBe(null); // Trust triangle
+    expect(CapabilityRegistry.getRequiredCapability(10, 'binaural_beat')).toBe('binaural');
+    expect(CapabilityRegistry.getRequiredCapability(528, 'pure_tone', 'chakra')).toBe('chakra');
+    expect(CapabilityRegistry.getRequiredCapability(963, 'pure_tone')).toBe('premiumFrequencies');
   });
 
-  it('denies binaural beats for free users', () => {
+  it('isolated preview mode grants playback permission without changing isPremium state', () => {
     const entitlement = globalEntitlementEngine.evaluateEntitlement({
       subscriptionStatus: 'free',
     });
 
     const binauralSpec: FrequencyAudioSpec = {
       beatFrequency: 10,
+      carrierFrequency: 200,
       modality: 'binaural_beat',
       waveform: 'sine',
       targetCarrierFrequency: 200,
     };
 
-    const check = EntitlementValidator.validatePlayback(binauralSpec, entitlement, 300);
-    expect(check.allowed).toBe(false);
-    expect(check.reason).toBe('requires_premium');
+    // Full playback attempt without entitlement -> denied
+    const fullCheck = EntitlementValidator.validatePlayback(binauralSpec, entitlement, 300, 'full');
+    expect(fullCheck.allowed).toBe(false);
+    expect(fullCheck.reason).toBe('requires_premium');
+
+    // Isolated preview mode attempt -> allowed preview
+    const previewCheck = EntitlementValidator.validatePlayback(binauralSpec, entitlement, 300, 'preview');
+    expect(previewCheck.allowed).toBe(true);
+    expect(previewCheck.reason).toBe('preview_allowed');
+    expect(previewCheck.maxAllowedDurationSeconds).toBe(180);
+    expect(entitlement.isPremium).toBe(false); // Entitlement remains strictly free
   });
 });

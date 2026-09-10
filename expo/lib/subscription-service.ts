@@ -1,43 +1,15 @@
-import { auth } from './firebase';
+import { auth, db } from './firebase';
 import { getIdToken } from 'firebase/auth';
-
-/**
- * Client-side subscription service.
- * Calls the Hono backend (Vercel serverless) which talks to Stripe.
- *
- * Flow:
- *  1. createCheckoutSession(plan)  → returns Stripe Checkout URL → redirect
- *  2. createBillingPortalSession() → manage/cancel subscription
- *  3. getSubscriptionStatus()      → server-verified entitlement
- *
- * The backend webhook (POST /api/webhook) receives Stripe events and
- * writes subscriptionStatus to Firestore via firebase-admin. The client
- * NEVER mutates subscription fields — only the server does.
- */
+import { doc, getDoc } from 'firebase/firestore';
+import {
+  EntitlementCapabilities,
+  EntitlementState,
+} from './entitlements/entitlement-types';
+import { computeCapabilities } from './entitlements/entitlement-service';
 
 const API_BASE = process.env.EXPO_PUBLIC_API_BASE_URL || '';
 
 export type Plan = 'monthly' | 'yearly';
-
-export interface EntitlementCapabilities {
-  premiumFrequencies: boolean;
-  extendedSessions: boolean;
-  binaural: boolean;
-  chakra: boolean;
-  offlineDownloads: boolean;
-  advancedAnalytics: boolean;
-  customMixing: boolean;
-}
-
-export interface EntitlementState {
-  isPremium: boolean;
-  status: 'free' | 'trial' | 'active' | 'past_due' | 'cancelled' | 'expired';
-  expiresAt?: Date;
-  trialEndsAt?: Date;
-  source?: 'google_play' | 'revenuecat' | 'stripe';
-  lastVerifiedAt?: Date;
-  capabilities: EntitlementCapabilities;
-}
 
 export interface PremiumPolicyConfig {
   freeSessionMaxDuration: number; // in seconds (e.g. 15 * 60)
@@ -67,28 +39,7 @@ export interface SubscriptionStatus {
   lastVerifiedAt?: string;
 }
 
-export function computeCapabilities(isPremiumOrTrial: boolean): EntitlementCapabilities {
-  if (isPremiumOrTrial) {
-    return {
-      premiumFrequencies: true,
-      extendedSessions: true,
-      binaural: true,
-      chakra: true,
-      offlineDownloads: true,
-      advancedAnalytics: true,
-      customMixing: true,
-    };
-  }
-  return {
-    premiumFrequencies: false,
-    extendedSessions: false,
-    binaural: false,
-    chakra: false,
-    offlineDownloads: false,
-    advancedAnalytics: false,
-    customMixing: false,
-  };
-}
+export { computeCapabilities };
 
 async function getIdTokenSafe(): Promise<string> {
   const user = auth.currentUser;
@@ -98,7 +49,7 @@ async function getIdTokenSafe(): Promise<string> {
 
 async function apiCall<T>(path: string, options: RequestInit = {}): Promise<T> {
   if (!API_BASE) {
-    throw new Error('API base URL not configured. Set EXPO_PUBLIC_API_BASE_URL.');
+    throw new Error('API base URL not configured.');
   }
 
   const token = await getIdTokenSafe();
@@ -127,54 +78,82 @@ async function apiCall<T>(path: string, options: RequestInit = {}): Promise<T> {
 }
 
 /**
- * Create a Stripe Checkout Session for a subscription plan.
- * Returns a URL the client redirects to (expo-web-browser).
+ * Reconcile subscription state with trusted server.
+ * Reads entitlements/{uid} and subscriptions/{uid} to synchronize local app state.
  */
-export async function createCheckoutSession(
-  plan: Plan,
-  options?: { trialEnabled?: boolean }
-): Promise<{ url: string }> {
-  return apiCall<{ url: string }>('/api/subscription/checkout', {
-    method: 'POST',
-    body: JSON.stringify({
-      plan,
-      trialEnabled: options?.trialEnabled ?? true,
-    }),
-  });
+export async function reconcileSubscription(): Promise<{
+  isPremium: boolean;
+  subscriptionStatus: 'free' | 'premium' | 'trial';
+  entitlement?: any;
+}> {
+  const currentUser = auth.currentUser;
+  if (!currentUser) {
+    return { isPremium: false, subscriptionStatus: 'free' };
+  }
+
+  if (API_BASE) {
+    try {
+      const data = await apiCall<{ success: boolean; entitlement?: any }>('/reconcileSubscription', { method: 'POST' });
+      if (data?.entitlement) {
+        return {
+          isPremium: Boolean(data.entitlement.isPremium),
+          subscriptionStatus: data.entitlement.isPremium ? 'premium' : 'free',
+          entitlement: data.entitlement,
+        };
+      }
+    } catch (e) {
+      console.warn('API reconciliation failed, checking Firestore entitlement doc:', e);
+    }
+  }
+
+  // Direct Firestore Entitlement Read Fallback
+  try {
+    const entRef = doc(db, 'entitlements', currentUser.uid);
+    const snap = await getDoc(entRef);
+    if (snap.exists()) {
+      const data = snap.data();
+      return {
+        isPremium: Boolean(data.isPremium),
+        subscriptionStatus: data.isPremium ? 'premium' : 'free',
+        entitlement: data,
+      };
+    }
+  } catch (err) {
+    console.warn('Firestore entitlement lookup failed:', err);
+  }
+
+  return { isPremium: false, subscriptionStatus: 'free' };
 }
 
 /**
- * Create a Stripe Customer Portal session so the user can
- * manage / cancel their subscription.
+ * Restore purchases workflow:
+ * Triggers server-side reconciliation to verify current platform subscription state.
  */
-export async function createBillingPortalSession(): Promise<{ url: string }> {
-  return apiCall<{ url: string }>('/api/subscription/portal', {
-    method: 'POST',
-  });
+export async function restorePurchases(): Promise<{
+  success: boolean;
+  isPremium: boolean;
+  message: string;
+}> {
+  const result = await reconcileSubscription();
+  return {
+    success: true,
+    isPremium: result.isPremium,
+    message: result.isPremium
+      ? 'Your premium subscription has been verified and restored.'
+      : 'No active premium subscription found for your account.',
+  };
 }
 
-/**
- * Get the server-verified subscription status.
- * This is the source of truth for entitlements — not client state.
- */
 export async function getSubscriptionStatus(): Promise<SubscriptionStatus> {
-  return apiCall<SubscriptionStatus>('/api/subscription/status');
-}
-
-/**
- * Cancel the active subscription at period end.
- */
-export async function cancelSubscription(): Promise<{ success: boolean; cancelAtPeriodEnd: boolean }> {
-  return apiCall<{ success: boolean; cancelAtPeriodEnd: boolean }>('/api/subscription/cancel', {
-    method: 'POST',
-  });
-}
-
-/**
- * Resume a cancelled subscription (remove cancellation).
- */
-export async function resumeSubscription(): Promise<{ success: boolean; cancelAtPeriodEnd: boolean }> {
-  return apiCall<{ success: boolean; cancelAtPeriodEnd: boolean }>('/api/subscription/resume', {
-    method: 'POST',
-  });
+  const reconciled = await reconcileSubscription();
+  return {
+    isPremium: reconciled.isPremium,
+    isTrialActive: false,
+    trialDaysLeft: 0,
+    subscriptionStatus: reconciled.subscriptionStatus,
+    willRenew: reconciled.isPremium,
+    cancelAtPeriodEnd: false,
+    source: 'revenuecat',
+    lastVerifiedAt: new Date().toISOString(),
+  };
 }
