@@ -1,5 +1,5 @@
 import { EventEmitter } from 'events';
-import { setAdminClaim, deleteAccount, handleSubscriptionWebhook } from '../src/index';
+import { setAdminClaim, deleteAccount, handleSubscriptionWebhook, reconcileSubscription } from '../src/index';
 
 async function runFunctionsRegressionTests() {
   console.log('=== FIREBASE FUNCTIONS REGRESSION TEST ===\n');
@@ -143,6 +143,34 @@ async function runFunctionsRegressionTests() {
       passed++;
     } else {
       console.error('[FAIL] handleSubscriptionWebhook (Authenticated RevenueCat Payload):', res.getStatus(), res.getBody());
+      failed++;
+    }
+  }
+
+  // 7. reconcileSubscription - Method check
+  {
+    const req: any = { method: 'GET', headers: {}, body: {} };
+    const res = createMockResponse();
+    await (reconcileSubscription as any)(req, res);
+    if (res.getStatus() === 405) {
+      console.log('[PASS] reconcileSubscription (Method check)');
+      passed++;
+    } else {
+      console.error('[FAIL] reconcileSubscription (Method check)');
+      failed++;
+    }
+  }
+
+  // 8. reconcileSubscription - Unauthorized check
+  {
+    const req: any = { method: 'POST', headers: {}, body: {} };
+    const res = createMockResponse();
+    await (reconcileSubscription as any)(req, res);
+    if (res.getStatus() === 401) {
+      console.log('[PASS] reconcileSubscription (Unauthorized check)');
+      passed++;
+    } else {
+      console.error('[FAIL] reconcileSubscription (Unauthorized check)');
       failed++;
     }
   }
