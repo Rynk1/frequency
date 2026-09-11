@@ -30,6 +30,7 @@ export interface Frequency {
   usageGuidelines?: string;
   duration?: string;
   research?: string;
+  status?: 'published' | 'draft' | 'archived';
 }
 
 export interface CuratedProgram {
@@ -42,6 +43,7 @@ export interface CuratedProgram {
   isPremium: boolean;
   createdAt: string;
   updatedAt: string;
+  status?: 'published' | 'draft' | 'archived';
 }
 
 export interface LearningArticle {
@@ -53,6 +55,7 @@ export interface LearningArticle {
   isPremium: boolean;
   publishedAt: string;
   author: string;
+  status?: 'published' | 'draft' | 'archived';
 }
 
 interface AdminDataState {
@@ -60,6 +63,7 @@ interface AdminDataState {
   curatedPrograms: CuratedProgram[];
   articles: LearningArticle[];
   isLoading: boolean;
+  isCloudAvailable: boolean;
   addFrequency: (frequency: Omit<Frequency, 'id'>) => Promise<void>;
   updateFrequency: (id: string, frequency: Partial<Frequency>) => Promise<void>;
   deleteFrequency: (id: string) => Promise<void>;
@@ -78,7 +82,7 @@ const STORAGE_KEYS = {
   articles: 'adminArticles',
 } as const;
 
-/** Single canonical source for frequency defaults — identical to useBackendData */
+/** Single canonical source for frequency defaults */
 const convertFrequencies = (): Frequency[] => {
   const frequencies: Frequency[] = [];
 
@@ -98,6 +102,7 @@ const convertFrequencies = (): Frequency[] => {
         tags: [],
         duration: freq.duration,
         research: freq.research,
+        status: 'published',
       });
     });
   };
@@ -118,6 +123,7 @@ export const [AdminDataProvider, useAdminData] = createContextHook<AdminDataStat
   const [curatedPrograms, setCuratedPrograms] = useState<CuratedProgram[]>([]);
   const [articles, setArticles] = useState<LearningArticle[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [isCloudAvailable, setIsCloudAvailable] = useState<boolean>(true);
   const { shouldUseFirestore, isCloudStrict, setCloudError } = useDataMode();
 
   const frequenciesRef = collection(db, 'frequencies');
@@ -138,13 +144,11 @@ export const [AdminDataProvider, useAdminData] = createContextHook<AdminDataStat
     if (storedPrograms) {
       setCuratedPrograms(JSON.parse(storedPrograms));
     }
-    // No client-side default for curated programs — seeded by admin
 
     const storedArticles = await AsyncStorage.getItem(STORAGE_KEYS.articles);
     if (storedArticles) {
       setArticles(JSON.parse(storedArticles));
     }
-    // No client-side default for articles — seeded by admin
   }, []);
 
   const seedFrequenciesIfEmpty = useCallback(async () => {
@@ -197,9 +201,10 @@ export const [AdminDataProvider, useAdminData] = createContextHook<AdminDataStat
   }, [articlesRef, frequenciesRef, curatedProgramsRef, seedFrequenciesIfEmpty]);
 
   const loadData = useCallback(async () => {
-    // In local mode, skip Firestore entirely
+    // Explicit local mode
     if (!shouldUseFirestore) {
       setIsLoading(true);
+      setIsCloudAvailable(false);
       await loadLocalFallback();
       setIsLoading(false);
       return;
@@ -211,24 +216,23 @@ export const [AdminDataProvider, useAdminData] = createContextHook<AdminDataStat
       setFrequencies(remote.frequencies);
       setCuratedPrograms(remote.curatedPrograms);
       setArticles(remote.articles);
+      setIsCloudAvailable(true);
       await AsyncStorage.setItem(STORAGE_KEYS.frequencies, JSON.stringify(remote.frequencies));
       await AsyncStorage.setItem(STORAGE_KEYS.curatedPrograms, JSON.stringify(remote.curatedPrograms));
       await AsyncStorage.setItem(STORAGE_KEYS.articles, JSON.stringify(remote.articles));
     } catch (error: any) {
+      setIsCloudAvailable(false);
+      const msg = error?.code === 'permission-denied'
+        ? 'Firestore permissions denied — deploy firestore.rules first'
+        : `Admin Firestore fetch failed: ${error?.message || error}`;
+      setCloudError(msg);
+
       if (isCloudStrict) {
-        const msg = error?.code === 'permission-denied'
-          ? 'Firestore permissions denied — deploy firestore.rules first'
-          : `Admin Firestore fetch failed: ${error?.message || error}`;
-        setCloudError(msg);
-        console.error('❌ Cloud mode: ' + msg);
+        console.error('❌ Cloud mode error: ' + msg);
         setIsLoading(false);
         throw error;
       }
-      if (error?.code === 'permission-denied') {
-        console.warn('Firestore rules not deployed — admin using local data');
-      } else {
-        console.error('❌ Admin Firestore fetch failed, falling back to local data:', error);
-      }
+      console.warn('⚠️ Firestore fetch failed in Auto mode:', msg);
       await loadLocalFallback();
     } finally {
       setIsLoading(false);
@@ -243,7 +247,6 @@ export const [AdminDataProvider, useAdminData] = createContextHook<AdminDataStat
     await loadData();
   }, [loadData]);
 
-  /** Mode-aware Firestore mutation wrapper for admin */
   const mutateWithFirestore = useCallback(async (
     operation: () => Promise<void>,
     label: string
@@ -264,7 +267,7 @@ export const [AdminDataProvider, useAdminData] = createContextHook<AdminDataStat
 
   const addFrequency = useCallback(async (frequency: Omit<Frequency, 'id'>) => {
     const id = `custom-${Date.now()}`;
-    const newFrequency: Frequency = { ...frequency, id };
+    const newFrequency: Frequency = { status: 'published', ...frequency, id };
     await mutateWithFirestore(
       () => setDoc(doc(frequenciesRef, id), newFrequency),
       'addFrequency'
@@ -297,6 +300,7 @@ export const [AdminDataProvider, useAdminData] = createContextHook<AdminDataStat
   const addCuratedProgram = useCallback(async (program: Omit<CuratedProgram, 'id' | 'createdAt' | 'updatedAt'>) => {
     const id = `program-${Date.now()}`;
     const newProgram: CuratedProgram = {
+      status: 'published',
       ...program,
       id,
       createdAt: new Date().toISOString(),
@@ -336,6 +340,7 @@ export const [AdminDataProvider, useAdminData] = createContextHook<AdminDataStat
   const addArticle = useCallback(async (article: Omit<LearningArticle, 'id' | 'publishedAt'>) => {
     const id = `article-${Date.now()}`;
     const newArticle: LearningArticle = {
+      status: 'published',
       ...article,
       id,
       publishedAt: new Date().toISOString(),
@@ -374,6 +379,7 @@ export const [AdminDataProvider, useAdminData] = createContextHook<AdminDataStat
     curatedPrograms,
     articles,
     isLoading,
+    isCloudAvailable,
     addFrequency,
     updateFrequency,
     deleteFrequency,
@@ -389,6 +395,7 @@ export const [AdminDataProvider, useAdminData] = createContextHook<AdminDataStat
     curatedPrograms,
     articles,
     isLoading,
+    isCloudAvailable,
     addFrequency,
     updateFrequency,
     deleteFrequency,
