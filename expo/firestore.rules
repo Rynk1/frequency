@@ -55,8 +55,6 @@ service cloud.firestore {
         && !('subscriptionType' in request.resource.data || request.resource.data.subscriptionType == null)
         && !('subscriptionEndsAt' in request.resource.data || request.resource.data.subscriptionEndsAt == null)
         && !('trialEndsAt' in request.resource.data || request.resource.data.trialEndsAt == null)
-        && !('stripeCustomerId' in request.resource.data)
-        && !('stripeSubscriptionId' in request.resource.data)
         && !('cancelAtPeriodEnd' in request.resource.data)
         && !('role' in request.resource.data)
         && !('admin' in request.resource.data);
@@ -67,8 +65,6 @@ service cloud.firestore {
         && (!('subscriptionType' in request.resource.data) || request.resource.data.subscriptionType == resource.data.subscriptionType)
         && (!('subscriptionEndsAt' in request.resource.data) || request.resource.data.subscriptionEndsAt == resource.data.subscriptionEndsAt)
         && (!('trialEndsAt' in request.resource.data) || request.resource.data.trialEndsAt == resource.data.trialEndsAt)
-        && (!('stripeCustomerId' in request.resource.data) || request.resource.data.stripeCustomerId == resource.data.stripeCustomerId)
-        && (!('stripeSubscriptionId' in request.resource.data) || request.resource.data.stripeSubscriptionId == resource.data.stripeSubscriptionId)
         && (!('cancelAtPeriodEnd' in request.resource.data) || request.resource.data.cancelAtPeriodEnd == resource.data.cancelAtPeriodEnd)
         && (!('role' in request.resource.data) || request.resource.data.role == resource.data.role)
         && (!('admin' in request.resource.data) || request.resource.data.admin == resource.data.admin);
