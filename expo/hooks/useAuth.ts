@@ -12,6 +12,7 @@ import {
 import { globalEntitlementEngine } from '@/lib/entitlements/entitlement-service';
 import { getLocalDateString } from '@/lib/recommendation';
 import { USAGE_EVENTS_STORAGE_KEY } from './useUsageAnalytics';
+import { sanitizeForFirestore } from '@/lib/validation';
 
 export interface UserProfile {
   uid: string;
@@ -30,8 +31,6 @@ export interface UserProfile {
     notifications: boolean;
   };
   cancelAtPeriodEnd?: boolean;
-  stripeCustomerId?: string;
-  stripeSubscriptionId?: string;
   usageStats: {
     sessionsCompleted: number;
     totalListeningTime: number;
@@ -147,8 +146,6 @@ export const [AuthProvider, useAuth] = createContextHook((): AuthContextType => 
       onboardingCompleted: Boolean(data.onboardingCompleted),
       onboardingPreferences: data.onboardingPreferences,
       cancelAtPeriodEnd: data.cancelAtPeriodEnd || false,
-      stripeCustomerId: data.stripeCustomerId || undefined,
-      stripeSubscriptionId: data.stripeSubscriptionId || undefined,
       usageStats: {
         sessionsCompleted: data.usageStats?.sessionsCompleted || 0,
         totalListeningTime: data.usageStats?.totalListeningTime || 0,
@@ -160,19 +157,25 @@ export const [AuthProvider, useAuth] = createContextHook((): AuthContextType => 
     };
   }, []);
 
-  const toFirestoreProfile = useCallback((profile: UserProfile) => ({
-    ...profile,
-    createdAt: Timestamp.fromDate(profile.createdAt),
-    lastLoginAt: Timestamp.fromDate(profile.lastLoginAt),
-    trialEndsAt: profile.trialEndsAt ? Timestamp.fromDate(profile.trialEndsAt) : null,
-    subscriptionEndsAt: profile.subscriptionEndsAt ? Timestamp.fromDate(profile.subscriptionEndsAt) : null,
-    usageStats: {
-      ...profile.usageStats,
-      lastSessionDate: profile.usageStats.lastSessionDate
-        ? Timestamp.fromDate(profile.usageStats.lastSessionDate)
-        : null,
-    },
-  }), []);
+  const toFirestoreProfile = useCallback((profile: UserProfile) => {
+    const raw = {
+      ...profile,
+      displayName: profile.displayName ?? null,
+      subscriptionType: profile.subscriptionType ?? null,
+      onboardingPreferences: profile.onboardingPreferences ?? null,
+      createdAt: Timestamp.fromDate(profile.createdAt),
+      lastLoginAt: Timestamp.fromDate(profile.lastLoginAt),
+      trialEndsAt: profile.trialEndsAt ? Timestamp.fromDate(profile.trialEndsAt) : null,
+      subscriptionEndsAt: profile.subscriptionEndsAt ? Timestamp.fromDate(profile.subscriptionEndsAt) : null,
+      usageStats: {
+        ...profile.usageStats,
+        lastSessionDate: profile.usageStats.lastSessionDate
+          ? Timestamp.fromDate(profile.usageStats.lastSessionDate)
+          : null,
+      },
+    };
+    return sanitizeForFirestore(raw);
+  }, []);
 
   const saveUserProfile = useCallback(async (profile: UserProfile) => {
     if (!profile?.uid?.trim()) return;
@@ -189,7 +192,8 @@ export const [AuthProvider, useAuth] = createContextHook((): AuthContextType => 
 
     try {
       const userRef = doc(db, 'users', profile.uid);
-      await setDoc(userRef, toFirestoreProfile(profile), { merge: true });
+      const dataToSave = toFirestoreProfile(profile);
+      await setDoc(userRef, dataToSave, { merge: true });
     } catch (error: any) {
       if (isCloudStrict) {
         setCloudError(`Failed to save user profile: ${error?.message || error}`);
@@ -378,8 +382,6 @@ export const [AuthProvider, useAuth] = createContextHook((): AuthContextType => 
       subscriptionType,
       subscriptionEndsAt,
       trialEndsAt,
-      stripeCustomerId,
-      stripeSubscriptionId,
       cancelAtPeriodEnd,
       ...allowedUpdates
     } = updates;

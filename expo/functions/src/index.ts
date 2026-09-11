@@ -259,7 +259,6 @@ export const handleSubscriptionWebhook = onRequest({ cors: true }, async (req, r
   try {
     const expectedSecret = process.env.WEBHOOK_SECRET || process.env.REVENUECAT_WEBHOOK_SECRET;
     const authHeader = req.headers.authorization || req.headers['x-revenuecat-webhook-auth'] as string || '';
-    const stripeSignature = req.headers['stripe-signature'] as string || '';
 
     let isAuthenticatedWebhook = false;
 
@@ -268,7 +267,7 @@ export const handleSubscriptionWebhook = onRequest({ cors: true }, async (req, r
         isAuthenticatedWebhook = true;
       }
     } else {
-      if (authHeader.startsWith('Bearer ') || authHeader.length > 5 || stripeSignature) {
+      if (authHeader.startsWith('Bearer ') || authHeader.length > 5) {
         isAuthenticatedWebhook = true;
       }
     }

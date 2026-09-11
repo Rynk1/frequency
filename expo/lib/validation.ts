@@ -1,5 +1,46 @@
 import { z } from 'zod';
 
+/**
+ * Recursively sanitizes an object or array for Firestore writes by replacing
+ * any `undefined` values with `null`, as Firestore setDoc/updateDoc throws an
+ * invalid-argument error when encountering `undefined`.
+ */
+export function sanitizeForFirestore<T>(obj: T): T {
+  if (obj === null || obj === undefined) {
+    return null as unknown as T;
+  }
+
+  if (typeof obj !== 'object') {
+    return obj;
+  }
+
+  // Preserve Firestore Timestamp or Date objects or FieldValues
+  if (
+    obj instanceof Date ||
+    (obj as any)._methodName || // FieldValue like serverTimestamp()
+    typeof (obj as any).toDate === 'function' // Timestamp
+  ) {
+    return obj;
+  }
+
+  if (Array.isArray(obj)) {
+    return obj.map((item) => sanitizeForFirestore(item)) as unknown as T;
+  }
+
+  const sanitized: Record<string, any> = {};
+  for (const [key, value] of Object.entries(obj)) {
+    if (value === undefined) {
+      sanitized[key] = null;
+    } else if (value !== null && typeof value === 'object') {
+      sanitized[key] = sanitizeForFirestore(value);
+    } else {
+      sanitized[key] = value;
+    }
+  }
+
+  return sanitized as T;
+}
+
 // ── Frequency ──
 export const frequencySchema = z.object({
   id: z.string().min(1, 'ID is required'),
