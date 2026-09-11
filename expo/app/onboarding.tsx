@@ -24,6 +24,9 @@ export default function OnboardingPage() {
   const [isSaving, setIsSaving] = useState(false);
 
   if (!user) return <Redirect href={'/' as any} />;
+  if (userProfile?.onboardingCompleted) {
+    return <Redirect href={'/(tabs)/categories' as any} />;
+  }
   if (!userProfile) {
     return (
       <View style={styles.loading}>
@@ -45,7 +48,9 @@ export default function OnboardingPage() {
           notifications,
         },
       });
-      router.replace('/(tabs)/sessions' as any);
+      router.replace('/(tabs)/categories' as any);
+    } catch (err) {
+      console.error('Failed to finish onboarding:', err);
     } finally {
       setIsSaving(false);
     }
