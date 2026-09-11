@@ -38,7 +38,7 @@ export interface UserProfile {
     favoriteFrequencies: string[];
     streakDays: number;
     lastSessionDate?: Date;
-    sessionHistory: string[]; // ISO date strings for weekly tracking
+    sessionHistory: string[];
   };
 }
 
@@ -61,6 +61,8 @@ interface AuthContextType {
   upgradeToPremium: (type: 'monthly' | 'yearly') => Promise<void>;
   trackUsage: (sessionDuration: number, frequency: string) => Promise<void>;
 }
+
+const getUserProfileStorageKey = (uid: string) => `userProfile:${uid}`;
 
 export const [AuthProvider, useAuth] = createContextHook((): AuthContextType => {
   const [user, setUser] = useState<AuthUser | null>(null);
@@ -106,6 +108,26 @@ export const [AuthProvider, useAuth] = createContextHook((): AuthContextType => 
     };
   }, []);
 
+  const parseCachedProfile = useCallback((jsonStr: string): UserProfile | null => {
+    try {
+      const data = JSON.parse(jsonStr);
+      return {
+        ...data,
+        createdAt: data.createdAt ? new Date(data.createdAt) : new Date(),
+        lastLoginAt: data.lastLoginAt ? new Date(data.lastLoginAt) : new Date(),
+        trialEndsAt: data.trialEndsAt ? new Date(data.trialEndsAt) : undefined,
+        subscriptionEndsAt: data.subscriptionEndsAt ? new Date(data.subscriptionEndsAt) : undefined,
+        onboardingCompleted: Boolean(data.onboardingCompleted),
+        usageStats: {
+          ...data.usageStats,
+          lastSessionDate: data.usageStats?.lastSessionDate ? new Date(data.usageStats.lastSessionDate) : undefined,
+        },
+      };
+    } catch {
+      return null;
+    }
+  }, []);
+
   const mapProfileFromFirestore = useCallback((data: Record<string, any>): UserProfile => {
     const createdAt = data.createdAt?.toDate ? data.createdAt.toDate() : new Date();
     const lastLoginAt = data.lastLoginAt?.toDate ? data.lastLoginAt.toDate() : new Date();
@@ -122,7 +144,7 @@ export const [AuthProvider, useAuth] = createContextHook((): AuthContextType => 
       subscriptionEndsAt,
       createdAt,
       lastLoginAt,
-      onboardingCompleted: data.onboardingCompleted === undefined ? true : Boolean(data.onboardingCompleted),
+      onboardingCompleted: Boolean(data.onboardingCompleted),
       onboardingPreferences: data.onboardingPreferences,
       cancelAtPeriodEnd: data.cancelAtPeriodEnd || false,
       stripeCustomerId: data.stripeCustomerId || undefined,
@@ -152,22 +174,54 @@ export const [AuthProvider, useAuth] = createContextHook((): AuthContextType => 
     },
   }), []);
 
+  const saveUserProfile = useCallback(async (profile: UserProfile) => {
+    if (!profile?.uid?.trim()) return;
+
+    // 1. Always persist profile to AsyncStorage for instant local retrieval
+    try {
+      await AsyncStorage.setItem(getUserProfileStorageKey(profile.uid), JSON.stringify(profile));
+    } catch (e) {
+      console.warn('Failed to save profile to AsyncStorage:', e);
+    }
+
+    // 2. Persist to Firestore if cloud sync is enabled
+    if (!shouldUseFirestore) return;
+
+    try {
+      const userRef = doc(db, 'users', profile.uid);
+      await setDoc(userRef, toFirestoreProfile(profile), { merge: true });
+    } catch (error: any) {
+      if (isCloudStrict) {
+        setCloudError(`Failed to save user profile: ${error?.message || error}`);
+        throw error;
+      }
+      console.warn('Firestore profile save warning (saved locally):', error?.message || error);
+    }
+  }, [toFirestoreProfile, shouldUseFirestore, isCloudStrict, setCloudError]);
+
   const loadUserProfile = useCallback(async (uid: string, currentAuthUser?: AuthUser | null) => {
     if (!uid?.trim()) return;
 
     const email = currentAuthUser?.email || user?.email || '';
     const displayName = currentAuthUser?.displayName || user?.displayName || null;
 
-    const localProfile = createUserProfile({
-      uid,
-      email,
-      displayName,
-    });
+    // 1. Check local AsyncStorage cache first
+    let cachedProfile: UserProfile | null = null;
+    try {
+      const cachedRaw = await AsyncStorage.getItem(getUserProfileStorageKey(uid));
+      if (cachedRaw) {
+        cachedProfile = parseCachedProfile(cachedRaw);
+      }
+    } catch (e) {
+      console.warn('Failed reading cached user profile:', e);
+    }
 
-    setUserProfile(localProfile);
+    const fallbackProfile = cachedProfile || createUserProfile({ uid, email, displayName });
+    setUserProfile(fallbackProfile);
 
     if (!shouldUseFirestore) return;
 
+    // 2. Fetch remote profile from Firestore
     try {
       const timeoutController = new AbortController();
       const timeoutId = setTimeout(() => timeoutController.abort(), 8000);
@@ -178,14 +232,21 @@ export const [AuthProvider, useAuth] = createContextHook((): AuthContextType => 
         clearTimeout(timeoutId);
 
         if (snapshot.exists()) {
-          const profile = mapProfileFromFirestore(snapshot.data());
-          const updatedProfile = { ...profile, lastLoginAt: new Date() };
-          setUserProfile(updatedProfile);
-          updateDoc(userRef, { lastLoginAt: Timestamp.fromDate(updatedProfile.lastLoginAt) }).catch(() => {});
+          const remoteProfile = mapProfileFromFirestore(snapshot.data());
+          // Merge local onboardingCompleted status if completed locally but not yet synced to remote
+          const mergedProfile: UserProfile = {
+            ...remoteProfile,
+            onboardingCompleted: remoteProfile.onboardingCompleted || fallbackProfile.onboardingCompleted,
+            onboardingPreferences: remoteProfile.onboardingPreferences || fallbackProfile.onboardingPreferences,
+            lastLoginAt: new Date(),
+          };
+          setUserProfile(mergedProfile);
+          await saveUserProfile(mergedProfile);
           return;
         }
 
-        setDoc(userRef, toFirestoreProfile(localProfile), { merge: true }).catch(() => {});
+        // New profile -> save default
+        await saveUserProfile(fallbackProfile);
       } catch (fetchError: any) {
         clearTimeout(timeoutId);
         throw fetchError;
@@ -195,9 +256,9 @@ export const [AuthProvider, useAuth] = createContextHook((): AuthContextType => 
         setCloudError(`Failed to load user profile: ${error?.message || error}`);
         throw error;
       }
-      console.warn('Firestore unavailable, using local profile only');
+      console.warn('Firestore unavailable, using local profile cache');
     }
-  }, [createUserProfile, mapProfileFromFirestore, toFirestoreProfile, user, shouldUseFirestore, isCloudStrict, setCloudError]);
+  }, [createUserProfile, parseCachedProfile, mapProfileFromFirestore, saveUserProfile, user, shouldUseFirestore, isCloudStrict, setCloudError]);
 
   useEffect(() => {
     let mounted = true;
@@ -253,21 +314,6 @@ export const [AuthProvider, useAuth] = createContextHook((): AuthContextType => 
     }
   }, [loadUserProfile]);
 
-  const saveUserProfile = useCallback(async (profile: UserProfile) => {
-    if (!profile?.uid?.trim()) return;
-    if (!shouldUseFirestore) return;
-
-    try {
-      const userRef = doc(db, 'users', profile.uid);
-      await setDoc(userRef, toFirestoreProfile(profile), { merge: true });
-    } catch (error: any) {
-      if (isCloudStrict) {
-        setCloudError(`Failed to save user profile: ${error?.message || error}`);
-        throw error;
-      }
-    }
-  }, [toFirestoreProfile, shouldUseFirestore, isCloudStrict, setCloudError]);
-
   const signIn = useCallback(async (email: string, password: string) => {
     if (!email?.trim() || !password?.trim()) {
       throw new Error('Email and password are required');
@@ -297,31 +343,31 @@ export const [AuthProvider, useAuth] = createContextHook((): AuthContextType => 
       });
 
       setUserProfile(profile);
-      if (shouldUseFirestore) {
-        await saveUserProfile(profile);
-      }
+      await saveUserProfile(profile);
     } catch (error) {
       setIsLoading(false);
       throw error;
     }
-  }, [createUserProfile, saveUserProfile, shouldUseFirestore]);
+  }, [createUserProfile, saveUserProfile]);
 
   const signOut = useCallback(async (options?: { clearLocalData?: boolean }) => {
     try {
       await authService.signOut();
-      if (options?.clearLocalData) {
-        await AsyncStorage.multiRemove([USAGE_EVENTS_STORAGE_KEY]).catch(() => {});
+      if (options?.clearLocalData && userProfile?.uid) {
+        await AsyncStorage.multiRemove([
+          USAGE_EVENTS_STORAGE_KEY,
+          getUserProfileStorageKey(userProfile.uid),
+        ]).catch(() => {});
       }
       setUser(null);
       setUserProfile(null);
     } catch (error) {
       throw error;
     }
-  }, []);
+  }, [userProfile?.uid]);
 
   /**
-   * Update profile using strict field allowlisting.
-   * Client-side code CANNOT modify subscriptionStatus, trial/subscription dates, customer IDs, or admin roles.
+   * Update profile using strict field allowlisting and dual storage persistence.
    */
   const updateProfile = useCallback(async (updates: Partial<UserProfile>) => {
     if (!userProfile) return;
@@ -350,7 +396,7 @@ export const [AuthProvider, useAuth] = createContextHook((): AuthContextType => 
       const status = await getSubscriptionStatus();
       setUserProfile((prev) => {
         if (!prev) return prev;
-        return {
+        const updated = {
           ...prev,
           subscriptionStatus: status.subscriptionStatus,
           subscriptionType: status.subscriptionType || prev.subscriptionType,
@@ -358,11 +404,13 @@ export const [AuthProvider, useAuth] = createContextHook((): AuthContextType => 
           trialEndsAt: status.trialEndsAt ? new Date(status.trialEndsAt) : prev.trialEndsAt,
           cancelAtPeriodEnd: status.cancelAtPeriodEnd,
         };
+        saveUserProfile(updated).catch(() => {});
+        return updated;
       });
     } catch (error: any) {
       console.warn('Subscription status refresh failed:', error?.message || error);
     }
-  }, [user]);
+  }, [user, saveUserProfile]);
 
   const startTrial = useCallback(async (_options?: { hasAcceptedAutoRenew: boolean }) => {
     throw new Error('Trial must be started through checkout.');
