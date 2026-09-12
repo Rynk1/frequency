@@ -52,22 +52,22 @@ service cloud.firestore {
       allow read: if isOwner(userId) || isAdmin();
       allow create: if isOwner(userId)
         && request.resource.data.subscriptionStatus == 'free'
-        && !('subscriptionType' in request.resource.data || request.resource.data.subscriptionType == null)
-        && !('subscriptionEndsAt' in request.resource.data || request.resource.data.subscriptionEndsAt == null)
-        && !('trialEndsAt' in request.resource.data || request.resource.data.trialEndsAt == null)
-        && !('cancelAtPeriodEnd' in request.resource.data)
-        && !('role' in request.resource.data)
-        && !('admin' in request.resource.data);
+        && (!('subscriptionType' in request.resource.data) || request.resource.data.subscriptionType == null)
+        && (!('subscriptionEndsAt' in request.resource.data) || request.resource.data.subscriptionEndsAt == null)
+        && (!('trialEndsAt' in request.resource.data) || request.resource.data.trialEndsAt == null)
+        && (!('cancelAtPeriodEnd' in request.resource.data) || request.resource.data.cancelAtPeriodEnd == false || request.resource.data.cancelAtPeriodEnd == null)
+        && (!('role' in request.resource.data) || request.resource.data.role == null)
+        && (!('admin' in request.resource.data) || request.resource.data.admin == false || request.resource.data.admin == null);
 
       allow update: if isOwner(userId)
         // Client cannot change subscription or admin role fields
         && request.resource.data.subscriptionStatus == resource.data.subscriptionStatus
-        && (!('subscriptionType' in request.resource.data) || request.resource.data.subscriptionType == resource.data.subscriptionType)
-        && (!('subscriptionEndsAt' in request.resource.data) || request.resource.data.subscriptionEndsAt == resource.data.subscriptionEndsAt)
-        && (!('trialEndsAt' in request.resource.data) || request.resource.data.trialEndsAt == resource.data.trialEndsAt)
-        && (!('cancelAtPeriodEnd' in request.resource.data) || request.resource.data.cancelAtPeriodEnd == resource.data.cancelAtPeriodEnd)
-        && (!('role' in request.resource.data) || request.resource.data.role == resource.data.role)
-        && (!('admin' in request.resource.data) || request.resource.data.admin == resource.data.admin);
+        && (!('subscriptionType' in request.resource.data) || request.resource.data.subscriptionType == null || !('subscriptionType' in resource.data) || request.resource.data.subscriptionType == resource.data.subscriptionType)
+        && (!('subscriptionEndsAt' in request.resource.data) || request.resource.data.subscriptionEndsAt == null || !('subscriptionEndsAt' in resource.data) || request.resource.data.subscriptionEndsAt == resource.data.subscriptionEndsAt)
+        && (!('trialEndsAt' in request.resource.data) || request.resource.data.trialEndsAt == null || !('trialEndsAt' in resource.data) || request.resource.data.trialEndsAt == resource.data.trialEndsAt)
+        && (!('cancelAtPeriodEnd' in request.resource.data) || request.resource.data.cancelAtPeriodEnd == false || !('cancelAtPeriodEnd' in resource.data) || request.resource.data.cancelAtPeriodEnd == resource.data.cancelAtPeriodEnd)
+        && (!('role' in request.resource.data) || request.resource.data.role == null || !('role' in resource.data) || request.resource.data.role == resource.data.role)
+        && (!('admin' in request.resource.data) || request.resource.data.admin == false || !('admin' in resource.data) || request.resource.data.admin == resource.data.admin);
     }
 
     // ── User sessions ──
