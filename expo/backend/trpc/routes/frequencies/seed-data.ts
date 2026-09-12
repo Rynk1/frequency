@@ -53,9 +53,9 @@ function convertToSeededFrequency(
       freq.range ? 'brainwave' : null,
     ].filter(Boolean),
     scientificBasis: freq.research || freq.note || `Traditional ${category} frequency`,
-    usageGuidelines: freq.duration ? `Listen for ${freq.duration}` : 'Use as needed for meditation and healing',
+    usageGuidelines: freq.duration ? `Listen for ${freq.duration}` : 'Use as needed for meditation and relaxation',
     duration: freq.duration || '15-30 minutes',
-    research: freq.research || `Traditional ${category} healing practices`,
+    research: freq.research || `Traditional ${category} relaxation practices`,
   };
 }
 
@@ -176,39 +176,38 @@ export function getSeededArticles() {
     {
       id: 'article-solfeggio-science',
       title: 'The Science Behind Solfeggio Frequencies',
-      content: `Solfeggio frequencies are a set of ancient musical tones that have been used for healing and spiritual purposes for centuries. These frequencies are believed to have specific healing properties and are often used in sound therapy and meditation.
+      content: `Solfeggio frequencies are a set of musical tones used in sound therapy and meditation traditions.
 
 ## The History
 
-The Solfeggio frequencies were first introduced by Guido d'Arezzo, a Benedictine monk, in the 11th century. These frequencies were used in Gregorian chants and were believed to have spiritual and healing properties.
+The modern Solfeggio frequencies were inspired by traditional vocal scale patterns and modern wellness associations.
 
 ## The Frequencies
 
-- **174 Hz**: Foundation frequency for pain relief and grounding
-- **285 Hz**: Transformation frequency for tissue healing
-- **396 Hz**: Liberation frequency for releasing fear and guilt
-- **417 Hz**: Change frequency for facilitating transformation
-- **528 Hz**: Love frequency for DNA repair and miracles
-- **639 Hz**: Relationship frequency for harmony and communication
-- **741 Hz**: Intuition frequency for awakening inner wisdom
-- **852 Hz**: Spiritual order frequency for returning to divine order
-- **963 Hz**: Divine connection frequency for pineal gland activation
+- **174 Hz**: Foundation frequency for grounding and reflection
+- **285 Hz**: Transformation frequency for quiet renewal
+- **396 Hz**: Liberation frequency for releasing worry
+- **417 Hz**: Change frequency for facilitating perspective
+- **528 Hz**: Love frequency associated with harmony and peace
+- **639 Hz**: Relationship frequency for connection and empathy
+- **741 Hz**: Intuition frequency for awakening clarity
+- **852 Hz**: Spiritual order frequency for returning to inner stillness
+- **963 Hz**: Divine connection frequency for crown meditation
 
 ## Scientific Research
 
-While the effects of Solfeggio frequencies are largely anecdotal, some studies have shown potential benefits:
+While the effects of Solfeggio frequencies are largely exploratory and subject to ongoing research:
 
-- A 2018 study found that 528 Hz may reduce stress and anxiety
-- Research suggests certain frequencies may influence brainwave patterns
-- Some studies indicate potential effects on cellular regeneration
+- A small 2018 study observed potential mood and stress marker changes with 528-Hz-tuned music
+- Research suggests certain soundscapes may support relaxation and mindfulness
 
 ## How to Use
 
 For best results:
-- Listen for 15-30 minutes daily
-- Use headphones for optimal effect
+- Listen for 15-30 minutes daily at a comfortable volume
+- Use headphones for optimal immersion
 - Find a quiet, comfortable space
-- Focus on your intention while listening
+- Focus on your personal reflection intention
 
 *Note: These frequencies are complementary tools and should not replace medical treatment.*`,
       category: 'solfeggio',
@@ -220,68 +219,61 @@ For best results:
     {
       id: 'article-chakra-frequencies',
       title: 'Understanding Chakra Frequencies and Energy Centers',
-      content: `The chakra system represents seven energy centers in the human body, each associated with specific frequencies that can help balance and align your energy.
+      content: `The chakra system represents seven energy centers in Indian spiritual tradition, each associated with contemporary sound-healing frequencies.
 
 ## The Seven Chakras
 
 ### Root Chakra (Muladhara) - 194.18 Hz
 - **Element**: Earth
 - **Color**: Red
-- **Benefits**: Grounding, stability, security
+- **Benefits**: Grounding, stability, presence
 - **When Balanced**: Feeling secure and grounded
 
 ### Sacral Chakra (Svadhisthana) - 210.42 Hz
 - **Element**: Water
 - **Color**: Orange
-- **Benefits**: Creativity, sexuality, emotional flow
-- **When Balanced**: Creative and emotionally stable
+- **Benefits**: Creativity, emotional flow
+- **When Balanced**: Creative and emotionally open
 
 ### Solar Plexus Chakra (Manipura) - 126.22 Hz
 - **Element**: Fire
 - **Color**: Yellow
-- **Benefits**: Personal power, confidence
-- **When Balanced**: Confident and empowered
+- **Benefits**: Agency, confidence
+- **When Balanced**: Confident and grounded
 
 ### Heart Chakra (Anahata) - 341.3 Hz
 - **Element**: Air
 - **Color**: Green
-- **Benefits**: Love, compassion, connection
+- **Benefits**: Compassion, connection
 - **When Balanced**: Loving and compassionate
 
 ### Throat Chakra (Vishuddha) - 384 Hz
 - **Element**: Space
 - **Color**: Blue
-- **Benefits**: Communication, truth, expression
-- **When Balanced**: Clear communication
+- **Benefits**: Expression, clear communication
+- **When Balanced**: Clear expression
 
 ### Third Eye Chakra (Ajna) - 426.7 Hz
 - **Element**: Light
 - **Color**: Indigo
-- **Benefits**: Intuition, wisdom, insight
-- **When Balanced**: Clear intuition and wisdom
+- **Benefits**: Intuition, insight
+- **When Balanced**: Reflective insight
 
 ### Crown Chakra (Sahasrara) - 963 Hz
 - **Element**: Thought
 - **Color**: Violet/White
-- **Benefits**: Spiritual connection, enlightenment
-- **When Balanced**: Spiritual awareness and connection
+- **Benefits**: Spiritual reflection, contemplation
+- **When Balanced**: Quiet presence and connection
 
 ## Balancing Your Chakras
 
-1. **Assessment**: Identify which chakras need attention
+1. **Assessment**: Identify which areas need attention
 2. **Meditation**: Use specific frequencies during meditation
 3. **Visualization**: Imagine the chakra's color while listening
-4. **Affirmations**: Use positive affirmations for each chakra
-5. **Regular Practice**: Consistency is key for balance
+4. **Affirmations**: Use positive reflection statements
+5. **Regular Practice**: Consistency supports mindfulness
 
-## Tips for Chakra Healing
-
-- Start with the root chakra and work upward
-- Spend 5-10 minutes on each chakra
-- Use visualization and breathwork
-- Practice regularly for best results
-
-*Remember: Chakra healing is a complementary practice and should be used alongside conventional healthcare.*`,
+*Remember: Chakra soundscapes offer a contemplative meditation framework and should be used alongside conventional healthcare.*`,
       category: 'chakra',
       tags: ['chakra', 'energy', 'balance', 'meditation'],
       isPremium: false,
@@ -291,61 +283,43 @@ For best results:
     {
       id: 'article-binaural-beats',
       title: 'Binaural Beats: The Science of Brainwave Entrainment',
-      content: `Binaural beats are an auditory illusion created when two slightly different frequencies are played in each ear, resulting in the perception of a third "beat" frequency.
+      content: `Binaural beats are an auditory percept created when two slightly different frequencies are played in each ear through stereo headphones.
 
 ## How Binaural Beats Work
 
-When you listen to a 200 Hz tone in your left ear and a 210 Hz tone in your right ear, your brain perceives a 10 Hz "beat." This phenomenon can potentially influence your brainwave patterns through a process called entrainment.
+When you listen to a 200 Hz tone in your left ear and a 210 Hz tone in your right ear, your brain perceives a 10 Hz "beat." Research is investigating effects on relaxation and focus, though results remain mixed.
 
 ## Brainwave Frequencies
 
 ### Delta Waves (0.5-4 Hz)
-- **State**: Deep sleep, healing
-- **Benefits**: Physical regeneration, immune support
+- **State**: Deep rest, wind-down
+- **Benefits**: Evening relaxation
 - **Best Time**: Before bed, during rest
 
 ### Theta Waves (4-8 Hz)
-- **State**: Deep meditation, REM sleep
-- **Benefits**: Creativity, memory consolidation
+- **State**: Deep meditation, reflection
+- **Benefits**: Creativity, reflective focus
 - **Best Time**: Meditation, creative work
 
 ### Alpha Waves (8-13 Hz)
 - **State**: Relaxed awareness
-- **Benefits**: Stress relief, learning enhancement
+- **Benefits**: Stress relief, calm focus
 - **Best Time**: Study, light meditation
 
 ### Beta Waves (13-30 Hz)
-- **State**: Active concentration
-- **Benefits**: Focus, problem-solving
+- **State**: Active attention
+- **Benefits**: Focus, structured tasks
 - **Best Time**: Work, analytical tasks
 
 ### Gamma Waves (30-100 Hz)
-- **State**: Higher consciousness
-- **Benefits**: Cognitive enhancement, insight
-- **Best Time**: Peak performance tasks
-
-## Scientific Research
-
-Studies have shown that binaural beats may:
-- Reduce anxiety and stress
-- Improve focus and attention
-- Enhance memory and learning
-- Promote relaxation and sleep
-- Increase creativity
-
-## Best Practices
-
-1. **Use Headphones**: Essential for the binaural effect
-2. **Start Slowly**: Begin with 10-15 minute sessions
-3. **Choose the Right Time**: Match frequency to desired state
-4. **Be Consistent**: Regular use may increase effectiveness
-5. **Stay Hydrated**: Drink water before and after sessions
+- **State**: Attentive processing
+- **Benefits**: Cognitive engagement, clarity
+- **Best Time**: Attentive study
 
 ## Safety Considerations
 
-- Not recommended for people with epilepsy
 - Avoid while driving or operating machinery
-- Start with lower volumes
+- Start with lower, comfortable volumes
 - Discontinue if you experience discomfort
 
 *Binaural beats are a tool for wellness and should not replace medical treatment.*`,

@@ -18,10 +18,10 @@ export function getProgramsSeed(): CuratedProgramSeed[] {
     {
       id: 'session-1',
       name: 'Morning Energy Boost',
-      description: 'Ignite your day with high-vibration frequencies that activate focus, vitality and a positive mindset. Perfect before meditation or movement.',
+      description: 'Structured listening for alertness, positive attention and reflective focus.',
       frequencies: [
         createFrequencyId('solfeggio', 528),
-        createFrequencyId('brainwave', 40),
+        createFrequencyId('binaural', 40),
         createFrequencyId('scientific', 432),
       ],
       duration: 30,
@@ -32,8 +32,8 @@ export function getProgramsSeed(): CuratedProgramSeed[] {
     },
     {
       id: 'session-2',
-      name: 'Deep Healing Session',
-      description: 'A powerful multi-frequency journey through foundational Solfeggio tones designed to promote tissue repair, emotional release and full-body restoration.',
+      name: 'Deep Relaxation Session',
+      description: 'Multi-frequency relaxation journey using 174, 285 and 528 Hz for quiet reflection and relaxation.',
       frequencies: [
         createFrequencyId('solfeggio', 174),
         createFrequencyId('solfeggio', 285),
@@ -47,8 +47,8 @@ export function getProgramsSeed(): CuratedProgramSeed[] {
     },
     {
       id: 'session-3',
-      name: 'Complete Chakra Alignment',
-      description: 'Journey through all seven energy centres, from root to crown. Each frequency attunes a specific chakra to restore energetic balance and spiritual vitality.',
+      name: 'Seven-Chakra Meditation',
+      description: 'Seven-part meditation using a contemporary chakra-frequency framework, presented as spiritual/wellness practice rather than validated energetic treatment.',
       frequencies: [
         createFrequencyId('chakra', 194.18),
         createFrequencyId('chakra', 210.42),
@@ -67,10 +67,10 @@ export function getProgramsSeed(): CuratedProgramSeed[] {
     {
       id: 'session-4',
       name: 'Deep Meditation Journey',
-      description: 'Ground in the Earth\'s own resonance, descend into theta, then rise into spiritual clarity. A complete arc for profound meditative depth and inner peace.',
+      description: 'Contemplative journey using a Schumann-inspired experience, theta-range binaural listening and higher Solfeggio tone.',
       frequencies: [
         createFrequencyId('healing', 7.83),
-        createFrequencyId('brainwave', 6),
+        createFrequencyId('binaural', 6),
         createFrequencyId('solfeggio', 852),
       ],
       duration: 40,
@@ -81,8 +81,8 @@ export function getProgramsSeed(): CuratedProgramSeed[] {
     },
     {
       id: 'session-5',
-      name: 'Sleep & Dream Enhancement',
-      description: 'A scientifically sequenced programme that guides your brainwaves from alpha relaxation through theta dreaming to deep delta restoration for peak overnight recovery.',
+      name: 'Sleep Wind-Down Journey',
+      description: 'Gradual listening sequence designed to create a quiet pre-sleep environment; no claim of inducing specific sleep stages.',
       frequencies: [
         createFrequencyId('sleep', 8),
         createFrequencyId('sleep', 4.5),
@@ -97,11 +97,11 @@ export function getProgramsSeed(): CuratedProgramSeed[] {
     {
       id: 'session-6',
       name: 'Manifestation & Abundance',
-      description: 'Align your subconscious with prosperity using the numerological 888 frequency, the transformative 528 Hz love tone and a focused alpha success state.',
+      description: 'Reflective goal-setting journey combining numerological symbolism, alternative tuning and alpha-range listening.',
       frequencies: [
-        createFrequencyId('manifestation', 888),
-        createFrequencyId('manifestation', 528),
-        createFrequencyId('manifestation', 10),
+        createFrequencyId('wealth', 888),
+        createFrequencyId('wealth', 528),
+        createFrequencyId('wealth', 10),
       ],
       duration: 45,
       category: 'manifestation',
@@ -111,11 +111,11 @@ export function getProgramsSeed(): CuratedProgramSeed[] {
     },
     {
       id: 'session-7',
-      name: 'Stress Release & Anxiety Relief',
-      description: 'Dissolve tension layer by layer — beginning with Schumann grounding, moving into alpha calm, and finishing with 396 Hz liberation to release fear and guilt at the root.',
+      name: 'Calm & Stress Release',
+      description: 'Relaxation journey using a Schumann-inspired tone, alpha-range listening and a Solfeggio tone traditionally associated with release.',
       frequencies: [
         createFrequencyId('healing', 7.83),
-        createFrequencyId('brainwave', 8.5),
+        createFrequencyId('binaural', 8.5),
         createFrequencyId('solfeggio', 396),
       ],
       duration: 35,
@@ -127,11 +127,11 @@ export function getProgramsSeed(): CuratedProgramSeed[] {
     {
       id: 'session-8',
       name: 'Focus & Mental Clarity',
-      description: 'A precision-stacked sequence of alpha and gamma frequencies to sharpen concentration, boost cognitive performance and enter a state of effortless flow.',
+      description: 'Structured alpha/beta/gamma-range listening journey for focused work and attentive listening.',
       frequencies: [
-        createFrequencyId('brainwave', 12),
-        createFrequencyId('brainwave', 16),
-        createFrequencyId('brainwave', 40),
+        createFrequencyId('binaural', 12),
+        createFrequencyId('binaural', 16),
+        createFrequencyId('binaural', 40),
       ],
       duration: 30,
       category: 'focus',
@@ -141,8 +141,8 @@ export function getProgramsSeed(): CuratedProgramSeed[] {
     },
     {
       id: 'session-9',
-      name: 'Emotional Healing & Heart Opening',
-      description: 'A deeply compassionate session using the 417 Hz clearing tone, the 528 Hz love frequency and the 639 Hz relationship harmoniser to process grief, open the heart and restore emotional flow.',
+      name: 'Emotional Reflection & Connection',
+      description: 'Reflective journey using Solfeggio traditions associated with change, love and connection.',
       frequencies: [
         createFrequencyId('solfeggio', 417),
         createFrequencyId('solfeggio', 528),
@@ -156,8 +156,8 @@ export function getProgramsSeed(): CuratedProgramSeed[] {
     },
     {
       id: 'session-10',
-      name: 'DNA Repair & Cellular Regeneration',
-      description: 'Harness the scientifically studied 528 Hz transformation frequency alongside 285 Hz tissue healing and 110 Hz deep resonance to support your body\'s innate cellular repair processes.',
+      name: 'Renewal & Restoration',
+      description: 'Reflective relaxation journey inspired by sound-healing themes of renewal and restoration; no DNA/cellular claims.',
       frequencies: [
         createFrequencyId('solfeggio', 285),
         createFrequencyId('healing', 528),
@@ -171,10 +171,10 @@ export function getProgramsSeed(): CuratedProgramSeed[] {
     },
     {
       id: 'session-11',
-      name: 'Immune System Activation',
-      description: 'Strengthen your body\'s natural defences with delta healing waves, the 285 Hz tissue regeneration tone and grounding Schumann resonance for whole-body immune support.',
+      name: 'Rest & Recovery',
+      description: 'Quiet rest-oriented journey combining low-beat listening, a traditional renewal tone and Schumann-inspired listening; no immune claim.',
       frequencies: [
-        createFrequencyId('brainwave', 1.5),
+        createFrequencyId('binaural', 1.5),
         createFrequencyId('solfeggio', 285),
         createFrequencyId('scientific', 7.83),
       ],
@@ -186,8 +186,8 @@ export function getProgramsSeed(): CuratedProgramSeed[] {
     },
     {
       id: 'session-12',
-      name: 'Third Eye Awakening',
-      description: 'Activate your intuitive centres with the 741 Hz awakening frequency, third eye chakra resonance and the 963 Hz pineal gland stimulator for heightened insight and spiritual perception.',
+      name: 'Intuition & Reflection Meditation',
+      description: 'Contemplative journey inspired by Third Eye/chakra and Solfeggio traditions.',
       frequencies: [
         createFrequencyId('solfeggio', 741),
         createFrequencyId('chakra', 426.7),
@@ -202,11 +202,11 @@ export function getProgramsSeed(): CuratedProgramSeed[] {
     {
       id: 'session-13',
       name: 'Creative Flow State',
-      description: 'Drop into theta imagination, ride the alpha creative current and elevate to gamma insight — an ideal session for artists, writers and innovators seeking inspired breakthroughs.',
+      description: 'Theta/alpha/gamma-range listening as a backdrop for creative work and reflection; no guaranteed breakthrough claim.',
       frequencies: [
-        createFrequencyId('brainwave', 6),
-        createFrequencyId('brainwave', 10),
-        createFrequencyId('brainwave', 40),
+        createFrequencyId('binaural', 6),
+        createFrequencyId('binaural', 10),
+        createFrequencyId('binaural', 40),
       ],
       duration: 35,
       category: 'focus',
@@ -216,12 +216,12 @@ export function getProgramsSeed(): CuratedProgramSeed[] {
     },
     {
       id: 'session-14',
-      name: 'Pain Relief & Physical Recovery',
-      description: 'A targeted healing programme combining the 174 Hz natural analgesic, 110 Hz bone resonance and delta waves to accelerate physical recovery and relieve persistent pain.',
+      name: 'Physical Ease & Recovery',
+      description: 'Relaxation journey using low-frequency, resonance-inspired and low-beat experiences. Not a treatment for pain or injury.',
       frequencies: [
         createFrequencyId('solfeggio', 174),
         createFrequencyId('scientific', 110),
-        createFrequencyId('brainwave', 2.5),
+        createFrequencyId('binaural', 2.5),
       ],
       duration: 40,
       category: 'healing',
@@ -232,7 +232,7 @@ export function getProgramsSeed(): CuratedProgramSeed[] {
     {
       id: 'session-15',
       name: 'Inner Peace & Spiritual Balance',
-      description: 'A complete spiritual reset — clearing fear with 396 Hz, harmonising relationships with 639 Hz, and ascending to divine connection at 963 Hz for profound stillness and clarity.',
+      description: 'Contemplative journey using Solfeggio tones traditionally associated with release, connection and spiritual awareness.',
       frequencies: [
         createFrequencyId('solfeggio', 396),
         createFrequencyId('solfeggio', 639),

@@ -30,6 +30,9 @@ const getGuide = (name: string, hz: number) => {
 // Trust Triangle frequencies stay free: 432 Hz, 528 Hz, 639 Hz, 7.83 Hz, 8 Hz
 const TRUST_TRIANGLE_FREE_HZ = [432, 528, 639, 7.83, 8];
 
+const REVISED_UNIVERSAL_DISCLAIMER =
+  "Harmony Frequency is designed for relaxation, meditation, focus and personal reflection. Frequency-based listening is not a medical treatment and is not intended to diagnose, treat, cure or prevent any disease or health condition. Research findings described in the app may be preliminary, mixed or specific to particular study conditions. Use a comfortable listening volume and stop if you experience discomfort, dizziness, headache or ringing in the ears. Do not listen while driving, cycling or operating machinery.";
+
 export function getFrequenciesSeed(): CanonicalFrequency[] {
   const frequencies: CanonicalFrequency[] = [];
   const now = '2026-01-01T00:00:00.000Z';
@@ -65,17 +68,17 @@ export function getFrequenciesSeed(): CanonicalFrequency[] {
         status: ContentStatus.PUBLISHED,
         intentTags,
         timeOfDayTags,
-        background: guide?.background || '',
+        background: guide?.background || freq.description || '',
         purpose: guide?.purpose || freq.description,
         scientificBasis: guide?.scientificBasis || freq.research || '',
         usageInstructions: guide?.usage || {
-          duration: freq.duration || '15-20 minutes',
-          frequency: 'Daily or as needed',
-          bestTime: timeOfDayTags[0] || 'Anytime',
+          duration: 'Start with 5-20 minutes at a comfortable volume.',
+          frequency: 'Daily or as needed for relaxation',
+          bestTime: 'Choose a time and environment that fits your routine.',
           environment: 'Quiet, comfortable space',
-          preparation: 'Deep breathing for 2 minutes',
+          preparation: 'Deep breathing for 1-2 minutes',
         },
-        disclaimer: guide?.disclaimer || 'Sound therapy complements relaxation and meditation but is not a substitute for professional medical treatment.',
+        disclaimer: guide?.disclaimer || freq.disclaimer || REVISED_UNIVERSAL_DISCLAIMER,
         research: freq.research || guide?.scientificBasis || '',
         tags: intentTags,
         provenance: 'system_seed',
