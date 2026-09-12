@@ -374,7 +374,8 @@ export const [AuthProvider, useAuth] = createContextHook((): AuthContextType => 
    * Update profile using strict field allowlisting and dual storage persistence.
    */
   const updateProfile = useCallback(async (updates: Partial<UserProfile>) => {
-    if (!userProfile) return;
+    const currentProfile = userProfile || (user ? createUserProfile(user) : null);
+    if (!currentProfile) return;
 
     // Filter out subscription or server-authoritative fields
     const {
@@ -386,10 +387,10 @@ export const [AuthProvider, useAuth] = createContextHook((): AuthContextType => 
       ...allowedUpdates
     } = updates;
 
-    const updatedProfile = { ...userProfile, ...allowedUpdates };
+    const updatedProfile = { ...currentProfile, ...allowedUpdates };
     setUserProfile(updatedProfile);
     await saveUserProfile(updatedProfile);
-  }, [userProfile, saveUserProfile]);
+  }, [userProfile, user, createUserProfile, saveUserProfile]);
 
   const refreshSubscriptionStatus = useCallback(async () => {
     if (!user) return;

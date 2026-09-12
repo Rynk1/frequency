@@ -36,6 +36,7 @@ export default function OnboardingPage() {
   }
 
   const finishOnboarding = async () => {
+    if (isSaving) return;
     setIsSaving(true);
     try {
       updateSetting('defaultSessionLength', sessionLength);
@@ -48,11 +49,11 @@ export default function OnboardingPage() {
           notifications,
         },
       });
-      router.replace('/(tabs)/categories' as any);
     } catch (err) {
       console.error('Failed to finish onboarding:', err);
     } finally {
       setIsSaving(false);
+      router.replace('/(tabs)/categories' as any);
     }
   };
 
