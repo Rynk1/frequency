@@ -198,16 +198,31 @@ export const [AuthProvider, useAuth] = createContextHook((): AuthContextType => 
     // 2. Persist to Firestore if cloud sync is enabled
     if (!shouldUseFirestore) return;
 
+    const userRef = doc(db, 'users', profile.uid);
+    const dataToSave = toFirestoreProfile(profile, isNewProfile);
+
+    if (__DEV__) {
+      const currentUser = auth.currentUser;
+      console.log('[Firestore Profile Save Diagnostics]', {
+        authCurrentUserExists: Boolean(currentUser),
+        authCurrentUserUid: currentUser?.uid || null,
+        authCurrentUserEmail: currentUser?.email || null,
+        targetFirestorePath: userRef.path,
+        operationType: isNewProfile ? 'create/set' : 'update/setMerge',
+        payloadFields: Object.keys(dataToSave),
+      });
+    }
+
     try {
-      const userRef = doc(db, 'users', profile.uid);
-      const dataToSave = toFirestoreProfile(profile, isNewProfile);
       await setDoc(userRef, dataToSave, { merge: true });
     } catch (error: any) {
+      const errMsg = error?.message || String(error);
+      setCloudError(`Failed to save user profile: ${errMsg}`);
       if (isCloudStrict) {
-        setCloudError(`Failed to save user profile: ${error?.message || error}`);
         throw error;
       }
-      console.warn('Firestore profile save warning (saved locally):', error?.message || error);
+      console.warn('Firestore profile save warning:', errMsg);
+      throw new Error(`Profile write failed (${error?.code || 'error'}): ${errMsg}`);
     }
   }, [toFirestoreProfile, shouldUseFirestore, isCloudStrict, setCloudError]);
 
