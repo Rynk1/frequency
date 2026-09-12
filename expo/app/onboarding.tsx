@@ -16,18 +16,15 @@ const GOALS: { id: PrimaryGoal; title: string; description: string }[] = [
 const SESSION_LENGTHS = [10, 20, 30];
 
 export default function OnboardingPage() {
-  const { user, userProfile, updateProfile } = useAuth();
+  const { user, userProfile, updateProfile, isLoading } = useAuth();
   const { updateSetting } = useSettings();
   const [goal, setGoal] = useState<PrimaryGoal>('focus');
   const [sessionLength, setSessionLength] = useState(20);
   const [notifications, setNotifications] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
 
-  if (!user) return <Redirect href={'/' as any} />;
-  if (userProfile?.onboardingCompleted) {
-    return <Redirect href={'/(tabs)/categories' as any} />;
-  }
-  if (!userProfile) {
+  if (isLoading || !userProfile) {
     return (
       <View style={styles.loading}>
         <ActivityIndicator color="#A78BFA" size="large" />
@@ -35,9 +32,15 @@ export default function OnboardingPage() {
     );
   }
 
+  if (!user) return <Redirect href={'/' as any} />;
+  if (userProfile?.onboardingCompleted) {
+    return <Redirect href={'/(tabs)/categories' as any} />;
+  }
+
   const finishOnboarding = async () => {
-    if (isSaving) return;
+    if (isSaving || isLoading || !user) return;
     setIsSaving(true);
+    setSaveError(null);
     try {
       updateSetting('defaultSessionLength', sessionLength);
       updateSetting('notifications', notifications);
@@ -49,11 +52,13 @@ export default function OnboardingPage() {
           notifications,
         },
       });
-    } catch (err) {
+      // Navigate ONLY when profile update succeeds
+      router.replace('/(tabs)/categories' as any);
+    } catch (err: any) {
       console.error('Failed to finish onboarding:', err);
+      setSaveError(err?.message || 'Profile could not be saved. Please check your connection and try again.');
     } finally {
       setIsSaving(false);
-      router.replace('/(tabs)/categories' as any);
     }
   };
 
@@ -101,7 +106,17 @@ export default function OnboardingPage() {
           </View>
         </Pressable>
 
-        <Pressable onPress={finishOnboarding} disabled={isSaving} style={styles.continueButton}>
+        {saveError && (
+          <View style={styles.errorContainer}>
+            <Text style={styles.errorText}>{saveError}</Text>
+          </View>
+        )}
+
+        <Pressable
+          onPress={finishOnboarding}
+          disabled={isSaving || isLoading || !user}
+          style={[styles.continueButton, (isSaving || isLoading || !user) && styles.continueButtonDisabled]}
+        >
           {isSaving ? <ActivityIndicator color="#0B1020" /> : <Text style={styles.continueText}>Begin my journey</Text>}
         </Pressable>
       </View>
@@ -131,6 +146,9 @@ const styles = StyleSheet.create({
   switchOn: { backgroundColor: '#8B7CF6' },
   switchThumb: { width: 20, height: 20, borderRadius: 10, backgroundColor: '#FFFFFF' },
   switchThumbOn: { alignSelf: 'flex-end' },
+  errorContainer: { backgroundColor: 'rgba(239, 68, 68, 0.15)', borderWidth: 1, borderColor: '#EF4444', borderRadius: 10, padding: 12, marginBottom: 12 },
+  errorText: { color: '#FCA5A5', fontSize: 13, textAlign: 'center' },
   continueButton: { backgroundColor: '#C4B5FD', borderRadius: 12, minHeight: 52, justifyContent: 'center', alignItems: 'center', marginTop: 4 },
+  continueButtonDisabled: { opacity: 0.6 },
   continueText: { color: '#0B1020', fontSize: 16, fontWeight: '700' },
 });
