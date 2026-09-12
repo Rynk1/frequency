@@ -82,10 +82,10 @@ const convertFrequencies = (): Frequency[] => {
 
   addFrequencies(SOLFEGGIO_FREQUENCIES, 'solfeggio', false);
   addFrequencies(CHAKRA_FREQUENCIES, 'chakra', false);
-  addFrequencies(BINAURAL_BEATS, 'brainwave', true);
+  addFrequencies(BINAURAL_BEATS, 'binaural', true);
   addFrequencies(HEALING_FREQUENCIES, 'healing', false);
   addFrequencies(SLEEP_FREQUENCIES, 'sleep', false);
-  addFrequencies(WEALTH_FREQUENCIES, 'manifestation', true);
+  addFrequencies(WEALTH_FREQUENCIES, 'wealth', true);
   addFrequencies(SCIENTIFIC_FREQUENCIES, 'scientific', false);
 
   return frequencies;
@@ -99,10 +99,10 @@ export function getSeedData() {
     {
       id: 'session-1',
       name: 'Morning Energy Boost',
-      description: 'Ignite your day with high-vibration frequencies that activate focus, vitality and a positive mindset. Perfect before meditation or movement.',
+      description: 'Structured listening for alertness, positive attention and reflective focus.',
       frequencies: [
         createFrequencyId('solfeggio', 528),
-        createFrequencyId('brainwave', 40),
+        createFrequencyId('binaural', 40),
         createFrequencyId('scientific', 432),
       ],
       duration: 30,
@@ -113,8 +113,8 @@ export function getSeedData() {
     },
     {
       id: 'session-2',
-      name: 'Deep Healing Session',
-      description: 'A powerful multi-frequency journey through foundational Solfeggio tones designed to promote tissue repair, emotional release and full-body restoration.',
+      name: 'Deep Relaxation Session',
+      description: 'Multi-frequency relaxation journey using 174, 285 and 528 Hz for quiet reflection and relaxation.',
       frequencies: [
         createFrequencyId('solfeggio', 174),
         createFrequencyId('solfeggio', 285),
@@ -128,8 +128,8 @@ export function getSeedData() {
     },
     {
       id: 'session-3',
-      name: 'Complete Chakra Alignment',
-      description: 'Journey through all seven energy centres, from root to crown. Each frequency attunes a specific chakra to restore energetic balance and spiritual vitality.',
+      name: 'Seven-Chakra Meditation',
+      description: 'Seven-part meditation using a contemporary chakra-frequency framework, presented as spiritual/wellness practice rather than validated energetic treatment.',
       frequencies: [
         createFrequencyId('chakra', 194.18),
         createFrequencyId('chakra', 210.42),
@@ -148,10 +148,10 @@ export function getSeedData() {
     {
       id: 'session-4',
       name: 'Deep Meditation Journey',
-      description: 'Ground in the Earth\'s own resonance, descend into theta, then rise into spiritual clarity. A complete arc for profound meditative depth and inner peace.',
+      description: 'Contemplative journey using a Schumann-inspired experience, theta-range binaural listening and higher Solfeggio tone.',
       frequencies: [
         createFrequencyId('healing', 7.83),
-        createFrequencyId('brainwave', 6),
+        createFrequencyId('binaural', 6),
         createFrequencyId('solfeggio', 852),
       ],
       duration: 40,
@@ -162,8 +162,8 @@ export function getSeedData() {
     },
     {
       id: 'session-5',
-      name: 'Sleep & Dream Enhancement',
-      description: 'A scientifically sequenced programme that guides your brainwaves from alpha relaxation through theta dreaming to deep delta restoration for peak overnight recovery.',
+      name: 'Sleep Wind-Down Journey',
+      description: 'Gradual listening sequence designed to create a quiet pre-sleep environment; no claim of inducing specific sleep stages.',
       frequencies: [
         createFrequencyId('sleep', 8),
         createFrequencyId('sleep', 4.5),
@@ -178,11 +178,11 @@ export function getSeedData() {
     {
       id: 'session-6',
       name: 'Manifestation & Abundance',
-      description: 'Align your subconscious with prosperity using the numerological 888 frequency, the transformative 528 Hz love tone and a focused alpha success state.',
+      description: 'Reflective goal-setting journey combining numerological symbolism, alternative tuning and alpha-range listening.',
       frequencies: [
-        createFrequencyId('manifestation', 888),
-        createFrequencyId('manifestation', 528),
-        createFrequencyId('manifestation', 10),
+        createFrequencyId('wealth', 888),
+        createFrequencyId('wealth', 528),
+        createFrequencyId('wealth', 10),
       ],
       duration: 45,
       category: 'manifestation',
@@ -192,11 +192,11 @@ export function getSeedData() {
     },
     {
       id: 'session-7',
-      name: 'Stress Release & Anxiety Relief',
-      description: 'Dissolve tension layer by layer — beginning with Schumann grounding, moving into alpha calm, and finishing with 396 Hz liberation to release fear and guilt at the root.',
+      name: 'Calm & Stress Release',
+      description: 'Relaxation journey using a Schumann-inspired tone, alpha-range listening and a Solfeggio tone traditionally associated with release.',
       frequencies: [
         createFrequencyId('healing', 7.83),
-        createFrequencyId('brainwave', 8.5),
+        createFrequencyId('binaural', 8.5),
         createFrequencyId('solfeggio', 396),
       ],
       duration: 35,
@@ -208,11 +208,11 @@ export function getSeedData() {
     {
       id: 'session-8',
       name: 'Focus & Mental Clarity',
-      description: 'A precision-stacked sequence of alpha and gamma frequencies to sharpen concentration, boost cognitive performance and enter a state of effortless flow.',
+      description: 'Structured alpha/beta/gamma-range listening journey for focused work and attentive listening.',
       frequencies: [
-        createFrequencyId('brainwave', 12),
-        createFrequencyId('brainwave', 16),
-        createFrequencyId('brainwave', 40),
+        createFrequencyId('binaural', 12),
+        createFrequencyId('binaural', 16),
+        createFrequencyId('binaural', 40),
       ],
       duration: 30,
       category: 'focus',
@@ -222,8 +222,8 @@ export function getSeedData() {
     },
     {
       id: 'session-9',
-      name: 'Emotional Healing & Heart Opening',
-      description: 'A deeply compassionate session using the 417 Hz clearing tone, the 528 Hz love frequency and the 639 Hz relationship harmoniser to process grief, open the heart and restore emotional flow.',
+      name: 'Emotional Reflection & Connection',
+      description: 'Reflective journey using Solfeggio traditions associated with change, love and connection.',
       frequencies: [
         createFrequencyId('solfeggio', 417),
         createFrequencyId('solfeggio', 528),
@@ -237,8 +237,8 @@ export function getSeedData() {
     },
     {
       id: 'session-10',
-      name: 'DNA Repair & Cellular Regeneration',
-      description: 'Harness the scientifically studied 528 Hz transformation frequency alongside 285 Hz tissue healing and 110 Hz deep resonance to support your body\'s innate cellular repair processes.',
+      name: 'Renewal & Restoration',
+      description: 'Reflective relaxation journey inspired by sound-healing themes of renewal and restoration; no DNA/cellular claims.',
       frequencies: [
         createFrequencyId('solfeggio', 285),
         createFrequencyId('healing', 528),
@@ -252,10 +252,10 @@ export function getSeedData() {
     },
     {
       id: 'session-11',
-      name: 'Immune System Activation',
-      description: 'Strengthen your body\'s natural defences with delta healing waves, the 285 Hz tissue regeneration tone and grounding Schumann resonance for whole-body immune support.',
+      name: 'Rest & Recovery',
+      description: 'Quiet rest-oriented journey combining low-beat listening, a traditional renewal tone and Schumann-inspired listening; no immune claim.',
       frequencies: [
-        createFrequencyId('brainwave', 1.5),
+        createFrequencyId('binaural', 1.5),
         createFrequencyId('solfeggio', 285),
         createFrequencyId('scientific', 7.83),
       ],
@@ -267,8 +267,8 @@ export function getSeedData() {
     },
     {
       id: 'session-12',
-      name: 'Third Eye Awakening',
-      description: 'Activate your intuitive centres with the 741 Hz awakening frequency, third eye chakra resonance and the 963 Hz pineal gland stimulator for heightened insight and spiritual perception.',
+      name: 'Intuition & Reflection Meditation',
+      description: 'Contemplative journey inspired by Third Eye/chakra and Solfeggio traditions.',
       frequencies: [
         createFrequencyId('solfeggio', 741),
         createFrequencyId('chakra', 426.7),
@@ -283,11 +283,11 @@ export function getSeedData() {
     {
       id: 'session-13',
       name: 'Creative Flow State',
-      description: 'Drop into theta imagination, ride the alpha creative current and elevate to gamma insight — an ideal session for artists, writers and innovators seeking inspired breakthroughs.',
+      description: 'Theta/alpha/gamma-range listening as a backdrop for creative work and reflection; no guaranteed breakthrough claim.',
       frequencies: [
-        createFrequencyId('brainwave', 6),
-        createFrequencyId('brainwave', 10),
-        createFrequencyId('brainwave', 40),
+        createFrequencyId('binaural', 6),
+        createFrequencyId('binaural', 10),
+        createFrequencyId('binaural', 40),
       ],
       duration: 35,
       category: 'focus',
@@ -297,12 +297,12 @@ export function getSeedData() {
     },
     {
       id: 'session-14',
-      name: 'Pain Relief & Physical Recovery',
-      description: 'A targeted healing programme combining the 174 Hz natural analgesic, 110 Hz bone resonance and delta waves to accelerate physical recovery and relieve persistent pain.',
+      name: 'Physical Ease & Recovery',
+      description: 'Relaxation journey using low-frequency, resonance-inspired and low-beat experiences. Not a treatment for pain or injury.',
       frequencies: [
         createFrequencyId('solfeggio', 174),
         createFrequencyId('scientific', 110),
-        createFrequencyId('brainwave', 2.5),
+        createFrequencyId('binaural', 2.5),
       ],
       duration: 40,
       category: 'healing',
@@ -313,7 +313,7 @@ export function getSeedData() {
     {
       id: 'session-15',
       name: 'Inner Peace & Spiritual Balance',
-      description: 'A complete spiritual reset — clearing fear with 396 Hz, harmonising relationships with 639 Hz, and ascending to divine connection at 963 Hz for profound stillness and clarity.',
+      description: 'Contemplative journey using Solfeggio tones traditionally associated with release, connection and spiritual awareness.',
       frequencies: [
         createFrequencyId('solfeggio', 396),
         createFrequencyId('solfeggio', 639),
@@ -331,43 +331,31 @@ export function getSeedData() {
     {
       id: 'article-1',
       title: 'Solfeggio Frequencies: Ancient Tones for Modern Healing',
-      content: `Solfeggio frequencies are a set of ancient musical tones that date back to Medieval Gregorian chants. These specific frequencies were believed to impart spiritual blessings when sung in harmony. Dr. Joseph Puleo rediscovered these frequencies in the 1990s, identifying six core tones: 396 Hz, 417 Hz, 528 Hz, 639 Hz, 741 Hz, and 852 Hz.
-
-Each frequency is associated with specific benefits. The 528 Hz frequency, often called the "Love Frequency" or "Miracle Tone," is particularly notable. Some researchers claim it can repair DNA and bring about positive transformation, though these claims require more scientific validation.
-
-The 396 Hz frequency is associated with liberating fear and guilt, helping to break down barriers that prevent us from achieving our goals. The 417 Hz tone facilitates change and helps undo negative situations. The 639 Hz frequency enhances communication, understanding, and tolerance, making it ideal for relationship healing.
-
-Modern sound therapists use these frequencies in various healing modalities, from tuning fork therapy to music composition. While scientific evidence is still emerging, many practitioners and listeners report profound benefits including reduced anxiety, enhanced meditation depth, and improved emotional well-being.`,
+      content: `Solfeggio frequencies represent a system of musical tones popular in contemporary sound-healing and wellness traditions. The modern scale commonly includes 396 Hz, 417 Hz, 528 Hz, 639 Hz, 741 Hz, and 852 Hz.\n\nWhile popular accounts frequently attribute these tones directly to ancient Medieval Gregorian chants, historical claims linking the complete modern system to ancient practice should be treated cautiously.\n\nEach frequency carries strong contemporary wellness associations: 396 Hz with letting go of worry; 417 Hz with change; 528 Hz with harmony and love; 639 Hz with interpersonal connection; 741 Hz with clarity; and 852 Hz with inner stillness.`,
       category: 'solfeggio',
-      tags: ['solfeggio', 'basics', 'ancient', 'healing'],
+      tags: ['solfeggio', 'basics', 'wellness', 'tradition'],
       isPremium: false,
       publishedAt: now(),
       author: 'Frequency Lab',
       readTime: 6,
       difficulty: 'Beginner',
       keyPoints: [
-        'Six core Solfeggio tones: 396, 417, 528, 639, 741, 852 Hz',
-        '528 Hz is the most studied — associated with transformation and DNA repair',
-        'Used in Gregorian chants and modern sound therapy',
-        'Each tone targets specific emotional and physical healing',
+        'The modern Solfeggio system commonly includes 396, 417, 528, 639, 741 and 852 Hz',
+        'These frequencies have strong contemporary spiritual and wellness associations',
+        'Historical claims linking the complete modern system directly to ancient Gregorian practice should be treated cautiously',
+        '528 Hz has small exploratory human evidence but no established DNA-repair effect',
       ],
       practicalTips: [
-        'Use headphones for best binaural effect',
-        'Start with 528 Hz for 10–15 minutes daily',
-        'Combine with breath work for deeper results',
-        'Keep a journal to track subtle shifts',
+        'Start with 5–20 minutes at a comfortable volume',
+        'Choose a time and environment that fits your routine',
+        'Notice subjective relaxation rather than expecting predetermined outcomes',
+        'Keep a quiet journal to track mindfulness shifts',
       ],
     },
     {
       id: 'article-2',
       title: 'Brainwave Entrainment: Science of the Synchronised Mind',
-      content: `Brainwave entrainment is the practice of synchronising brain activity to an external stimulus — typically audio frequencies. The brain naturally tends to match the dominant frequency it is exposed to, a phenomenon known as the Frequency Following Response (FFR).
-
-Our brains operate across five primary states: Delta (0.5–4 Hz) for deep sleep and healing; Theta (4–8 Hz) for creativity and deep meditation; Alpha (8–13 Hz) for relaxed awareness; Beta (13–30 Hz) for active thinking; and Gamma (30+ Hz) for heightened perception.
-
-Binaural beats are the most popular form of brainwave entrainment. When you hear two slightly different frequencies in each ear — for example, 200 Hz in the left and 210 Hz in the right — your brain perceives a phantom beat at the difference frequency, in this case 10 Hz (Alpha). This gently guides the brain into that target state.
-
-Research supports binaural beats for anxiety reduction, focus enhancement, sleep improvement, and even pain management. A 2019 meta-analysis in Psychological Research found significant improvements in anxiety and mood from regular binaural beat listening.`,
+      content: `Binaural beats are a genuine psychoacoustic percept that occurs when two slightly different frequencies are presented separately to each ear through stereo headphones.\n\nBrainwaves naturally shift across Delta, Theta, Alpha, Beta, and Gamma ranges. Scientific evidence regarding reliable brainwave entrainment remains mixed.\n\nBinaural beats offer a helpful backdrop for meditation and focus, but a specific beat should not be viewed as a guaranteed method to induce a precise neural state.`,
       category: 'brainwave',
       tags: ['brainwaves', 'focus', 'science', 'binaural'],
       isPremium: false,
@@ -376,207 +364,157 @@ Research supports binaural beats for anxiety reduction, focus enhancement, sleep
       readTime: 8,
       difficulty: 'Intermediate',
       keyPoints: [
-        'Five brainwave states: Delta, Theta, Alpha, Beta, Gamma',
-        'Binaural beats work through Frequency Following Response',
-        'Requires stereo headphones for binaural effects',
-        'Research-backed for anxiety, focus and sleep',
+        'Binaural beats occur when slightly different tones are presented separately to each ear',
+        'Five primary brainwave ranges describe neural activity',
+        'Stereo headphones are strictly required for binaural beat perception',
+        'Scientific evidence for reliable brainwave entrainment remains mixed and study-dependent',
       ],
       practicalTips: [
-        'Always use stereo headphones for binaural beats',
-        'Start with Alpha (8–12 Hz) for general relaxation',
-        'Use Theta (4–8 Hz) before creative work or meditation',
-        'Avoid high-beta frequencies before sleep',
+        'Always use stereo headphones for binaural beat listening',
+        'Choose a comfortable session length (5–20 minutes)',
+        'Never drive, cycle or operate machinery while listening to binaural beats',
       ],
-      scientificBasis: 'Frequency Following Response (FFR) has been documented since 1973. Multiple peer-reviewed studies confirm effects on mood, anxiety and cognition.',
+      scientificBasis: 'Binaural beats are a psychoacoustic phenomenon. Meta-analyses (Garcia-Argibay et al., 2019) report possible effects on anxiety and focus, though systematic reviews (Ingendoh et al., 2023) highlight mixed entrainment evidence.',
     },
     {
       id: 'article-3',
-      title: 'Sleep Frequencies: Your Guide to Restorative Nights',
-      content: `Quality sleep is foundational to health, yet millions struggle to achieve it. Sound frequencies offer a gentle, non-pharmaceutical approach to improving sleep onset, depth, and duration.
-
-Delta waves (0.5–4 Hz) are the hallmark of deep, restorative sleep — the stage where the body repairs tissue, consolidates memories, and releases growth hormone. Listening to delta frequency binaural beats before and during sleep can help encourage this deeply restorative state.
-
-Theta waves (4–8 Hz) dominate during REM sleep, the dream phase critical for emotional processing and memory consolidation. A well-structured sleep frequency programme transitions you from theta into delta as the night progresses.
-
-The 432 Hz "natural tuning" frequency has also gained popularity as a pre-sleep tone. Proponents suggest it aligns with the natural harmonic series of the universe, inducing a calmer, more receptive state conducive to sleep.
-
-Practically, sleep frequency programmes work best when listened to in the 30–60 minutes before bed, ideally with low-volume headphones or a quality speaker placed away from the bed. Consistency is key — like any sleep intervention, effects accumulate over days and weeks.`,
+      title: 'Sleep & Sound: Building a Restful Listening Routine',
+      content: `A quality night's rest is foundational to health and mental clarity. A 2022 Cochrane systematic review concluded that music may help some adults improve subjective sleep quality.\n\nDelta and Theta describe brainwave ranges typical of deep NREM and REM sleep. Listening to low-beat audio during a pre-sleep routine can encourage relaxation, but does not guarantee the induction of specific sleep stages.`,
       category: 'sleep',
-      tags: ['sleep', 'delta', 'theta', 'recovery', 'insomnia'],
+      tags: ['sleep', 'delta', 'theta', 'relaxation', 'wind-down'],
       isPremium: false,
       publishedAt: now(),
       author: 'Frequency Lab',
       readTime: 7,
       difficulty: 'Beginner',
       keyPoints: [
-        'Delta (0.5–4 Hz) promotes deep NREM sleep and physical repair',
-        'Theta (4–8 Hz) supports REM, dreaming and emotional processing',
-        'Progressive programmes guide the brain from wakefulness to deep sleep',
-        'Consistency over 2–4 weeks yields the strongest results',
+        'Music may help some people improve subjective sleep quality according to a 2022 Cochrane review',
+        'Sleep cannot be reduced to one frequency or guaranteed sound trigger',
+        'Delta and Theta describe neural activity ranges, not guaranteed externally induced sleep stages',
+        'A calm environment and comfortable listening volume are essential',
       ],
       practicalTips: [
-        'Begin your sleep programme 30–45 minutes before bed',
-        'Use sleep-safe headphones or low-volume speakers',
-        'Avoid blue light screens while listening',
-        'Pair with a cool, dark room for maximum effect',
-        'Start with the Sleep & Dream Enhancement programme',
+        'Begin your pre-sleep listening routine 30–45 minutes before bed',
+        'Keep the volume low and comfortable for resting',
+        'Avoid bright blue-light screens while winding down',
       ],
     },
     {
       id: 'article-4',
       title: 'Chakra Frequencies: Tuning Your Energy Body',
-      content: `The chakra system, originating in ancient Indian tradition, describes seven primary energy centres along the body's central axis. Each chakra governs specific physical, emotional and spiritual functions. Sound healers have mapped musical frequencies to each chakra, creating a powerful system for energetic balancing.
-
-The Root Chakra (Muladhara) at the base of the spine is associated with 194.18 Hz — the Earth's year frequency. It governs our sense of safety, grounding, and basic survival needs. When balanced, we feel secure and present; when blocked, anxiety and fear dominate.
-
-Moving up, the Sacral Chakra (Svadhisthana) resonates at 210.42 Hz and governs creativity, sexuality, and emotional flow. The Solar Plexus Chakra (Manipura) at 126.22 Hz is our centre of personal power and confidence. The Heart Chakra (Anahata) at 341.3 Hz opens us to love and compassion.
-
-The upper chakras work with higher frequencies: the Throat Chakra (Vishuddha) at 384 Hz governs authentic expression; the Third Eye (Ajna) at 426.7 Hz activates intuition; and the Crown Chakra (Sahasrara) at 963 Hz connects us to universal consciousness.
-
-A complete chakra balancing session, working through all seven frequencies sequentially, can leave practitioners feeling deeply centred, energised and aligned.`,
+      content: `The chakra system originates in Indian spiritual traditions. Modern sound-healing systems associate specific musical pitch frequencies with each chakra (Root 194.18 Hz to Crown 963 Hz).\n\nFrequency-to-chakra mappings vary across lineages and are not scientifically validated human anatomy. They provide a structured framework for meditation and visualization.`,
       category: 'chakra',
-      tags: ['chakra', 'energy', 'healing', 'balance', 'spiritual'],
+      tags: ['chakra', 'energy', 'meditation', 'tradition', 'spiritual'],
       isPremium: false,
       publishedAt: now(),
       author: 'Frequency Lab',
       readTime: 9,
       difficulty: 'Beginner',
       keyPoints: [
-        'Seven chakras mapped to specific planetary frequencies',
-        'Root (194.18 Hz) to Crown (963 Hz) — a complete energetic scale',
-        'Sequential sessions restore overall energetic harmony',
-        'Each chakra governs distinct physical and emotional domains',
+        'Chakras are spiritual and contemplative concepts from Indian traditions',
+        'Modern frequency mappings vary and are not scientifically validated anatomy',
+        'Chakra soundscapes serve as a structured framework for meditation and visualization',
+        'Sequential meditation offers a calming routine for mindfulness',
       ],
       practicalTips: [
-        'Work through chakras in order from root to crown',
-        'Spend 8–10 minutes on each chakra',
-        'Visualise the associated colour while listening',
-        'Notice areas of resistance — they may need extra attention',
+        'Treat chakra soundscapes as a reflective meditation framework',
+        'Spend 5–15 minutes per frequency during focused meditation',
+        'Visualize calm color themes associated with each focus area',
       ],
     },
     {
       id: 'article-5',
-      title: 'The Science of 528 Hz: The Love Frequency Explained',
-      content: `Of all the Solfeggio frequencies, 528 Hz has attracted the most scientific interest and popular fascination. Sometimes called the "Love Frequency," "Miracle Tone," or "DNA Repair Frequency," 528 Hz sits at the heart of the ancient Solfeggio scale and at the centre of considerable debate.
-
-The frequency 528 Hz is mathematically central to nature. It appears in the geometry of the chlorophyll molecule (responsible for turning sunlight into life energy), the ratio of sacred geometry, and reportedly within the double helix structure of DNA. These mathematical connections, while fascinating, do not yet constitute clinical proof of healing effects.
-
-Biochemist Dr. Glen Rein published a study in 1998 suggesting that 528 Hz could enhance DNA repair in test tubes. While this single study requires replication, it sparked enormous interest. Several subsequent studies have suggested that 528 Hz reduces cortisol (the stress hormone) and increases melatonin and serotonin in drinking water exposed to the frequency — effects that, if they translate to biological tissue, would be profoundly significant.
-
-From a practical standpoint, thousands of practitioners and listeners report that 528 Hz induces feelings of love, warmth, and profound well-being — independent of any scientific mechanism. In a world saturated by stress, that experiential reality matters.`,
+      title: '528 Hz: The "Love Frequency" — What We Know and What We Don\'t',
+      content: `The 528 Hz frequency is widely associated with love and transformation. A small 2018 study observed reductions in cortisol after subjects listened to 528-Hz-tuned music. The study evaluated music rather than a pure tone, and sample size was small. Claims of DNA repair are unsupported.`,
       category: 'solfeggio',
-      tags: ['528hz', 'love frequency', 'DNA', 'science', 'healing'],
+      tags: ['528hz', 'love frequency', 'wellness', 'research', 'meditation'],
       isPremium: false,
       publishedAt: now(),
       author: 'Frequency Lab',
       readTime: 8,
       difficulty: 'Intermediate',
       keyPoints: [
-        '528 Hz is mathematically present in chlorophyll and sacred geometry',
-        'Early research suggests cortisol-reducing effects',
-        'Widely used in sound therapy for heart chakra healing',
-        'Pairs powerfully with loving-kindness meditation',
+        '528 Hz is widely associated with love and transformation in modern sound therapy',
+        'A small 2018 study (9 subjects) noted cortisol changes after 528-Hz-tuned music',
+        'The study tested music rather than an isolated pure tone',
+        'Claims that 528 Hz repairs DNA or regenerates cells are not established by clinical science',
       ],
       practicalTips: [
-        'Listen for at least 20 minutes for noticeable effects',
-        'Combine with heart-centred breath work',
-        'Use morning or midday, not late at night',
-        'Pair with positive affirmations for amplified results',
+        'Use 528 Hz as a tranquil backdrop for heart-focused meditation',
+        'Listen for 5–20 minutes at a comfortable volume',
+        'Do not rely on audio tones for medical conditions',
       ],
-      scientificBasis: 'Rein (1998) — DNA conformational changes in-vitro. Basar et al (2013) — emotional state modulation. Further peer-reviewed research ongoing.',
+      scientificBasis: 'Akimoto et al. (2018) reported endocrine changes in 9 subjects listening to 528-Hz music. DNA repair claims remain unsupported in human clinical research.',
     },
     {
       id: 'article-6',
-      title: 'Schumann Resonance: Syncing With the Earth\'s Pulse',
-      content: `The Schumann Resonance is one of the most remarkable discoveries in geophysics. In 1952, German physicist Winfried Schumann mathematically predicted that the space between Earth's surface and the ionosphere — a cavity of roughly 60 km height — would act as a resonating chamber for electromagnetic waves. The fundamental frequency of this cavity is approximately 7.83 Hz.
-
-What makes this extraordinary is that 7.83 Hz falls precisely within the human theta–alpha brainwave boundary — the state associated with deep relaxation, meditation, and the threshold of sleep. This has led many researchers and practitioners to hypothesise that human consciousness evolved in resonance with this planetary frequency.
-
-When we spend extended time in urban environments, surrounded by artificial electromagnetic fields (WiFi, mobile networks, overhead lighting), our natural entrainment to the Schumann Resonance can be disrupted. Some functional medicine practitioners link this disruption to increased anxiety, poor sleep, reduced immune function and a vague sense of "disconnection."
-
-Listening to 7.83 Hz can help re-attune your nervous system to this ancient Earth rhythm. Combined with time in nature — bare feet on grass, swimming in the ocean, or simply sitting under a tree — Schumann Resonance audio work can be a powerful antidote to modern over-stimulation.`,
+      title: "Schumann Resonance: Earth's Electromagnetic Phenomenon",
+      content: `The Schumann Resonance is an atmospheric electromagnetic phenomenon near 7.83 Hz. Phone audio reproduces acoustic sound waves, not Earth's planetary electromagnetic fields. Schumann-inspired tracks offer a calming acoustic backdrop for grounding meditation.`,
       category: 'healing',
-      tags: ['Schumann', 'earth frequency', 'grounding', 'nature', '7.83hz'],
+      tags: ['Schumann', 'earth frequency', 'geophysics', 'grounding', '7.83hz'],
       isPremium: false,
       publishedAt: now(),
       author: 'Frequency Lab',
       readTime: 7,
       difficulty: 'Intermediate',
       keyPoints: [
-        'Earth\'s fundamental electromagnetic frequency: 7.83 Hz',
-        'Sits at the theta-alpha brainwave boundary',
-        'Human biology may have co-evolved with this rhythm',
-        'Supports grounding, sleep quality, and immune function',
+        'Earth has fundamental atmospheric electromagnetic resonances near 7.83 Hz',
+        '7.83 Hz falls mathematically within the alpha-theta brainwave boundary',
+        'Phone audio generates acoustic sound waves, not planetary electromagnetic fields',
+        'Schumann-inspired audio offers a soothing backdrop for grounding meditation',
       ],
       practicalTips: [
-        'Use Schumann frequency before outdoor meditation',
-        'Pair with earthing practices (bare feet on soil)',
-        'Ideal for morning grounding routines',
-        'Use for 20–30 minutes for noticeable calming effects',
+        'Use Schumann-inspired audio as a calm backdrop for meditation',
+        'Listen at a comfortable, moderate volume',
+        'Use for 5–20 minutes to settle a busy mind',
       ],
     },
     {
       id: 'article-7',
-      title: 'Manifestation Frequencies: Tuning Into Abundance',
-      content: `The idea that specific frequencies can support manifestation and abundance draws from multiple traditions — quantum physics interpretations, numerology, and the law of resonance. While the scientific community remains cautious, the experiential and psychological mechanisms are real and worth understanding.
-
-The 888 Hz frequency carries powerful numerological significance. In many traditions, 8 represents infinity, abundance, and the flow of energy in both directions. Triple 8 — as in 888 — is considered an amplification of these qualities. As a sound frequency, 888 Hz creates a particular resonant state that practitioners describe as expansive and prosperity-aligned.
-
-The 432 Hz "natural tuning" is often positioned as the foundation of an abundance mindset. Unlike the standard 440 Hz concert pitch, 432 Hz is said to be more harmonically aligned with the natural world. Studies comparing music played at 432 Hz versus 440 Hz suggest subjects find 432 Hz more calming and emotionally satisfying.
-
-The 528 Hz frequency bridges healing and manifestation — its transformation properties make it ideal for dissolving limiting beliefs about what you can receive and achieve.
-
-Psychologically, regular listening to these frequencies while holding clear intentions creates a form of mental priming — the Reticular Activating System (the brain's attention filter) becomes tuned to recognise opportunities aligned with your stated desires.`,
+      title: 'Sound, Intention & Abundance: Using Music for Goal Reflection',
+      content: `Using audio frequencies for goal reflection combines numerological symbolism (888 Hz), alternative tuning (432 Hz), and alpha-range focus (10 Hz). Goal setting during audio sessions operates through cognitive priming. Sound does not supernatural attract wealth; concrete personal action creates success.`,
       category: 'manifestation',
-      tags: ['manifestation', 'abundance', '888hz', '432hz', 'law of attraction'],
+      tags: ['manifestation', 'abundance', '888hz', '432hz', 'psychology'],
       isPremium: true,
       publishedAt: now(),
       author: 'Frequency Lab',
       readTime: 8,
       difficulty: 'Intermediate',
       keyPoints: [
-        '888 Hz carries numerological abundance significance',
-        '432 Hz natural tuning promotes harmonic resonance',
-        '528 Hz dissolves limiting beliefs to open flow',
-        'Mental priming through intention + frequency is psychologically valid',
+        '888 Hz carries traditional numerological symbolism for abundance reflection',
+        '432 Hz is an alternative musical tuning used for calming focus',
+        'Goal setting during audio sessions works through psychological focus and priming',
+        'Sound does not magically attract wealth; concrete personal action creates success',
       ],
       practicalTips: [
-        'Hold a clear, specific intention before each session',
-        'Journal your desires immediately after listening',
-        'Combine with alpha waves (10 Hz) for best results',
-        'Practice daily during morning windows of peak receptivity',
+        'Formulate clear personal goals before your listening session',
+        'Journal concrete action steps immediately after listening',
+        'Use 10 Hz Alpha or 432 Hz audio as a focus backdrop',
       ],
     },
     {
       id: 'article-8',
-      title: 'Gamma Waves & 40 Hz: The Frequency of Awakening',
-      content: `Gamma brainwaves (30–100 Hz) represent the fastest documented brain oscillations and are associated with the highest states of cognitive function, perception, and consciousness. At the centre of gamma research sits 40 Hz — a frequency that has drawn extraordinary scientific attention since the 1990s.
-
-MIT researcher Li-Huei Tsai demonstrated in 2016 that flickering light and sound at precisely 40 Hz reduced amyloid plaques and tau tangles — the hallmarks of Alzheimer's disease — in mouse models. This landmark study ignited a wave of human clinical trials. While human results are more nuanced, the mechanism is real: gamma entrainment appears to synchronise neural activity in ways that support memory consolidation, attention, and neuroprotective processes.
-
-From a consciousness perspective, Tibetan monks with decades of meditation practice show dramatically elevated gamma activity compared to novices — particularly during states of compassion and loving-kindness meditation. The 40 Hz gamma state appears to be the neurological signature of heightened awareness and integration.
-
-Practically, 40 Hz binaural and monaural beats are used to enhance focus before demanding cognitive work, support memory and learning, and access elevated meditative states more quickly than traditional practice alone allows.`,
+      title: '40 Hz Gamma Research: What Scientists Are Investigating',
+      content: `MIT researchers investigate 40 Hz sensory stimulation in Alzheimer's disease models. While promising, human clinical trials are preliminary and use specialized equipment. Playing a 40 Hz audio track through a commercial smartphone app is not a medical treatment for Alzheimer's disease.`,
       category: 'scientific',
-      tags: ['gamma', '40hz', 'Alzheimer', 'cognitive', 'science', 'MIT'],
+      tags: ['gamma', '40hz', 'neuroscience', 'cognitive', 'research', 'MIT'],
       isPremium: false,
       publishedAt: now(),
       author: 'Frequency Lab',
       readTime: 9,
       difficulty: 'Advanced',
       keyPoints: [
-        'MIT studies show 40 Hz reduces Alzheimer\'s markers in mice',
-        'Gamma activity is the signature of peak meditative consciousness',
-        'Enhances memory consolidation and cognitive performance',
-        'Used by experienced meditators and neuroscience researchers',
+        '40 Hz falls in the gamma brainwave range associated with active cognition',
+        'MIT studies investigate 40 Hz sensory stimulation in Alzheimer\'s models',
+        'Human clinical trials are preliminary',
+        'A consumer audio track is not an Alzheimer\'s medical treatment',
       ],
       practicalTips: [
-        'Use 40 Hz before deep study or creative problem solving',
-        'Pair with eyes-open meditation for best gamma induction',
-        'Start with 15 minutes — gamma is activating, not sedating',
-        'Combine with the Focus & Mental Clarity programme',
+        'Use 40 Hz audio as a focus backdrop during study or work',
+        'Keep sessions to 15–20 minutes as gamma frequencies are activating',
+        'Listen at a comfortable volume during waking hours',
       ],
-      scientificBasis: 'Tsai et al., MIT (2016) — gamma entrainment reduces amyloid plaques. Multiple follow-up human trials ongoing at MIT, Oxford, and UCSF.',
+      scientificBasis: 'Tsai et al. (MIT, 2016) demonstrated microglial and amyloid changes in mice using 40 Hz sensory stimulation. Human trials remain exploratory.',
     },
   ];
 
