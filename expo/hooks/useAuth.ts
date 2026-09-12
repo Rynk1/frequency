@@ -157,16 +157,15 @@ export const [AuthProvider, useAuth] = createContextHook((): AuthContextType => 
     };
   }, []);
 
-  const toFirestoreProfile = useCallback((profile: UserProfile) => {
-    const raw = {
-      ...profile,
+  const toFirestoreProfile = useCallback((profile: UserProfile, isNewProfile = false) => {
+    const raw: Record<string, any> = {
+      uid: profile.uid,
+      email: profile.email ?? null,
       displayName: profile.displayName ?? null,
-      subscriptionType: profile.subscriptionType ?? null,
-      onboardingPreferences: profile.onboardingPreferences ?? null,
       createdAt: Timestamp.fromDate(profile.createdAt),
       lastLoginAt: Timestamp.fromDate(profile.lastLoginAt),
-      trialEndsAt: profile.trialEndsAt ? Timestamp.fromDate(profile.trialEndsAt) : null,
-      subscriptionEndsAt: profile.subscriptionEndsAt ? Timestamp.fromDate(profile.subscriptionEndsAt) : null,
+      onboardingCompleted: Boolean(profile.onboardingCompleted),
+      onboardingPreferences: profile.onboardingPreferences ?? null,
       usageStats: {
         ...profile.usageStats,
         lastSessionDate: profile.usageStats.lastSessionDate
@@ -174,10 +173,19 @@ export const [AuthProvider, useAuth] = createContextHook((): AuthContextType => 
           : null,
       },
     };
+
+    if (isNewProfile) {
+      raw.subscriptionStatus = profile.subscriptionStatus || 'free';
+      raw.subscriptionType = profile.subscriptionType ?? null;
+      raw.trialEndsAt = profile.trialEndsAt ? Timestamp.fromDate(profile.trialEndsAt) : null;
+      raw.subscriptionEndsAt = profile.subscriptionEndsAt ? Timestamp.fromDate(profile.subscriptionEndsAt) : null;
+      raw.cancelAtPeriodEnd = profile.cancelAtPeriodEnd ?? null;
+    }
+
     return sanitizeForFirestore(raw);
   }, []);
 
-  const saveUserProfile = useCallback(async (profile: UserProfile) => {
+  const saveUserProfile = useCallback(async (profile: UserProfile, isNewProfile = false) => {
     if (!profile?.uid?.trim()) return;
 
     // 1. Always persist profile to AsyncStorage for instant local retrieval
@@ -192,7 +200,7 @@ export const [AuthProvider, useAuth] = createContextHook((): AuthContextType => 
 
     try {
       const userRef = doc(db, 'users', profile.uid);
-      const dataToSave = toFirestoreProfile(profile);
+      const dataToSave = toFirestoreProfile(profile, isNewProfile);
       await setDoc(userRef, dataToSave, { merge: true });
     } catch (error: any) {
       if (isCloudStrict) {
@@ -245,12 +253,12 @@ export const [AuthProvider, useAuth] = createContextHook((): AuthContextType => 
             lastLoginAt: new Date(),
           };
           setUserProfile(mergedProfile);
-          await saveUserProfile(mergedProfile);
+          await saveUserProfile(mergedProfile, false);
           return;
         }
 
         // New profile -> save default
-        await saveUserProfile(fallbackProfile);
+        await saveUserProfile(fallbackProfile, true);
       } catch (fetchError: any) {
         clearTimeout(timeoutId);
         throw fetchError;
@@ -347,7 +355,7 @@ export const [AuthProvider, useAuth] = createContextHook((): AuthContextType => 
       });
 
       setUserProfile(profile);
-      await saveUserProfile(profile);
+      await saveUserProfile(profile, true);
     } catch (error) {
       setIsLoading(false);
       throw error;
@@ -389,7 +397,7 @@ export const [AuthProvider, useAuth] = createContextHook((): AuthContextType => 
 
     const updatedProfile = { ...currentProfile, ...allowedUpdates };
     setUserProfile(updatedProfile);
-    await saveUserProfile(updatedProfile);
+    await saveUserProfile(updatedProfile, false);
   }, [userProfile, user, createUserProfile, saveUserProfile]);
 
   const refreshSubscriptionStatus = useCallback(async () => {
@@ -407,7 +415,7 @@ export const [AuthProvider, useAuth] = createContextHook((): AuthContextType => 
           trialEndsAt: status.trialEndsAt ? new Date(status.trialEndsAt) : prev.trialEndsAt,
           cancelAtPeriodEnd: status.cancelAtPeriodEnd,
         };
-        saveUserProfile(updated).catch(() => {});
+        saveUserProfile(updated, false).catch(() => {});
         return updated;
       });
     } catch (error: any) {
