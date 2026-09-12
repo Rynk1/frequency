@@ -201,14 +201,18 @@ export const [AuthProvider, useAuth] = createContextHook((): AuthContextType => 
     const userRef = doc(db, 'users', profile.uid);
     const dataToSave = toFirestoreProfile(profile, isNewProfile);
 
+    const currentUser = auth.currentUser;
     if (__DEV__) {
-      const currentUser = auth.currentUser;
-      console.log('[Firestore Profile Save Diagnostics]', {
-        authCurrentUserExists: Boolean(currentUser),
-        authCurrentUserUid: currentUser?.uid || null,
-        authCurrentUserEmail: currentUser?.email || null,
-        targetFirestorePath: userRef.path,
-        operationType: isNewProfile ? 'create/set' : 'update/setMerge',
+      console.log('[PROFILE_FIRESTORE_DIAGNOSTICS]', {
+        authReady: !isLoading,
+        currentUserExists: Boolean(currentUser),
+        currentUserUid: currentUser?.uid || null,
+        currentUserEmail: currentUser?.email || null,
+        targetUid: profile.uid,
+        uidMatch: currentUser?.uid === profile.uid,
+        targetPath: userRef.path,
+        operation: isNewProfile ? 'create/set' : 'update/setMerge',
+        projectId: process.env.EXPO_PUBLIC_FIREBASE_PROJECT_ID || 'harmony-frequency-app',
         payloadFields: Object.keys(dataToSave),
       });
     }
@@ -216,13 +220,22 @@ export const [AuthProvider, useAuth] = createContextHook((): AuthContextType => 
     try {
       await setDoc(userRef, dataToSave, { merge: true });
     } catch (error: any) {
+      const errCode = error?.code || 'unknown';
       const errMsg = error?.message || String(error);
-      setCloudError(`Failed to save user profile: ${errMsg}`);
-      if (isCloudStrict) {
-        throw error;
-      }
-      console.warn('Firestore profile save warning:', errMsg);
-      throw new Error(`Profile write failed (${error?.code || 'error'}): ${errMsg}`);
+      console.error('[PROFILE_FIRESTORE_FAILURE]', {
+        code: errCode,
+        message: errMsg,
+        uid: profile.uid,
+        authUid: currentUser?.uid || null,
+        uidMatches: currentUser?.uid === profile.uid,
+        documentPath: userRef.path,
+        operation: isNewProfile ? 'create/set' : 'update/setMerge',
+        authReady: true,
+        currentUserExists: Boolean(currentUser),
+        projectId: process.env.EXPO_PUBLIC_FIREBASE_PROJECT_ID || 'harmony-frequency-app',
+      });
+      setCloudError(`Failed to save user profile [${errCode}]: ${errMsg}`);
+      throw new Error(`[${errCode}] ${errMsg}`);
     }
   }, [toFirestoreProfile, shouldUseFirestore, isCloudStrict, setCloudError]);
 
@@ -279,11 +292,26 @@ export const [AuthProvider, useAuth] = createContextHook((): AuthContextType => 
         throw fetchError;
       }
     } catch (error: any) {
+      const currentUser = auth.currentUser;
+      const errCode = error?.code || 'unknown';
+      const errMsg = error?.message || String(error);
+      console.error('[PROFILE_FIRESTORE_LOAD_FAILURE]', {
+        code: errCode,
+        message: errMsg,
+        uid,
+        authUid: currentUser?.uid || null,
+        uidMatches: currentUser?.uid === uid,
+        documentPath: `users/${uid}`,
+        operation: 'read/getDoc',
+        authReady: true,
+        currentUserExists: Boolean(currentUser),
+        projectId: process.env.EXPO_PUBLIC_FIREBASE_PROJECT_ID || 'harmony-frequency-app',
+      });
+      setCloudError(`Failed to load user profile [${errCode}]: ${errMsg}`);
       if (isCloudStrict) {
-        setCloudError(`Failed to load user profile: ${error?.message || error}`);
         throw error;
       }
-      console.warn('Firestore unavailable, using local profile cache');
+      console.warn(`Firestore profile read warning [${errCode}]:`, errMsg);
     }
   }, [createUserProfile, parseCachedProfile, mapProfileFromFirestore, saveUserProfile, user, shouldUseFirestore, isCloudStrict, setCloudError]);
 
