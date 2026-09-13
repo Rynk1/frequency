@@ -5,15 +5,9 @@ import { collection, getDocs, doc, setDoc, updateDoc, deleteDoc, writeBatch } fr
 import { db, auth } from '@/lib/firebase';
 import { authService } from '@/lib/firebase-auth';
 import { useDataMode } from './useDataMode';
-import {
-  SOLFEGGIO_FREQUENCIES,
-  CHAKRA_FREQUENCIES,
-  BINAURAL_BEATS,
-  HEALING_FREQUENCIES,
-  SLEEP_FREQUENCIES,
-  WEALTH_FREQUENCIES,
-  SCIENTIFIC_FREQUENCIES,
-} from '@/constants/frequencies';
+import { getFrequenciesSeed } from '@/seed/frequencies';
+import { getProgramsSeed } from '@/seed/programs';
+import { getArticlesSeed } from '@/seed/articles';
 
 export interface Frequency {
   id: string;
@@ -83,42 +77,6 @@ const STORAGE_KEYS = {
   articles: 'adminArticles',
 } as const;
 
-/** Single canonical source for frequency defaults */
-const convertFrequencies = (): Frequency[] => {
-  const frequencies: Frequency[] = [];
-
-  const addFrequencies = (list: any[], category: string) => {
-    list.forEach((freq) => {
-      frequencies.push({
-        id: `${category}-${freq.hz}`,
-        name: freq.name,
-        hz: freq.hz,
-        frequency: `${freq.hz} Hz`,
-        description: freq.description,
-        category,
-        color: freq.color || freq.gradient?.[0],
-        gradient: freq.gradient,
-        benefits: freq.benefits || [],
-        isPremium: false,
-        tags: [],
-        duration: freq.duration,
-        research: freq.research,
-        status: 'published',
-      });
-    });
-  };
-
-  addFrequencies(SOLFEGGIO_FREQUENCIES, 'solfeggio');
-  addFrequencies(CHAKRA_FREQUENCIES, 'chakra');
-  addFrequencies(BINAURAL_BEATS, 'brainwave');
-  addFrequencies(HEALING_FREQUENCIES, 'healing');
-  addFrequencies(SLEEP_FREQUENCIES, 'sleep');
-  addFrequencies(WEALTH_FREQUENCIES, 'wealth');
-  addFrequencies(SCIENTIFIC_FREQUENCIES, 'scientific');
-
-  return frequencies;
-};
-
 export const [AdminDataProvider, useAdminData] = createContextHook<AdminDataState>(() => {
   const [frequencies, setFrequencies] = useState<Frequency[]>([]);
   const [curatedPrograms, setCuratedPrograms] = useState<CuratedProgram[]>([]);
@@ -127,16 +85,12 @@ export const [AdminDataProvider, useAdminData] = createContextHook<AdminDataStat
   const [isCloudAvailable, setIsCloudAvailable] = useState<boolean>(true);
   const { shouldUseFirestore, isCloudStrict, setCloudError } = useDataMode();
 
-  const frequenciesRef = collection(db, 'frequencies');
-  const curatedProgramsRef = collection(db, 'curatedPrograms');
-  const articlesRef = collection(db, 'articles');
-
   const loadLocalFallback = useCallback(async () => {
     const storedFrequencies = await AsyncStorage.getItem(STORAGE_KEYS.frequencies);
     if (storedFrequencies) {
       setFrequencies(JSON.parse(storedFrequencies));
     } else {
-      const defaultFrequencies = convertFrequencies();
+      const defaultFrequencies = getFrequenciesSeed() as any;
       setFrequencies(defaultFrequencies);
       await AsyncStorage.setItem(STORAGE_KEYS.frequencies, JSON.stringify(defaultFrequencies));
     }
@@ -144,16 +98,24 @@ export const [AdminDataProvider, useAdminData] = createContextHook<AdminDataStat
     const storedPrograms = await AsyncStorage.getItem(STORAGE_KEYS.curatedPrograms);
     if (storedPrograms) {
       setCuratedPrograms(JSON.parse(storedPrograms));
+    } else {
+      const defaultPrograms = getProgramsSeed() as any;
+      setCuratedPrograms(defaultPrograms);
+      await AsyncStorage.setItem(STORAGE_KEYS.curatedPrograms, JSON.stringify(defaultPrograms));
     }
 
     const storedArticles = await AsyncStorage.getItem(STORAGE_KEYS.articles);
     if (storedArticles) {
       setArticles(JSON.parse(storedArticles));
+    } else {
+      const defaultArticles = getArticlesSeed() as any;
+      setArticles(defaultArticles);
+      await AsyncStorage.setItem(STORAGE_KEYS.articles, JSON.stringify(defaultArticles));
     }
   }, []);
 
   const seedFrequenciesIfEmpty = useCallback(async () => {
-    const seededFrequencies = convertFrequencies();
+    const seededFrequencies = getFrequenciesSeed() as any;
     const currentUser = auth.currentUser;
     const isAdminUser = await authService.isAdmin(currentUser, false);
 
@@ -164,7 +126,8 @@ export const [AdminDataProvider, useAdminData] = createContextHook<AdminDataStat
 
     try {
       const batch = writeBatch(db);
-      seededFrequencies.forEach((frequency) => {
+      const frequenciesRef = collection(db, 'frequencies');
+      seededFrequencies.forEach((frequency: any) => {
         batch.set(doc(frequenciesRef, frequency.id), frequency);
       });
       await batch.commit();
@@ -173,9 +136,59 @@ export const [AdminDataProvider, useAdminData] = createContextHook<AdminDataStat
       // Fallback gracefully
     }
     return seededFrequencies;
-  }, [frequenciesRef]);
+  }, []);
+
+  const seedProgramsIfEmpty = useCallback(async () => {
+    const seededPrograms = getProgramsSeed() as any;
+    const currentUser = auth.currentUser;
+    const isAdminUser = await authService.isAdmin(currentUser, false);
+
+    if (!isAdminUser) {
+      return seededPrograms;
+    }
+
+    try {
+      const batch = writeBatch(db);
+      const curatedProgramsRef = collection(db, 'curatedPrograms');
+      seededPrograms.forEach((program: any) => {
+        batch.set(doc(curatedProgramsRef, program.id), program);
+      });
+      await batch.commit();
+      console.log('✅ Firestore seeded with canonical programs (admin)');
+    } catch {
+      // Fallback gracefully
+    }
+    return seededPrograms;
+  }, []);
+
+  const seedArticlesIfEmpty = useCallback(async () => {
+    const seededArticles = getArticlesSeed() as any;
+    const currentUser = auth.currentUser;
+    const isAdminUser = await authService.isAdmin(currentUser, false);
+
+    if (!isAdminUser) {
+      return seededArticles;
+    }
+
+    try {
+      const batch = writeBatch(db);
+      const articlesRef = collection(db, 'articles');
+      seededArticles.forEach((article: any) => {
+        batch.set(doc(articlesRef, article.id), article);
+      });
+      await batch.commit();
+      console.log('✅ Firestore seeded with canonical articles (admin)');
+    } catch {
+      // Fallback gracefully
+    }
+    return seededArticles;
+  }, []);
 
   const loadFromFirestore = useCallback(async () => {
+    const frequenciesRef = collection(db, 'frequencies');
+    const curatedProgramsRef = collection(db, 'curatedPrograms');
+    const articlesRef = collection(db, 'articles');
+
     const [frequencySnapshot, programSnapshot, articleSnapshot] = await Promise.all([
       getDocs(frequenciesRef),
       getDocs(curatedProgramsRef),
@@ -192,22 +205,32 @@ export const [AdminDataProvider, useAdminData] = createContextHook<AdminDataStat
       }));
     }
 
-    const loadedPrograms = programSnapshot.docs.map((docSnap) => ({
-      ...(docSnap.data() as CuratedProgram),
-      id: docSnap.id,
-    }));
+    let loadedPrograms: CuratedProgram[];
+    if (programSnapshot.empty) {
+      loadedPrograms = await seedProgramsIfEmpty();
+    } else {
+      loadedPrograms = programSnapshot.docs.map((docSnap) => ({
+        ...(docSnap.data() as CuratedProgram),
+        id: docSnap.id,
+      }));
+    }
 
-    const loadedArticles = articleSnapshot.docs.map((docSnap) => ({
-      ...(docSnap.data() as LearningArticle),
-      id: docSnap.id,
-    }));
+    let loadedArticles: LearningArticle[];
+    if (articleSnapshot.empty) {
+      loadedArticles = await seedArticlesIfEmpty();
+    } else {
+      loadedArticles = articleSnapshot.docs.map((docSnap) => ({
+        ...(docSnap.data() as LearningArticle),
+        id: docSnap.id,
+      }));
+    }
 
     return {
       frequencies: loadedFrequencies,
       curatedPrograms: loadedPrograms,
       articles: loadedArticles,
     };
-  }, [articlesRef, frequenciesRef, curatedProgramsRef, seedFrequenciesIfEmpty]);
+  }, [seedFrequenciesIfEmpty, seedProgramsIfEmpty, seedArticlesIfEmpty]);
 
   const loadData = useCallback(async () => {
     // Explicit local mode
@@ -278,33 +301,33 @@ export const [AdminDataProvider, useAdminData] = createContextHook<AdminDataStat
     const id = `custom-${Date.now()}`;
     const newFrequency: Frequency = { status: 'published', ...frequency, id };
     await mutateWithFirestore(
-      () => setDoc(doc(frequenciesRef, id), newFrequency),
+      () => setDoc(doc(collection(db, 'frequencies'), id), newFrequency),
       'addFrequency'
     );
     const updated = [...frequencies, newFrequency];
     setFrequencies(updated);
     await AsyncStorage.setItem(STORAGE_KEYS.frequencies, JSON.stringify(updated));
-  }, [frequencies, frequenciesRef, mutateWithFirestore]);
+  }, [frequencies, mutateWithFirestore]);
 
   const updateFrequency = useCallback(async (id: string, frequency: Partial<Frequency>) => {
     await mutateWithFirestore(
-      () => updateDoc(doc(frequenciesRef, id), frequency),
+      () => updateDoc(doc(collection(db, 'frequencies'), id), frequency),
       'updateFrequency'
     );
     const updated = frequencies.map((item) => (item.id === id ? { ...item, ...frequency } : item));
     setFrequencies(updated);
     await AsyncStorage.setItem(STORAGE_KEYS.frequencies, JSON.stringify(updated));
-  }, [frequencies, frequenciesRef, mutateWithFirestore]);
+  }, [frequencies, mutateWithFirestore]);
 
   const deleteFrequency = useCallback(async (id: string) => {
     await mutateWithFirestore(
-      () => deleteDoc(doc(frequenciesRef, id)),
+      () => deleteDoc(doc(collection(db, 'frequencies'), id)),
       'deleteFrequency'
     );
     const updated = frequencies.filter((item) => item.id !== id);
     setFrequencies(updated);
     await AsyncStorage.setItem(STORAGE_KEYS.frequencies, JSON.stringify(updated));
-  }, [frequencies, frequenciesRef, mutateWithFirestore]);
+  }, [frequencies, mutateWithFirestore]);
 
   const addCuratedProgram = useCallback(async (program: Omit<CuratedProgram, 'id' | 'createdAt' | 'updatedAt'>) => {
     const id = `program-${Date.now()}`;
@@ -316,17 +339,17 @@ export const [AdminDataProvider, useAdminData] = createContextHook<AdminDataStat
       updatedAt: new Date().toISOString(),
     };
     await mutateWithFirestore(
-      () => setDoc(doc(curatedProgramsRef, id), newProgram),
+      () => setDoc(doc(collection(db, 'curatedPrograms'), id), newProgram),
       'addCuratedProgram'
     );
     const updated = [...curatedPrograms, newProgram];
     setCuratedPrograms(updated);
     await AsyncStorage.setItem(STORAGE_KEYS.curatedPrograms, JSON.stringify(updated));
-  }, [curatedPrograms, curatedProgramsRef, mutateWithFirestore]);
+  }, [curatedPrograms, mutateWithFirestore]);
 
   const updateCuratedProgram = useCallback(async (id: string, program: Partial<CuratedProgram>) => {
     await mutateWithFirestore(
-      () => updateDoc(doc(curatedProgramsRef, id), { ...program, updatedAt: new Date().toISOString() }),
+      () => updateDoc(doc(collection(db, 'curatedPrograms'), id), { ...program, updatedAt: new Date().toISOString() }),
       'updateCuratedProgram'
     );
     const updated = curatedPrograms.map((item) =>
@@ -334,17 +357,17 @@ export const [AdminDataProvider, useAdminData] = createContextHook<AdminDataStat
     );
     setCuratedPrograms(updated);
     await AsyncStorage.setItem(STORAGE_KEYS.curatedPrograms, JSON.stringify(updated));
-  }, [curatedPrograms, curatedProgramsRef, mutateWithFirestore]);
+  }, [curatedPrograms, mutateWithFirestore]);
 
   const deleteCuratedProgram = useCallback(async (id: string) => {
     await mutateWithFirestore(
-      () => deleteDoc(doc(curatedProgramsRef, id)),
+      () => deleteDoc(doc(collection(db, 'curatedPrograms'), id)),
       'deleteCuratedProgram'
     );
     const updated = curatedPrograms.filter((item) => item.id !== id);
     setCuratedPrograms(updated);
     await AsyncStorage.setItem(STORAGE_KEYS.curatedPrograms, JSON.stringify(updated));
-  }, [curatedPrograms, curatedProgramsRef, mutateWithFirestore]);
+  }, [curatedPrograms, mutateWithFirestore]);
 
   const addArticle = useCallback(async (article: Omit<LearningArticle, 'id' | 'publishedAt'>) => {
     const id = `article-${Date.now()}`;
@@ -355,33 +378,33 @@ export const [AdminDataProvider, useAdminData] = createContextHook<AdminDataStat
       publishedAt: new Date().toISOString(),
     };
     await mutateWithFirestore(
-      () => setDoc(doc(articlesRef, id), newArticle),
+      () => setDoc(doc(collection(db, 'articles'), id), newArticle),
       'addArticle'
     );
     const updated = [...articles, newArticle];
     setArticles(updated);
     await AsyncStorage.setItem(STORAGE_KEYS.articles, JSON.stringify(updated));
-  }, [articles, articlesRef, mutateWithFirestore]);
+  }, [articles, mutateWithFirestore]);
 
   const updateArticle = useCallback(async (id: string, article: Partial<LearningArticle>) => {
     await mutateWithFirestore(
-      () => updateDoc(doc(articlesRef, id), article),
+      () => updateDoc(doc(collection(db, 'articles'), id), article),
       'updateArticle'
     );
     const updated = articles.map((item) => (item.id === id ? { ...item, ...article } : item));
     setArticles(updated);
     await AsyncStorage.setItem(STORAGE_KEYS.articles, JSON.stringify(updated));
-  }, [articles, articlesRef, mutateWithFirestore]);
+  }, [articles, mutateWithFirestore]);
 
   const deleteArticle = useCallback(async (id: string) => {
     await mutateWithFirestore(
-      () => deleteDoc(doc(articlesRef, id)),
+      () => deleteDoc(doc(collection(db, 'articles'), id)),
       'deleteArticle'
     );
     const updated = articles.filter((item) => item.id !== id);
     setArticles(updated);
     await AsyncStorage.setItem(STORAGE_KEYS.articles, JSON.stringify(updated));
-  }, [articles, articlesRef, mutateWithFirestore]);
+  }, [articles, mutateWithFirestore]);
 
   return useMemo(() => ({
     frequencies,
