@@ -96,6 +96,9 @@ export const [AuthProvider, useAuth] = createContextHook((): AuthContextType => 
   const [user, setUser] = useState<AuthUser | null>(null);
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
 
+  const userProfileRef = useRef<UserProfile | null>(null);
+  userProfileRef.current = userProfile;
+
   // Bootstrap state machine and profile metadata
   const [bootstrapState, setBootstrapState] = useState<BootstrapState>('AUTH_LOADING');
   const [profileSource, setProfileSource] = useState<ProfileSource>('UNAVAILABLE');
@@ -295,7 +298,7 @@ export const [AuthProvider, useAuth] = createContextHook((): AuthContextType => 
         setSyncStatus('synchronized');
         setProfileFreshness('current');
         setLastSyncErrorCode(null);
-        if (userProfile && userProfile.uid === profile.uid) {
+        if (userProfileRef.current && userProfileRef.current.uid === profile.uid) {
           setBootstrapState('READY');
         }
       } catch (error: any) {
@@ -338,7 +341,7 @@ export const [AuthProvider, useAuth] = createContextHook((): AuthContextType => 
         setSyncStatus('synchronized');
         setProfileFreshness('current');
         setLastSyncErrorCode(null);
-        if (userProfile && userProfile.uid === profile.uid) {
+        if (userProfileRef.current && userProfileRef.current.uid === profile.uid) {
           setBootstrapState('READY');
         }
       } catch (error: any) {
@@ -359,13 +362,15 @@ export const [AuthProvider, useAuth] = createContextHook((): AuthContextType => 
         throw error;
       }
     }
-  }, [toFirestoreInitialProfile, shouldUseFirestore, setCloudError, writeCacheProfile, userProfile]);
+  }, [toFirestoreInitialProfile, shouldUseFirestore, setCloudError, writeCacheProfile]);
+
+  const loadUserProfileRef = useRef<(uid: string, currentAuthUser?: AuthUser | null, isRetry?: boolean) => Promise<void>>(async () => {});
 
   const loadUserProfile = useCallback(async (uid: string, currentAuthUser?: AuthUser | null, isRetry = false) => {
     if (!uid?.trim()) return;
 
-    const email = currentAuthUser?.email || user?.email || '';
-    const displayName = currentAuthUser?.displayName || user?.displayName || null;
+    const email = currentAuthUser?.email || '';
+    const displayName = currentAuthUser?.displayName || null;
 
     if (!isRetry) {
       setBootstrapState('PROFILE_LOADING');
@@ -489,11 +494,15 @@ export const [AuthProvider, useAuth] = createContextHook((): AuthContextType => 
         retryCountRef.current += 1;
         const delay = Math.pow(2, retryCountRef.current) * 1000; // 2s, 4s, 8s
         retryTimerRef.current = setTimeout(() => {
-          loadUserProfile(uid, currentAuthUser, true).catch(() => {});
+          if (loadUserProfileRef.current) {
+            loadUserProfileRef.current(uid, currentAuthUser, true).catch(() => {});
+          }
         }, delay);
       }
     }
-  }, [createUserProfile, parseCachedProfile, mapProfileFromFirestore, saveUserProfile, user, shouldUseFirestore, isCloudStrict, setCloudError, writeCacheProfile]);
+  }, [createUserProfile, parseCachedProfile, mapProfileFromFirestore, saveUserProfile, shouldUseFirestore, isCloudStrict, setCloudError, writeCacheProfile]);
+
+  loadUserProfileRef.current = loadUserProfile;
 
   const retryProfileSync = useCallback(async () => {
     if (!user?.uid) return;
@@ -510,9 +519,7 @@ export const [AuthProvider, useAuth] = createContextHook((): AuthContextType => 
       if (mounted && !resolved) {
         resolved = true;
         console.warn('Auth safety timeout fired — forcing bootstrap state resolution');
-        if (!user) {
-          setBootstrapState('SIGNED_OUT');
-        }
+        setBootstrapState((prev) => (prev === 'AUTH_LOADING' ? 'SIGNED_OUT' : prev));
       }
     }, 5000);
 
@@ -536,10 +543,10 @@ export const [AuthProvider, useAuth] = createContextHook((): AuthContextType => 
           return;
         }
 
-        setUser(authUser);
+        setUser((prev) => (prev?.uid === authUser.uid && prev?.email === authUser.email ? prev : authUser));
         setBootstrapState('AUTHENTICATED');
 
-        loadUserProfile(authUser.uid, authUser, false).catch(() => {});
+        loadUserProfileRef.current(authUser.uid, authUser, false).catch(() => {});
       });
 
       return () => {
@@ -560,7 +567,7 @@ export const [AuthProvider, useAuth] = createContextHook((): AuthContextType => 
         if (retryTimerRef.current) clearTimeout(retryTimerRef.current);
       };
     }
-  }, [loadUserProfile, user]);
+  }, []);
 
   const signIn = useCallback(async (email: string, password: string) => {
     if (!email?.trim() || !password?.trim()) {
@@ -601,7 +608,7 @@ export const [AuthProvider, useAuth] = createContextHook((): AuthContextType => 
   const signOut = useCallback(async (options?: { clearLocalData?: boolean }) => {
     try {
       if (retryTimerRef.current) clearTimeout(retryTimerRef.current);
-      const currentUid = userProfile?.uid || user?.uid;
+      const currentUid = userProfileRef.current?.uid || user?.uid;
       await authService.signOut();
 
       if (options?.clearLocalData && currentUid) {
@@ -621,13 +628,13 @@ export const [AuthProvider, useAuth] = createContextHook((): AuthContextType => 
     } catch (error) {
       throw error;
     }
-  }, [userProfile?.uid, user?.uid]);
+  }, [user?.uid]);
 
   /**
    * Update profile using strict field allowlisting and patch-based dual storage persistence.
    */
   const updateProfile = useCallback(async (updates: Partial<UserProfile>) => {
-    const currentProfile = userProfile || (user ? createUserProfile(user) : null);
+    const currentProfile = userProfileRef.current || (user ? createUserProfile(user) : null);
     if (!currentProfile) return;
 
     // Filter out subscription or server-authoritative fields
@@ -643,7 +650,7 @@ export const [AuthProvider, useAuth] = createContextHook((): AuthContextType => 
     const updatedProfile = { ...currentProfile, ...allowedUpdates };
     setUserProfile(updatedProfile);
     await saveUserProfile(updatedProfile, false);
-  }, [userProfile, user, createUserProfile, saveUserProfile]);
+  }, [user, createUserProfile, saveUserProfile]);
 
   const refreshSubscriptionStatus = useCallback(async () => {
     if (!user) return;
@@ -677,14 +684,15 @@ export const [AuthProvider, useAuth] = createContextHook((): AuthContextType => 
   }, []);
 
   const trackUsage = useCallback(async (sessionDuration: number, frequency: string) => {
-    if (!userProfile || !frequency?.trim()) return;
+    const currentProfile = userProfileRef.current;
+    if (!currentProfile || !frequency?.trim()) return;
 
     const sanitizedFrequency = frequency.trim();
     const now = new Date();
     const todayISO = getLocalDateString(now);
-    const lastSessionDate = userProfile.usageStats.lastSessionDate;
+    const lastSessionDate = currentProfile.usageStats.lastSessionDate;
 
-    let streakDays = userProfile.usageStats.streakDays;
+    let streakDays = currentProfile.usageStats.streakDays;
     if (lastSessionDate) {
       const daysDiff = Math.floor((now.getTime() - lastSessionDate.getTime()) / (1000 * 60 * 60 * 24));
       if (daysDiff === 0) {
@@ -698,12 +706,12 @@ export const [AuthProvider, useAuth] = createContextHook((): AuthContextType => 
       streakDays = 1;
     }
 
-    const favoriteFrequencies = [...userProfile.usageStats.favoriteFrequencies];
+    const favoriteFrequencies = [...currentProfile.usageStats.favoriteFrequencies];
     if (!favoriteFrequencies.includes(sanitizedFrequency)) {
       favoriteFrequencies.push(sanitizedFrequency);
     }
 
-    const sessionHistory = [...userProfile.usageStats.sessionHistory, todayISO]
+    const sessionHistory = [...currentProfile.usageStats.sessionHistory, todayISO]
       .filter((date, idx, arr) => arr.indexOf(date) === idx)
       .filter(date => {
         const d = new Date(date);
@@ -723,22 +731,22 @@ export const [AuthProvider, useAuth] = createContextHook((): AuthContextType => 
       .filter((event) => event.date >= new Date(now.getTime() - 31 * 86400000).toISOString().split('T')[0]);
     await AsyncStorage.setItem(USAGE_EVENTS_STORAGE_KEY, JSON.stringify(usageEvents));
 
-    if (shouldUseFirestore && userProfile.uid) {
-      setDoc(doc(db, 'userUsage', userProfile.uid, 'events', usageEvent.id), usageEvent).catch(() => {});
+    if (shouldUseFirestore && currentProfile.uid) {
+      setDoc(doc(db, 'userUsage', currentProfile.uid, 'events', usageEvent.id), usageEvent).catch(() => {});
     }
 
     await updateProfile({
       usageStats: {
-        ...userProfile.usageStats,
-        sessionsCompleted: userProfile.usageStats.sessionsCompleted + 1,
-        totalListeningTime: userProfile.usageStats.totalListeningTime + sessionDuration,
+        ...currentProfile.usageStats,
+        sessionsCompleted: currentProfile.usageStats.sessionsCompleted + 1,
+        totalListeningTime: currentProfile.usageStats.totalListeningTime + sessionDuration,
         favoriteFrequencies,
         streakDays,
         lastSessionDate: now,
         sessionHistory,
       },
     });
-  }, [shouldUseFirestore, userProfile, updateProfile]);
+  }, [shouldUseFirestore, updateProfile]);
 
   return useMemo(() => ({
     user,
