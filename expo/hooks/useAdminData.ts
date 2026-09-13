@@ -2,7 +2,8 @@ import createContextHook from '@nkzw/create-context-hook';
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { collection, getDocs, doc, setDoc, updateDoc, deleteDoc, writeBatch } from 'firebase/firestore';
-import { db } from '@/lib/firebase';
+import { db, auth } from '@/lib/firebase';
+import { authService } from '@/lib/firebase-auth';
 import { useDataMode } from './useDataMode';
 import {
   SOLFEGGIO_FREQUENCIES,
@@ -153,6 +154,14 @@ export const [AdminDataProvider, useAdminData] = createContextHook<AdminDataStat
 
   const seedFrequenciesIfEmpty = useCallback(async () => {
     const seededFrequencies = convertFrequencies();
+    const currentUser = auth.currentUser;
+    const isAdminUser = await authService.isAdmin(currentUser, false);
+
+    if (!isAdminUser) {
+      // Non-admin user cannot write to /frequencies; use canonical defaults without seeding error
+      return seededFrequencies;
+    }
+
     try {
       const batch = writeBatch(db);
       seededFrequencies.forEach((frequency) => {
@@ -161,7 +170,7 @@ export const [AdminDataProvider, useAdminData] = createContextHook<AdminDataStat
       await batch.commit();
       console.log('✅ Firestore seeded with canonical frequencies (admin)');
     } catch {
-      console.warn('Cannot seed Firestore (insufficient permissions), using local defaults');
+      // Fallback gracefully
     }
     return seededFrequencies;
   }, [frequenciesRef]);
