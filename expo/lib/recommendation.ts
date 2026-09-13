@@ -70,16 +70,37 @@ const ALL_FREQUENCY_POOL = [
   ...WEALTH_FREQUENCIES.map((f) => ({ ...f, category: 'Wealth' })),
 ];
 
+const GOAL_CATEGORY_PREFERENCES: Record<string, string[]> = {
+  focus: ['Binaural', 'Solfeggio', 'Wealth'],
+  sleep: ['Sleep', 'Binaural', 'Healing'],
+  meditation: ['Chakra', 'Solfeggio', 'Healing'],
+  healing: ['Healing', 'Solfeggio', 'Chakra'],
+};
+
 /**
- * Generates a stable, once-per-day Daily Alignment selection for a given userId + YYYY-MM-DD
+ * Generates a stable, once-per-day Daily Alignment selection for a given userId + YYYY-MM-DD,
+ * personalized by user onboarding preferences (primary goal and session length).
  */
-export function getDailyAlignment(userId: string = 'guest', dateStr?: string): DailyAlignment {
+export function getDailyAlignment(
+  userId: string = 'guest',
+  dateStr?: string,
+  onboardingPreferences?: { primaryGoal?: string; sessionLength?: number }
+): DailyAlignment {
   const dateKey = dateStr || getLocalDateString();
-  const seedKey = `alignment_${userId}_${dateKey}`;
+  const goal = onboardingPreferences?.primaryGoal || 'general';
+  const sessionLength = onboardingPreferences?.sessionLength || 10;
+  const seedKey = `alignment_${userId}_${dateKey}_${goal}`;
   const seed = hashSeed(seedKey);
 
-  // Pick 3 distinct frequencies deterministically
-  const pool = [...ALL_FREQUENCY_POOL];
+  let pool = [...ALL_FREQUENCY_POOL];
+  const preferredCategories = GOAL_CATEGORY_PREFERENCES[goal];
+  if (preferredCategories) {
+    const prioritized = pool.filter((f) => preferredCategories.includes(f.category));
+    if (prioritized.length >= 3) {
+      pool = prioritized;
+    }
+  }
+
   const selectedFreqs: DailyAlignment['frequencies'] = [];
 
   for (let i = 0; i < 3; i++) {
@@ -89,7 +110,7 @@ export function getDailyAlignment(userId: string = 'guest', dateStr?: string): D
     selectedFreqs.push({
       hz: item.hz,
       name: item.name,
-      duration: 10,
+      duration: sessionLength,
       category: item.category,
     });
     pool.splice(index, 1);

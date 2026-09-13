@@ -246,6 +246,11 @@ export const [AuthProvider, useAuth] = createContextHook((): AuthContextType => 
     };
   }, []);
 
+  /**
+   * Constructs rule-compliant Firestore document payload.
+   * Omits server-authoritative fields (subscriptionType, trialEndsAt, subscriptionEndsAt, cancelAtPeriodEnd, role, admin)
+   * to ensure compatibility with strict CEL rules during create and update.
+   */
   const toFirestoreProfile = useCallback((profile: UserProfile, isNewProfile = false) => {
     const raw: Record<string, any> = {
       uid: profile.uid,
@@ -265,10 +270,6 @@ export const [AuthProvider, useAuth] = createContextHook((): AuthContextType => 
 
     if (isNewProfile) {
       raw.subscriptionStatus = profile.subscriptionStatus || 'free';
-      raw.subscriptionType = profile.subscriptionType ?? null;
-      raw.trialEndsAt = profile.trialEndsAt ? Timestamp.fromDate(profile.trialEndsAt) : null;
-      raw.subscriptionEndsAt = profile.subscriptionEndsAt ? Timestamp.fromDate(profile.subscriptionEndsAt) : null;
-      raw.cancelAtPeriodEnd = profile.cancelAtPeriodEnd ?? null;
     }
 
     return sanitizeForFirestore(raw);
