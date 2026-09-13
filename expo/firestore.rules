@@ -18,6 +18,12 @@ service cloud.firestore {
       return isAuthenticated() && request.auth.uid == userId;
     }
 
+    // Returns true if a field is not present in request OR equals existing resource field value
+    function isFieldUnchanged(field) {
+      return !(field in request.resource.data) ||
+        (field in resource.data && request.resource.data[field] == resource.data[field]);
+    }
+
     // ── Curated content: frequencies ──
     match /frequencies/{docId} {
       allow read: if true;
@@ -50,6 +56,8 @@ service cloud.firestore {
     // ── User profiles ──
     match /users/{userId} {
       allow read: if isOwner(userId) || isAdmin();
+
+      // Initial profile document creation
       allow create: if isOwner(userId)
         && (!('subscriptionStatus' in request.resource.data) || request.resource.data.subscriptionStatus == 'free')
         && (!('subscriptionType' in request.resource.data) || request.resource.data.subscriptionType == null)
@@ -59,15 +67,16 @@ service cloud.firestore {
         && (!('role' in request.resource.data) || request.resource.data.role == null)
         && (!('admin' in request.resource.data) || request.resource.data.admin == false || request.resource.data.admin == null);
 
+      // Client updates: Client can update user-owned fields (displayName, onboardingCompleted, onboardingPreferences, usageStats, etc.)
+      // Client CANNOT change or introduce server-authoritative fields (subscriptionStatus, subscriptionType, subscriptionEndsAt, trialEndsAt, cancelAtPeriodEnd, role, admin)
       allow update: if isOwner(userId)
-        // Client cannot change or introduce subscription or admin role fields
-        && (!('subscriptionStatus' in request.resource.data) || ('subscriptionStatus' in resource.data && request.resource.data.subscriptionStatus == resource.data.subscriptionStatus))
-        && (!('subscriptionType' in request.resource.data) || ('subscriptionType' in resource.data && request.resource.data.subscriptionType == resource.data.subscriptionType))
-        && (!('subscriptionEndsAt' in request.resource.data) || ('subscriptionEndsAt' in resource.data && request.resource.data.subscriptionEndsAt == resource.data.subscriptionEndsAt))
-        && (!('trialEndsAt' in request.resource.data) || ('trialEndsAt' in resource.data && request.resource.data.trialEndsAt == resource.data.trialEndsAt))
-        && (!('cancelAtPeriodEnd' in request.resource.data) || ('cancelAtPeriodEnd' in resource.data && request.resource.data.cancelAtPeriodEnd == resource.data.cancelAtPeriodEnd))
-        && (!('role' in request.resource.data) || ('role' in resource.data && request.resource.data.role == resource.data.role))
-        && (!('admin' in request.resource.data) || ('admin' in resource.data && request.resource.data.admin == resource.data.admin));
+        && isFieldUnchanged('subscriptionStatus')
+        && isFieldUnchanged('subscriptionType')
+        && isFieldUnchanged('subscriptionEndsAt')
+        && isFieldUnchanged('trialEndsAt')
+        && isFieldUnchanged('cancelAtPeriodEnd')
+        && isFieldUnchanged('role')
+        && isFieldUnchanged('admin');
     }
 
     // ── User sessions ──
