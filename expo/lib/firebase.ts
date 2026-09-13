@@ -13,9 +13,9 @@ const appId = process.env.EXPO_PUBLIC_FIREBASE_APP_ID;
 
 const firebaseConfig = {
   apiKey: apiKey || 'dummy-api-key',
-  authDomain: authDomain || 'frequency-c623.firebaseapp.com',
-  projectId: projectId || 'frequency-c623',
-  storageBucket: storageBucket || 'frequency-c623.appspot.com',
+  authDomain: authDomain || 'frequency-c6236.firebaseapp.com',
+  projectId: projectId || 'frequency-c6236',
+  storageBucket: storageBucket || 'frequency-c6236.appspot.com',
   messagingSenderId: messagingSenderId || '00000000000',
   appId: appId || '1:00000000000:web:00000000000',
 };

@@ -18,10 +18,11 @@ service cloud.firestore {
       return isAuthenticated() && request.auth.uid == userId;
     }
 
-    // Returns true if a field is not present in request OR equals existing resource field value
+    // Returns true if a field is not present in request OR equals existing resource field value OR neither request nor resource has it
     function isFieldUnchanged(field) {
       return !(field in request.resource.data) ||
-        (field in resource.data && request.resource.data[field] == resource.data[field]);
+        (resource != null && resource.data != null && field in resource.data && request.resource.data[field] == resource.data[field]) ||
+        (resource != null && resource.data != null && !(field in resource.data) && !(field in request.resource.data));
     }
 
     // ── Curated content: frequencies ──
@@ -57,7 +58,7 @@ service cloud.firestore {
     match /users/{userId} {
       allow read: if isOwner(userId) || isAdmin();
 
-      // Initial profile document creation
+      // Initial profile document creation (or setDoc merge on non-existent document)
       allow create: if isOwner(userId)
         && (!('subscriptionStatus' in request.resource.data) || request.resource.data.subscriptionStatus == 'free')
         && (!('subscriptionType' in request.resource.data) || request.resource.data.subscriptionType == null)
@@ -67,7 +68,7 @@ service cloud.firestore {
         && (!('role' in request.resource.data) || request.resource.data.role == null)
         && (!('admin' in request.resource.data) || request.resource.data.admin == false || request.resource.data.admin == null);
 
-      // Client updates: Client can update user-owned fields (displayName, onboardingCompleted, onboardingPreferences, usageStats, etc.)
+      // Client updates on existing documents: Client can update user-owned fields (displayName, onboardingCompleted, onboardingPreferences, usageStats, etc.)
       // Client CANNOT change or introduce server-authoritative fields (subscriptionStatus, subscriptionType, subscriptionEndsAt, trialEndsAt, cancelAtPeriodEnd, role, admin)
       allow update: if isOwner(userId)
         && isFieldUnchanged('subscriptionStatus')
