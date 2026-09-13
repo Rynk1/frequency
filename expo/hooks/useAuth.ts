@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { authService, AuthUser } from '@/lib/firebase-auth';
 import createContextHook from '@nkzw/create-context-hook';
 import { db, auth } from '@/lib/firebase';
-import { doc, getDoc, setDoc, Timestamp } from 'firebase/firestore';
+import { doc, getDoc, setDoc, updateDoc, Timestamp } from 'firebase/firestore';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useDataMode } from './useDataMode';
 import {
@@ -104,7 +104,7 @@ export const [AuthProvider, useAuth] = createContextHook((): AuthContextType => 
   const [lastSyncErrorCode, setLastSyncErrorCode] = useState<string | null>(null);
 
   const { shouldUseFirestore, isCloudStrict, setCloudError } = useDataMode();
-  const retryTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const retryTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const retryCountRef = useRef(0);
 
   // Entitlement Security Isolation: Cache cannot grant paid capabilities
@@ -247,11 +247,11 @@ export const [AuthProvider, useAuth] = createContextHook((): AuthContextType => 
   }, []);
 
   /**
-   * Constructs rule-compliant Firestore document payload.
+   * Constructs rule-compliant Firestore initial document payload.
    * Omits server-authoritative fields (subscriptionType, trialEndsAt, subscriptionEndsAt, cancelAtPeriodEnd, role, admin)
-   * to ensure compatibility with strict CEL rules during create and update.
+   * to ensure compatibility with strict CEL rules during initial create.
    */
-  const toFirestoreProfile = useCallback((profile: UserProfile, isNewProfile = false) => {
+  const toFirestoreInitialProfile = useCallback((profile: UserProfile) => {
     const raw: Record<string, any> = {
       uid: profile.uid,
       email: profile.email ?? null,
@@ -260,6 +260,7 @@ export const [AuthProvider, useAuth] = createContextHook((): AuthContextType => 
       lastLoginAt: Timestamp.fromDate(profile.lastLoginAt),
       onboardingCompleted: Boolean(profile.onboardingCompleted),
       onboardingPreferences: profile.onboardingPreferences ?? null,
+      subscriptionStatus: profile.subscriptionStatus || 'free',
       usageStats: {
         ...profile.usageStats,
         lastSessionDate: profile.usageStats.lastSessionDate
@@ -267,10 +268,6 @@ export const [AuthProvider, useAuth] = createContextHook((): AuthContextType => 
           : null,
       },
     };
-
-    if (isNewProfile) {
-      raw.subscriptionStatus = profile.subscriptionStatus || 'free';
-    }
 
     return sanitizeForFirestore(raw);
   }, []);
@@ -289,50 +286,80 @@ export const [AuthProvider, useAuth] = createContextHook((): AuthContextType => 
     }
 
     const userRef = doc(db, 'users', profile.uid);
-    const dataToSave = toFirestoreProfile(profile, isNewProfile);
 
-    const currentUser = auth.currentUser;
-    if (__DEV__) {
-      console.log('[PROFILE_FIRESTORE_DIAGNOSTICS]', {
-        operation: isNewProfile ? 'create/set' : 'update/setMerge',
-        uid: profile.uid,
-        authUid: currentUser?.uid || null,
-        uidMatches: currentUser?.uid === profile.uid,
-        documentPath: userRef.path,
-        timestamp: new Date().toISOString(),
-        payloadFields: Object.keys(dataToSave),
-      });
-    }
-
-    try {
-      await setDoc(userRef, dataToSave, { merge: true });
-      setProfileSource('AUTHORITATIVE_FIRESTORE');
-      setSyncStatus('synchronized');
-      setProfileFreshness('current');
-      setLastSyncErrorCode(null);
-      if (userProfile && userProfile.uid === profile.uid) {
-        setBootstrapState('READY');
+    if (isNewProfile) {
+      const initialData = toFirestoreInitialProfile(profile);
+      try {
+        await setDoc(userRef, initialData, { merge: true });
+        setProfileSource('AUTHORITATIVE_FIRESTORE');
+        setSyncStatus('synchronized');
+        setProfileFreshness('current');
+        setLastSyncErrorCode(null);
+        if (userProfile && userProfile.uid === profile.uid) {
+          setBootstrapState('READY');
+        }
+      } catch (error: any) {
+        const errCode = error?.code || 'unknown';
+        const errMsg = error?.message || String(error);
+        console.error('[PROFILE_FIRESTORE_CREATE_FAILURE]', {
+          operation: 'create/setDoc',
+          uid: profile.uid,
+          documentPath: userRef.path,
+          code: errCode,
+          message: errMsg,
+          timestamp: new Date().toISOString(),
+        });
+        setSyncStatus('error');
+        setLastSyncErrorCode(errCode);
+        setCloudError(`Failed to create user profile [${errCode}]: ${errMsg}`);
+        throw error;
       }
-    } catch (error: any) {
-      const errCode = error?.code || 'unknown';
-      const errMsg = error?.message || String(error);
+    } else {
+      // Patch update for existing profile: send strictly client-writable fields only
+      const patchData: Record<string, any> = {};
+      if (profile.displayName !== undefined) patchData.displayName = profile.displayName ?? null;
+      if (profile.onboardingCompleted !== undefined) patchData.onboardingCompleted = Boolean(profile.onboardingCompleted);
+      if (profile.onboardingPreferences !== undefined) patchData.onboardingPreferences = profile.onboardingPreferences ?? null;
+      if (profile.lastLoginAt !== undefined) patchData.lastLoginAt = Timestamp.fromDate(profile.lastLoginAt);
+      if (profile.usageStats !== undefined) {
+        patchData.usageStats = {
+          ...profile.usageStats,
+          lastSessionDate: profile.usageStats.lastSessionDate
+            ? Timestamp.fromDate(profile.usageStats.lastSessionDate)
+            : null,
+        };
+      }
 
-      // Safe structured observability logging (no tokens or credentials)
-      console.error('[PROFILE_FIRESTORE_WRITE_FAILURE]', {
-        operation: isNewProfile ? 'create/set' : 'update/setMerge',
-        uid: profile.uid,
-        documentPath: userRef.path,
-        code: errCode,
-        message: errMsg,
-        timestamp: new Date().toISOString(),
-      });
+      const sanitizedPatch = sanitizeForFirestore(patchData);
 
-      setSyncStatus('error');
-      setLastSyncErrorCode(errCode);
-      setCloudError(`Failed to save user profile [${errCode}]: ${errMsg}`);
-      throw error;
+      try {
+        await updateDoc(userRef, sanitizedPatch);
+        setProfileSource('AUTHORITATIVE_FIRESTORE');
+        setSyncStatus('synchronized');
+        setProfileFreshness('current');
+        setLastSyncErrorCode(null);
+        if (userProfile && userProfile.uid === profile.uid) {
+          setBootstrapState('READY');
+        }
+      } catch (error: any) {
+        const errCode = error?.code || 'unknown';
+        const errMsg = error?.message || String(error);
+        console.error('[PROFILE_FIRESTORE_WRITE_FAILURE]', {
+          operation: 'updateDoc',
+          uid: profile.uid,
+          documentPath: userRef.path,
+          code: errCode,
+          message: errMsg,
+          timestamp: new Date().toISOString(),
+          payloadKeys: Object.keys(sanitizedPatch),
+        });
+        setSyncStatus('error');
+        setLastSyncErrorCode(errCode);
+        setCloudError(`Failed to save user profile [${errCode}]: ${errMsg}`);
+        throw error;
+      }
     }
-  }, [toFirestoreProfile, shouldUseFirestore, setCloudError, writeCacheProfile, userProfile]);
+  }, [toFirestoreInitialProfile, shouldUseFirestore, setCloudError, writeCacheProfile, userProfile]);
 
   const loadUserProfile = useCallback(async (uid: string, currentAuthUser?: AuthUser | null, isRetry = false) => {
     if (!uid?.trim()) return;
@@ -597,7 +624,7 @@ export const [AuthProvider, useAuth] = createContextHook((): AuthContextType => 
   }, [userProfile?.uid, user?.uid]);
 
   /**
-   * Update profile using strict field allowlisting and dual storage persistence.
+   * Update profile using strict field allowlisting and patch-based dual storage persistence.
    */
   const updateProfile = useCallback(async (updates: Partial<UserProfile>) => {
     const currentProfile = userProfile || (user ? createUserProfile(user) : null);
