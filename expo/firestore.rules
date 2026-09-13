@@ -100,6 +100,11 @@ service cloud.firestore {
       allow read, write: if isOwner(userId);
     }
 
+    // ── User learning progress ──
+    match /userLearning/{userId} {
+      allow read, write: if isOwner(userId);
+    }
+
     // Immutable listening events
     match /userUsage/{userId}/events/{eventId} {
       allow read: if isOwner(userId);
