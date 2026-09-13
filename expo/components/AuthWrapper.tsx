@@ -1,41 +1,48 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { View, StyleSheet, ActivityIndicator, Text, Animated } from 'react-native';
+import { View, StyleSheet, ActivityIndicator, Text, Animated, Pressable } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Redirect } from 'expo-router';
 import { useAuth } from '@/hooks/useAuth';
 import { AuthScreen } from './AuthScreen';
-import { FONTS, COLORS } from '@/constants/theme';
+import { FONTS } from '@/constants/theme';
 
 interface AuthWrapperProps {
   children: React.ReactNode;
 }
 
 /**
- * Auth gate component. Shows a loading screen only while Firebase auth state
- * is being resolved. Once resolved (user or no-user), immediately renders
- * children or the auth screen.
- *
- * Profile loading happens in the background after this point — the app is
- * fully interactive while profile data is fetched from Firestore.
+ * Auth gate component with explicit application state management.
+ * Resolves loading smoothly once Firebase Auth & profile bootstrap complete.
+ * Renders user-friendly offline status banner when operating with cached state.
  */
 export const AuthWrapper: React.FC<AuthWrapperProps> = ({ children }) => {
-  const { isAuthenticated, isLoading, userProfile } = useAuth();
+  const {
+    isAuthenticated,
+    bootstrapState,
+    profileSource,
+    syncStatus,
+    retryProfileSync,
+    userProfile,
+  } = useAuth();
+
   const [authMode, setAuthMode] = useState<'signin' | 'signup'>('signin');
   const fadeAnim = useRef(new Animated.Value(1)).current;
   const [showLoader, setShowLoader] = useState(true);
 
-  // Fade out the loading screen smoothly when auth resolves
+  const isAuthLoading = bootstrapState === 'AUTH_LOADING' || bootstrapState === 'AUTHENTICATED';
+
+  // Fade out loading overlay when auth and initial profile state resolve
   useEffect(() => {
-    if (!isLoading && showLoader) {
+    if (!isAuthLoading && showLoader) {
       Animated.timing(fadeAnim, {
         toValue: 0,
         duration: 300,
         useNativeDriver: true,
       }).start(() => setShowLoader(false));
     }
-  }, [isLoading, showLoader, fadeAnim]);
+  }, [isAuthLoading, showLoader, fadeAnim]);
 
-  if (isLoading || showLoader) {
+  if (isAuthLoading || showLoader) {
     return (
       <Animated.View style={{ flex: 1, opacity: fadeAnim }}>
         <LinearGradient
@@ -52,7 +59,7 @@ export const AuthWrapper: React.FC<AuthWrapperProps> = ({ children }) => {
     );
   }
 
-  if (!isAuthenticated) {
+  if (!isAuthenticated || bootstrapState === 'SIGNED_OUT') {
     return (
       <AuthScreen
         mode={authMode}
@@ -65,10 +72,29 @@ export const AuthWrapper: React.FC<AuthWrapperProps> = ({ children }) => {
     return <Redirect href={'/onboarding' as any} />;
   }
 
-  return <>{children}</>;
+  const isOfflineCache = profileSource === 'CACHED_LOCAL' && syncStatus !== 'synchronized';
+
+  return (
+    <View style={styles.container}>
+      {isOfflineCache && (
+        <View style={styles.offlineBanner}>
+          <Text style={styles.offlineBannerText}>
+            You&apos;re offline. Some information may be unavailable until your connection is restored.
+          </Text>
+          <Pressable onPress={() => retryProfileSync()} style={styles.retryButton}>
+            <Text style={styles.retryButtonText}>Retry</Text>
+          </Pressable>
+        </View>
+      )}
+      {children}
+    </View>
+  );
 };
 
 const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+  },
   loading: {
     flex: 1,
   },
@@ -90,5 +116,36 @@ const styles = StyleSheet.create({
     color: 'rgba(255,255,255,0.5)',
     fontSize: 14,
     marginTop: 8,
+  },
+  offlineBanner: {
+    backgroundColor: 'rgba(234, 179, 8, 0.15)',
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(234, 179, 8, 0.4)',
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justify: 'space-between',
+    zIndex: 999,
+  },
+  offlineBannerText: {
+    color: '#FDE047',
+    fontSize: 12,
+    flex: 1,
+    lineHeight: 16,
+    marginRight: 8,
+  },
+  retryButton: {
+    backgroundColor: 'rgba(234, 179, 8, 0.25)',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: '#FDE047',
+  },
+  retryButtonText: {
+    color: '#FDE047',
+    fontSize: 11,
+    fontWeight: '600',
   },
 });

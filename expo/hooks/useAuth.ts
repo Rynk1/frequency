@@ -1,8 +1,8 @@
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { authService, AuthUser } from '@/lib/firebase-auth';
 import createContextHook from '@nkzw/create-context-hook';
-import { db } from '@/lib/firebase';
-import { doc, getDoc, setDoc, updateDoc, Timestamp } from 'firebase/firestore';
+import { db, auth } from '@/lib/firebase';
+import { doc, getDoc, setDoc, Timestamp } from 'firebase/firestore';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useDataMode } from './useDataMode';
 import {
@@ -13,6 +13,29 @@ import { globalEntitlementEngine } from '@/lib/entitlements/entitlement-service'
 import { getLocalDateString } from '@/lib/recommendation';
 import { USAGE_EVENTS_STORAGE_KEY } from './useUsageAnalytics';
 import { sanitizeForFirestore } from '@/lib/validation';
+
+export type BootstrapState =
+  | 'AUTH_LOADING'
+  | 'AUTHENTICATED'
+  | 'PROFILE_LOADING'
+  | 'READY'
+  | 'OFFLINE_WITH_CACHE'
+  | 'PROFILE_ERROR'
+  | 'SIGNED_OUT';
+
+export type ProfileSource = 'AUTHORITATIVE_FIRESTORE' | 'CACHED_LOCAL' | 'UNAVAILABLE';
+export type SyncStatus = 'pending' | 'synchronized' | 'retrying' | 'error';
+export type ProfileFreshness = 'current' | 'stale' | 'none';
+
+export const CURRENT_CACHE_SCHEMA_VERSION = 1;
+
+export interface CachedProfileWrapper {
+  schemaVersion: number;
+  uid: string;
+  cachedAt: string;
+  updatedAt: string;
+  profile: Record<string, any>;
+}
 
 export interface UserProfile {
   uid: string;
@@ -44,6 +67,11 @@ export interface UserProfile {
 interface AuthContextType {
   user: AuthUser | null;
   userProfile: UserProfile | null;
+  bootstrapState: BootstrapState;
+  profileSource: ProfileSource;
+  syncStatus: SyncStatus;
+  profileFreshness: ProfileFreshness;
+  lastSyncErrorCode: string | null;
   isLoading: boolean;
   isAuthenticated: boolean;
   isPremium: boolean;
@@ -55,6 +83,7 @@ interface AuthContextType {
   signUp: (email: string, password: string, displayName?: string) => Promise<void>;
   signOut: (options?: { clearLocalData?: boolean }) => Promise<void>;
   updateProfile: (updates: Partial<UserProfile>) => Promise<void>;
+  retryProfileSync: () => Promise<void>;
   refreshSubscriptionStatus: () => Promise<void>;
   startTrial: (options?: { hasAcceptedAutoRenew: boolean }) => Promise<void>;
   upgradeToPremium: (type: 'monthly' | 'yearly') => Promise<void>;
@@ -66,24 +95,37 @@ const getUserProfileStorageKey = (uid: string) => `userProfile:${uid}`;
 export const [AuthProvider, useAuth] = createContextHook((): AuthContextType => {
   const [user, setUser] = useState<AuthUser | null>(null);
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const { shouldUseFirestore, isCloudStrict, setCloudError } = useDataMode();
 
+  // Bootstrap state machine and profile metadata
+  const [bootstrapState, setBootstrapState] = useState<BootstrapState>('AUTH_LOADING');
+  const [profileSource, setProfileSource] = useState<ProfileSource>('UNAVAILABLE');
+  const [syncStatus, setSyncStatus] = useState<SyncStatus>('pending');
+  const [profileFreshness, setProfileFreshness] = useState<ProfileFreshness>('none');
+  const [lastSyncErrorCode, setLastSyncErrorCode] = useState<string | null>(null);
+
+  const { shouldUseFirestore, isCloudStrict, setCloudError } = useDataMode();
+  const retryTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const retryCountRef = useRef(0);
+
+  // Entitlement Security Isolation: Cache cannot grant paid capabilities
   const entitlementState: EntitlementState = useMemo(() => {
+    const isAuthoritative = profileSource === 'AUTHORITATIVE_FIRESTORE';
     return globalEntitlementEngine.evaluateEntitlement({
-      subscriptionStatus: userProfile?.subscriptionStatus,
-      subscriptionEndsAt: userProfile?.subscriptionEndsAt,
-      trialEndsAt: userProfile?.trialEndsAt,
-      lastVerifiedAt: userProfile?.lastLoginAt,
+      subscriptionStatus: isAuthoritative ? userProfile?.subscriptionStatus : 'free',
+      subscriptionEndsAt: isAuthoritative ? userProfile?.subscriptionEndsAt : undefined,
+      trialEndsAt: isAuthoritative ? userProfile?.trialEndsAt : undefined,
+      lastVerifiedAt: isAuthoritative ? userProfile?.lastLoginAt : undefined,
     });
-  }, [userProfile]);
+  }, [userProfile, profileSource]);
 
   const isAuthenticated = !!user;
   const isPremium = entitlementState.isPremium;
   const isTrialActive = entitlementState.status === 'trial';
   const capabilities = entitlementState.capabilities;
 
-  const trialDaysLeft = userProfile?.trialEndsAt
+  const isLoading = bootstrapState === 'AUTH_LOADING' || bootstrapState === 'AUTHENTICATED' || (bootstrapState === 'PROFILE_LOADING' && !userProfile);
+
+  const trialDaysLeft = (profileSource === 'AUTHORITATIVE_FIRESTORE' && userProfile?.trialEndsAt)
     ? Math.max(0, Math.ceil((userProfile.trialEndsAt.getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24)))
     : 0;
 
@@ -107,11 +149,36 @@ export const [AuthProvider, useAuth] = createContextHook((): AuthContextType => 
     };
   }, []);
 
-  const parseCachedProfile = useCallback((jsonStr: string): UserProfile | null => {
+  /**
+   * Reads and validates cached profile with UID matching & schema versioning.
+   */
+  const parseCachedProfile = useCallback((jsonStr: string, expectedUid: string): UserProfile | null => {
     try {
-      const data = JSON.parse(jsonStr);
+      const parsed = JSON.parse(jsonStr);
+      let data: Record<string, any>;
+
+      // Check if wrapped with schema versioning
+      if (parsed && typeof parsed === 'object' && 'schemaVersion' in parsed && 'profile' in parsed) {
+        const wrapper = parsed as CachedProfileWrapper;
+        if (wrapper.schemaVersion !== CURRENT_CACHE_SCHEMA_VERSION) {
+          return null;
+        }
+        if (wrapper.uid !== expectedUid) {
+          // Strict UID mismatch guard: User A cache cannot hydrate for User B
+          return null;
+        }
+        data = wrapper.profile;
+      } else {
+        // Legacy unwrapped cache fallback (strictly check uid)
+        data = parsed;
+        if (!data || data.uid !== expectedUid) {
+          return null;
+        }
+      }
+
       return {
         ...data,
+        uid: expectedUid,
         createdAt: data.createdAt ? new Date(data.createdAt) : new Date(),
         lastLoginAt: data.lastLoginAt ? new Date(data.lastLoginAt) : new Date(),
         trialEndsAt: data.trialEndsAt ? new Date(data.trialEndsAt) : undefined,
@@ -119,11 +186,33 @@ export const [AuthProvider, useAuth] = createContextHook((): AuthContextType => 
         onboardingCompleted: Boolean(data.onboardingCompleted),
         usageStats: {
           ...data.usageStats,
+          sessionsCompleted: data.usageStats?.sessionsCompleted || 0,
+          totalListeningTime: data.usageStats?.totalListeningTime || 0,
+          favoriteFrequencies: data.usageStats?.favoriteFrequencies || [],
+          streakDays: data.usageStats?.streakDays || 0,
           lastSessionDate: data.usageStats?.lastSessionDate ? new Date(data.usageStats.lastSessionDate) : undefined,
+          sessionHistory: data.usageStats?.sessionHistory || [],
         },
-      };
+      } as UserProfile;
     } catch {
       return null;
+    }
+  }, []);
+
+  const writeCacheProfile = useCallback(async (profile: UserProfile) => {
+    if (!profile?.uid?.trim()) return;
+    try {
+      const nowIso = new Date().toISOString();
+      const wrapper: CachedProfileWrapper = {
+        schemaVersion: CURRENT_CACHE_SCHEMA_VERSION,
+        uid: profile.uid,
+        cachedAt: nowIso,
+        updatedAt: nowIso,
+        profile,
+      };
+      await AsyncStorage.setItem(getUserProfileStorageKey(profile.uid), JSON.stringify(wrapper));
+    } catch (e) {
+      console.warn('Failed to write profile to AsyncStorage cache:', e);
     }
   }, []);
 
@@ -188,15 +277,15 @@ export const [AuthProvider, useAuth] = createContextHook((): AuthContextType => 
   const saveUserProfile = useCallback(async (profile: UserProfile, isNewProfile = false) => {
     if (!profile?.uid?.trim()) return;
 
-    // 1. Always persist profile to AsyncStorage for instant local retrieval
-    try {
-      await AsyncStorage.setItem(getUserProfileStorageKey(profile.uid), JSON.stringify(profile));
-    } catch (e) {
-      console.warn('Failed to save profile to AsyncStorage:', e);
-    }
+    // 1. Update cache first for local UI response
+    await writeCacheProfile(profile);
 
     // 2. Persist to Firestore if cloud sync is enabled
-    if (!shouldUseFirestore) return;
+    if (!shouldUseFirestore) {
+      setProfileSource('CACHED_LOCAL');
+      setSyncStatus('synchronized');
+      return;
+    }
 
     const userRef = doc(db, 'users', profile.uid);
     const dataToSave = toFirestoreProfile(profile, isNewProfile);
@@ -204,64 +293,92 @@ export const [AuthProvider, useAuth] = createContextHook((): AuthContextType => 
     const currentUser = auth.currentUser;
     if (__DEV__) {
       console.log('[PROFILE_FIRESTORE_DIAGNOSTICS]', {
-        authReady: !isLoading,
-        currentUserExists: Boolean(currentUser),
-        currentUserUid: currentUser?.uid || null,
-        currentUserEmail: currentUser?.email || null,
-        targetUid: profile.uid,
-        uidMatch: currentUser?.uid === profile.uid,
-        targetPath: userRef.path,
         operation: isNewProfile ? 'create/set' : 'update/setMerge',
-        projectId: process.env.EXPO_PUBLIC_FIREBASE_PROJECT_ID || 'harmony-frequency-app',
+        uid: profile.uid,
+        authUid: currentUser?.uid || null,
+        uidMatches: currentUser?.uid === profile.uid,
+        documentPath: userRef.path,
+        timestamp: new Date().toISOString(),
         payloadFields: Object.keys(dataToSave),
       });
     }
 
     try {
       await setDoc(userRef, dataToSave, { merge: true });
+      setProfileSource('AUTHORITATIVE_FIRESTORE');
+      setSyncStatus('synchronized');
+      setProfileFreshness('current');
+      setLastSyncErrorCode(null);
+      if (userProfile && userProfile.uid === profile.uid) {
+        setBootstrapState('READY');
+      }
     } catch (error: any) {
       const errCode = error?.code || 'unknown';
       const errMsg = error?.message || String(error);
-      console.error('[PROFILE_FIRESTORE_FAILURE]', {
+
+      // Safe structured observability logging (no tokens or credentials)
+      console.error('[PROFILE_FIRESTORE_WRITE_FAILURE]', {
+        operation: isNewProfile ? 'create/set' : 'update/setMerge',
+        uid: profile.uid,
+        documentPath: userRef.path,
         code: errCode,
         message: errMsg,
-        uid: profile.uid,
-        authUid: currentUser?.uid || null,
-        uidMatches: currentUser?.uid === profile.uid,
-        documentPath: userRef.path,
-        operation: isNewProfile ? 'create/set' : 'update/setMerge',
-        authReady: true,
-        currentUserExists: Boolean(currentUser),
-        projectId: process.env.EXPO_PUBLIC_FIREBASE_PROJECT_ID || 'harmony-frequency-app',
+        timestamp: new Date().toISOString(),
       });
-      setCloudError(`Failed to save user profile [${errCode}]: ${errMsg}`);
-      throw new Error(`[${errCode}] ${errMsg}`);
-    }
-  }, [toFirestoreProfile, shouldUseFirestore, isCloudStrict, setCloudError]);
 
-  const loadUserProfile = useCallback(async (uid: string, currentAuthUser?: AuthUser | null) => {
+      setSyncStatus('error');
+      setLastSyncErrorCode(errCode);
+      setCloudError(`Failed to save user profile [${errCode}]: ${errMsg}`);
+      throw error;
+    }
+  }, [toFirestoreProfile, shouldUseFirestore, setCloudError, writeCacheProfile, userProfile]);
+
+  const loadUserProfile = useCallback(async (uid: string, currentAuthUser?: AuthUser | null, isRetry = false) => {
     if (!uid?.trim()) return;
 
     const email = currentAuthUser?.email || user?.email || '';
     const displayName = currentAuthUser?.displayName || user?.displayName || null;
 
-    // 1. Check local AsyncStorage cache first
+    if (!isRetry) {
+      setBootstrapState('PROFILE_LOADING');
+      setSyncStatus('pending');
+    } else {
+      setSyncStatus('retrying');
+    }
+
+    // 1. Check local AsyncStorage cache first with strict UID validation
     let cachedProfile: UserProfile | null = null;
     try {
       const cachedRaw = await AsyncStorage.getItem(getUserProfileStorageKey(uid));
       if (cachedRaw) {
-        cachedProfile = parseCachedProfile(cachedRaw);
+        cachedProfile = parseCachedProfile(cachedRaw, uid);
       }
     } catch (e) {
       console.warn('Failed reading cached user profile:', e);
     }
 
-    const fallbackProfile = cachedProfile || createUserProfile({ uid, email, displayName });
-    setUserProfile(fallbackProfile);
+    if (cachedProfile) {
+      setUserProfile(cachedProfile);
+      setProfileSource('CACHED_LOCAL');
+      setProfileFreshness('stale');
+      if (!shouldUseFirestore) {
+        setBootstrapState('READY');
+        setSyncStatus('synchronized');
+        setProfileFreshness('current');
+        return;
+      }
+      setBootstrapState('OFFLINE_WITH_CACHE');
+    } else {
+      // Create provisional profile in memory if no cache exists
+      const provisional = createUserProfile({ uid, email, displayName });
+      setUserProfile(provisional);
+      setProfileSource('UNAVAILABLE');
+      setProfileFreshness('none');
+    }
 
     if (!shouldUseFirestore) return;
 
-    // 2. Fetch remote profile from Firestore
+    // 2. Fetch remote profile from Firestore (authoritative)
     try {
       const timeoutController = new AbortController();
       const timeoutId = setTimeout(() => timeoutController.abort(), 8000);
@@ -273,47 +390,89 @@ export const [AuthProvider, useAuth] = createContextHook((): AuthContextType => 
 
         if (snapshot.exists()) {
           const remoteProfile = mapProfileFromFirestore(snapshot.data());
-          // Merge local onboardingCompleted status if completed locally but not yet synced to remote
+          // Merge local onboarding completed state if set locally
+          const localOnboarding = cachedProfile?.onboardingCompleted || false;
           const mergedProfile: UserProfile = {
             ...remoteProfile,
-            onboardingCompleted: remoteProfile.onboardingCompleted || fallbackProfile.onboardingCompleted,
-            onboardingPreferences: remoteProfile.onboardingPreferences || fallbackProfile.onboardingPreferences,
+            onboardingCompleted: remoteProfile.onboardingCompleted || localOnboarding,
+            onboardingPreferences: remoteProfile.onboardingPreferences || cachedProfile?.onboardingPreferences,
             lastLoginAt: new Date(),
           };
+
           setUserProfile(mergedProfile);
-          await saveUserProfile(mergedProfile, false);
+          setProfileSource('AUTHORITATIVE_FIRESTORE');
+          setSyncStatus('synchronized');
+          setProfileFreshness('current');
+          setBootstrapState('READY');
+          setLastSyncErrorCode(null);
+          retryCountRef.current = 0;
+
+          await writeCacheProfile(mergedProfile);
           return;
         }
 
-        // New profile -> save default
-        await saveUserProfile(fallbackProfile, true);
+        // New profile in Firestore -> save authoritative initial state
+        const initialProfile = createUserProfile({ uid, email, displayName });
+        await saveUserProfile(initialProfile, true);
+        setUserProfile(initialProfile);
+        setProfileSource('AUTHORITATIVE_FIRESTORE');
+        setSyncStatus('synchronized');
+        setProfileFreshness('current');
+        setBootstrapState('READY');
+        setLastSyncErrorCode(null);
+        retryCountRef.current = 0;
       } catch (fetchError: any) {
         clearTimeout(timeoutId);
         throw fetchError;
       }
     } catch (error: any) {
-      const currentUser = auth.currentUser;
       const errCode = error?.code || 'unknown';
       const errMsg = error?.message || String(error);
+
+      // Safe structured observability logging (no secrets/tokens)
       console.error('[PROFILE_FIRESTORE_LOAD_FAILURE]', {
+        operation: 'read/getDoc',
+        uid,
+        documentPath: `users/${uid}`,
         code: errCode,
         message: errMsg,
-        uid,
-        authUid: currentUser?.uid || null,
-        uidMatches: currentUser?.uid === uid,
-        documentPath: `users/${uid}`,
-        operation: 'read/getDoc',
-        authReady: true,
-        currentUserExists: Boolean(currentUser),
-        projectId: process.env.EXPO_PUBLIC_FIREBASE_PROJECT_ID || 'harmony-frequency-app',
+        timestamp: new Date().toISOString(),
       });
+
+      setLastSyncErrorCode(errCode);
       setCloudError(`Failed to load user profile [${errCode}]: ${errMsg}`);
+
+      if (cachedProfile) {
+        setProfileSource('CACHED_LOCAL');
+        setSyncStatus('retrying');
+        setBootstrapState('OFFLINE_WITH_CACHE');
+      } else {
+        setProfileSource('UNAVAILABLE');
+        setSyncStatus('error');
+        setBootstrapState('PROFILE_ERROR');
+      }
+
       if (isCloudStrict) {
         throw error;
       }
-      console.warn(`Firestore profile read warning [${errCode}]:`, errMsg);
+
+      // Bounded automatic retry logic
+      if (retryCountRef.current < 3) {
+        retryCountRef.current += 1;
+        const delay = Math.pow(2, retryCountRef.current) * 1000; // 2s, 4s, 8s
+        retryTimerRef.current = setTimeout(() => {
+          loadUserProfile(uid, currentAuthUser, true).catch(() => {});
+        }, delay);
+      }
     }
-  }, [createUserProfile, parseCachedProfile, mapProfileFromFirestore, saveUserProfile, user, shouldUseFirestore, isCloudStrict, setCloudError]);
+  }, [createUserProfile, parseCachedProfile, mapProfileFromFirestore, saveUserProfile, user, shouldUseFirestore, isCloudStrict, setCloudError, writeCacheProfile]);
+
+  const retryProfileSync = useCallback(async () => {
+    if (!user?.uid) return;
+    retryCountRef.current = 0;
+    if (retryTimerRef.current) clearTimeout(retryTimerRef.current);
+    await loadUserProfile(user.uid, user, true);
+  }, [user, loadUserProfile]);
 
   useEffect(() => {
     let mounted = true;
@@ -322,8 +481,10 @@ export const [AuthProvider, useAuth] = createContextHook((): AuthContextType => 
     const safetyTimeout = setTimeout(() => {
       if (mounted && !resolved) {
         resolved = true;
-        console.warn('Auth safety timeout fired — forcing loading state off');
-        setIsLoading(false);
+        console.warn('Auth safety timeout fired — forcing bootstrap state resolution');
+        if (!user) {
+          setBootstrapState('SIGNED_OUT');
+        }
       }
     }, 5000);
 
@@ -339,35 +500,39 @@ export const [AuthProvider, useAuth] = createContextHook((): AuthContextType => 
         if (!authUser?.uid?.trim()) {
           setUser(null);
           setUserProfile(null);
-          setIsLoading(false);
+          setBootstrapState('SIGNED_OUT');
+          setProfileSource('UNAVAILABLE');
+          setSyncStatus('synchronized');
+          setProfileFreshness('none');
+          setLastSyncErrorCode(null);
           return;
         }
 
         setUser(authUser);
-        setIsLoading(false);
+        setBootstrapState('AUTHENTICATED');
 
-        loadUserProfile(authUser.uid, authUser).catch(() => {
-          console.warn('Background profile load failed, using fallback');
-        });
+        loadUserProfile(authUser.uid, authUser, false).catch(() => {});
       });
 
       return () => {
         mounted = false;
         clearTimeout(safetyTimeout);
+        if (retryTimerRef.current) clearTimeout(retryTimerRef.current);
         unsubscribe();
       };
     } catch {
       if (mounted && !resolved) {
         resolved = true;
         clearTimeout(safetyTimeout);
-        setIsLoading(false);
+        setBootstrapState('SIGNED_OUT');
       }
       return () => {
         mounted = false;
         clearTimeout(safetyTimeout);
+        if (retryTimerRef.current) clearTimeout(retryTimerRef.current);
       };
     }
-  }, [loadUserProfile]);
+  }, [loadUserProfile, user]);
 
   const signIn = useCallback(async (email: string, password: string) => {
     if (!email?.trim() || !password?.trim()) {
@@ -375,10 +540,10 @@ export const [AuthProvider, useAuth] = createContextHook((): AuthContextType => 
     }
 
     try {
-      setIsLoading(true);
+      setBootstrapState('AUTH_LOADING');
       await authService.signIn(email.trim(), password);
     } catch (error) {
-      setIsLoading(false);
+      setBootstrapState('SIGNED_OUT');
       throw error;
     }
   }, []);
@@ -389,7 +554,7 @@ export const [AuthProvider, useAuth] = createContextHook((): AuthContextType => 
     }
 
     try {
-      setIsLoading(true);
+      setBootstrapState('AUTH_LOADING');
       const authUser = await authService.signUp(email.trim(), password);
 
       const profile = createUserProfile({
@@ -400,26 +565,35 @@ export const [AuthProvider, useAuth] = createContextHook((): AuthContextType => 
       setUserProfile(profile);
       await saveUserProfile(profile, true);
     } catch (error) {
-      setIsLoading(false);
+      setBootstrapState('SIGNED_OUT');
       throw error;
     }
   }, [createUserProfile, saveUserProfile]);
 
   const signOut = useCallback(async (options?: { clearLocalData?: boolean }) => {
     try {
+      if (retryTimerRef.current) clearTimeout(retryTimerRef.current);
+      const currentUid = userProfile?.uid || user?.uid;
       await authService.signOut();
-      if (options?.clearLocalData && userProfile?.uid) {
+
+      if (options?.clearLocalData && currentUid) {
         await AsyncStorage.multiRemove([
           USAGE_EVENTS_STORAGE_KEY,
-          getUserProfileStorageKey(userProfile.uid),
+          getUserProfileStorageKey(currentUid),
         ]).catch(() => {});
       }
+
       setUser(null);
       setUserProfile(null);
+      setBootstrapState('SIGNED_OUT');
+      setProfileSource('UNAVAILABLE');
+      setSyncStatus('synchronized');
+      setProfileFreshness('none');
+      setLastSyncErrorCode(null);
     } catch (error) {
       throw error;
     }
-  }, [userProfile?.uid]);
+  }, [userProfile?.uid, user?.uid]);
 
   /**
    * Update profile using strict field allowlisting and dual storage persistence.
@@ -541,6 +715,11 @@ export const [AuthProvider, useAuth] = createContextHook((): AuthContextType => 
   return useMemo(() => ({
     user,
     userProfile,
+    bootstrapState,
+    profileSource,
+    syncStatus,
+    profileFreshness,
+    lastSyncErrorCode,
     isLoading,
     isAuthenticated,
     isPremium,
@@ -552,6 +731,7 @@ export const [AuthProvider, useAuth] = createContextHook((): AuthContextType => 
     signUp,
     signOut,
     updateProfile,
+    retryProfileSync,
     refreshSubscriptionStatus,
     startTrial,
     upgradeToPremium,
@@ -559,6 +739,11 @@ export const [AuthProvider, useAuth] = createContextHook((): AuthContextType => 
   }), [
     user,
     userProfile,
+    bootstrapState,
+    profileSource,
+    syncStatus,
+    profileFreshness,
+    lastSyncErrorCode,
     isLoading,
     isAuthenticated,
     isPremium,
@@ -570,6 +755,7 @@ export const [AuthProvider, useAuth] = createContextHook((): AuthContextType => 
     signUp,
     signOut,
     updateProfile,
+    retryProfileSync,
     refreshSubscriptionStatus,
     startTrial,
     upgradeToPremium,

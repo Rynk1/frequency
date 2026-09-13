@@ -11,11 +11,11 @@ interface DataModeState {
   modeLabel: string;
   /** Set the data mode */
   setMode: (mode: DataMode) => Promise<void>;
-  /** Whether we should attempt Firestore operations */
+  /** Whether content queries attempt Firestore operations */
   shouldUseFirestore: boolean;
-  /** Whether Firestore is the ONLY allowed source (fail hard if unavailable) */
+  /** Whether Firestore is the ONLY allowed source for content */
   isCloudStrict: boolean;
-  /** Whether we should ONLY use local data (never touch Firestore) */
+  /** Whether local test mock mode is active (DEV/TEST ONLY) */
   isLocalOnly: boolean;
   /** Last error from a cloud-mode operation */
   lastCloudError: string | null;
@@ -27,9 +27,9 @@ interface DataModeState {
 const STORAGE_KEY = 'dataMode';
 
 const MODE_LABELS: Record<DataMode, string> = {
-  auto: 'Auto (Cloud → Local)',
-  local: 'Local Only',
-  cloud: 'Cloud Only',
+  auto: 'Cloud Primary (Firestore + Cache)',
+  local: 'Local Test/Demo Mode',
+  cloud: 'Cloud Only (Strict Firestore)',
 };
 
 export const [DataModeProvider, useDataMode] = createContextHook<DataModeState>(() => {
@@ -42,7 +42,12 @@ export const [DataModeProvider, useDataMode] = createContextHook<DataModeState>(
     AsyncStorage.getItem(STORAGE_KEY)
       .then((stored) => {
         if (stored === 'local' || stored === 'cloud' || stored === 'auto') {
-          setModeState(stored);
+          // In production builds, force local mode off if set erroneously
+          if (process.env.NODE_ENV === 'production' && stored === 'local') {
+            setModeState('auto');
+          } else {
+            setModeState(stored);
+          }
         }
       })
       .catch(() => {})
@@ -50,9 +55,11 @@ export const [DataModeProvider, useDataMode] = createContextHook<DataModeState>(
   }, []);
 
   const setMode = useCallback(async (newMode: DataMode) => {
-    setModeState(newMode);
+    // In production builds, local mode is disabled as a profile authority alternative
+    const targetMode = (process.env.NODE_ENV === 'production' && newMode === 'local') ? 'auto' : newMode;
+    setModeState(targetMode);
     setCloudError(null);
-    await AsyncStorage.setItem(STORAGE_KEY, newMode);
+    await AsyncStorage.setItem(STORAGE_KEY, targetMode);
   }, []);
 
   const shouldUseFirestore = mode !== 'local';
