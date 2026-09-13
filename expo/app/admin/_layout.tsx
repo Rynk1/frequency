@@ -2,6 +2,7 @@ import React from 'react';
 import { Stack, router } from 'expo-router';
 import { AdminAuthProvider, useAdminAuth } from '@/hooks/useAdminAuth';
 import { AdminAnalyticsProvider } from '@/hooks/useAdminAnalytics';
+import { AdminDataProvider } from '@/hooks/useAdminData';
 import { View, ActivityIndicator, StyleSheet, Text, TouchableOpacity } from 'react-native';
 import { ShieldAlert, LogOut } from 'lucide-react-native';
 
@@ -59,36 +60,38 @@ function AdminLayoutContent() {
   }
 
   return (
-    <AdminAnalyticsProvider>
-      <Stack
-        screenOptions={{
-          headerStyle: {
-            backgroundColor: '#1F2937',
-          },
-          headerTintColor: '#fff',
-          headerTitleStyle: {
-            fontWeight: '600',
-          },
-          contentStyle: {
-            backgroundColor: '#111827',
-          },
-        }}
-      >
-        <Stack.Screen
-          name="login"
-          options={{
-            headerShown: false,
-            presentation: 'card'
+    <AdminDataProvider>
+      <AdminAnalyticsProvider>
+        <Stack
+          screenOptions={{
+            headerStyle: {
+              backgroundColor: '#1F2937',
+            },
+            headerTintColor: '#fff',
+            headerTitleStyle: {
+              fontWeight: '600',
+            },
+            contentStyle: {
+              backgroundColor: '#111827',
+            },
           }}
-        />
-        <Stack.Screen
-          name="(dashboard)"
-          options={{
-            headerShown: false
-          }}
-        />
-      </Stack>
-    </AdminAnalyticsProvider>
+        >
+          <Stack.Screen
+            name="login"
+            options={{
+              headerShown: false,
+              presentation: 'card'
+            }}
+          />
+          <Stack.Screen
+            name="(dashboard)"
+            options={{
+              headerShown: false
+            }}
+          />
+        </Stack>
+      </AdminAnalyticsProvider>
+    </AdminDataProvider>
   );
 }
 
