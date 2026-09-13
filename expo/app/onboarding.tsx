@@ -3,6 +3,7 @@ import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-nati
 import { Redirect, router } from 'expo-router';
 import { useAuth } from '@/hooks/useAuth';
 import { useSettings } from '@/hooks/useSettings';
+import { auth } from '@/lib/firebase';
 
 type PrimaryGoal = 'focus' | 'sleep' | 'meditation' | 'healing';
 
@@ -16,7 +17,7 @@ const GOALS: { id: PrimaryGoal; title: string; description: string }[] = [
 const SESSION_LENGTHS = [10, 20, 30];
 
 export default function OnboardingPage() {
-  const { user, userProfile, updateProfile, isLoading } = useAuth();
+  const { user, userProfile, updateProfile, isLoading, bootstrapState } = useAuth();
   const { updateSetting } = useSettings();
   const [goal, setGoal] = useState<PrimaryGoal>('focus');
   const [sessionLength, setSessionLength] = useState(20);
@@ -32,7 +33,7 @@ export default function OnboardingPage() {
     );
   }
 
-  if (!user) return <Redirect href={'/' as any} />;
+  if (!user || bootstrapState === 'SIGNED_OUT') return <Redirect href={'/' as any} />;
   if (userProfile?.onboardingCompleted) {
     return <Redirect href={'/(tabs)/categories' as any} />;
   }
@@ -41,22 +42,41 @@ export default function OnboardingPage() {
     if (isSaving || isLoading || !user) return;
     setIsSaving(true);
     setSaveError(null);
+
+    const payloadUpdates = {
+      onboardingCompleted: true,
+      onboardingPreferences: {
+        primaryGoal: goal,
+        sessionLength,
+        notifications,
+      },
+    };
+
     try {
       updateSetting('defaultSessionLength', sessionLength);
       updateSetting('notifications', notifications);
-      await updateProfile({
-        onboardingCompleted: true,
-        onboardingPreferences: {
-          primaryGoal: goal,
-          sessionLength,
-          notifications,
-        },
-      });
+      await updateProfile(payloadUpdates);
       // Navigate ONLY when profile update succeeds
       router.replace('/(tabs)/categories' as any);
     } catch (err: any) {
-      console.error('Failed to finish onboarding:', err);
-      setSaveError(err?.message || 'Profile could not be saved. Please check your connection and try again.');
+      const errCode = err?.code || 'unknown';
+      const errMsg = err?.message || String(err);
+      const currentUser = auth.currentUser;
+
+      console.error('[ONBOARDING_FIRESTORE_FAILURE]', {
+        operation: 'updateProfile/setDoc',
+        path: `users/${user.uid}`,
+        uid: user.uid,
+        authUid: currentUser?.uid || null,
+        uidMatches: currentUser?.uid === user.uid,
+        errorCode: errCode,
+        errorMessage: errMsg,
+        payloadKeys: Object.keys(payloadUpdates),
+        authReady: !isLoading,
+        firebaseProjectId: process.env.EXPO_PUBLIC_FIREBASE_PROJECT_ID || 'harmony-frequency-app',
+      });
+
+      setSaveError(errMsg || 'Profile could not be saved. Please check your connection and try again.');
     } finally {
       setIsSaving(false);
     }
