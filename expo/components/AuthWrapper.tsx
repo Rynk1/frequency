@@ -14,6 +14,7 @@ interface AuthWrapperProps {
  * Auth gate component with explicit application state management.
  * Resolves loading smoothly once Firebase Auth & profile bootstrap complete.
  * Renders user-friendly offline status banner when operating with cached state.
+ * Strictly requires registration/authentication before entering application routes.
  */
 export const AuthWrapper: React.FC<AuthWrapperProps> = ({ children }) => {
   const {
@@ -125,7 +126,7 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     flexDirection: 'row',
     alignItems: 'center',
-    justify: 'space-between',
+    justifyContent: 'space-between',
     zIndex: 999,
   },
   offlineBannerText: {
