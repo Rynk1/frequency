@@ -90,7 +90,7 @@ interface AuthContextType {
   trackUsage: (sessionDuration: number, frequency: string) => Promise<void>;
 }
 
-const getUserProfileStorageKey = (uid: string) => `userProfile:${uid}`;
+const getUserProfileStorageKey = (uid: string) => `hf:user:${uid}:profile`;
 
 export const [AuthProvider, useAuth] = createContextHook((): AuthContextType => {
   const [user, setUser] = useState<AuthUser | null>(null);
@@ -611,11 +611,16 @@ export const [AuthProvider, useAuth] = createContextHook((): AuthContextType => 
       const currentUid = userProfileRef.current?.uid || user?.uid;
       await authService.signOut();
 
-      if (options?.clearLocalData && currentUid) {
-        await AsyncStorage.multiRemove([
-          USAGE_EVENTS_STORAGE_KEY,
-          getUserProfileStorageKey(currentUid),
-        ]).catch(() => {});
+      if (currentUid) {
+        // Clear all UID-namespaced user cache keys on signout
+        const keys = await AsyncStorage.getAllKeys().catch(() => [] as string[]);
+        const userKeys = keys.filter(k => k.startsWith(`hf:user:${currentUid}:`) || k === `userProfile:${currentUid}`);
+        if (userKeys.length > 0) {
+          await AsyncStorage.multiRemove(userKeys).catch(() => {});
+        }
+        if (options?.clearLocalData) {
+          await AsyncStorage.removeItem(USAGE_EVENTS_STORAGE_KEY).catch(() => {});
+        }
       }
 
       setUser(null);
