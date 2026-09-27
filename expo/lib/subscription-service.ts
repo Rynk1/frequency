@@ -144,6 +144,56 @@ export async function restorePurchases(): Promise<{
   };
 }
 
+export async function createCheckoutSession(
+  plan: Plan,
+  options: { trialEnabled?: boolean } = {}
+): Promise<{ url: string }> {
+  if (API_BASE) {
+    return apiCall<{ url: string }>('/createCheckoutSession', {
+      method: 'POST',
+      body: JSON.stringify({ plan, trialEnabled: options.trialEnabled }),
+    });
+  }
+  throw new Error('Checkout service endpoint is not configured.');
+}
+
+export async function createBillingPortalSession(): Promise<{ url: string }> {
+  if (API_BASE) {
+    return apiCall<{ url: string }>('/createBillingPortalSession', {
+      method: 'POST',
+    });
+  }
+  throw new Error('Billing portal endpoint is not configured.');
+}
+
+export async function cancelSubscription(): Promise<{ url?: string }> {
+  const user = auth.currentUser;
+  if (!user) throw new Error('Not authenticated.');
+
+  if (API_BASE) {
+    try {
+      return await createBillingPortalSession();
+    } catch {
+      // ignore
+    }
+  }
+  throw new Error('Please manage or cancel your subscription through your App Store, Google Play, or Billing Account settings.');
+}
+
+export async function resumeSubscription(): Promise<{ url?: string }> {
+  const user = auth.currentUser;
+  if (!user) throw new Error('Not authenticated.');
+
+  if (API_BASE) {
+    try {
+      return await createBillingPortalSession();
+    } catch {
+      // ignore
+    }
+  }
+  throw new Error('Please manage or resume your subscription through your App Store, Google Play, or Billing Account settings.');
+}
+
 export async function getSubscriptionStatus(): Promise<SubscriptionStatus> {
   const reconciled = await reconcileSubscription();
   return {

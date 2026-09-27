@@ -423,7 +423,7 @@ export default function CategoriesScreen() {
   if (isLoading && !isInitialized) {
     return (
       <View style={[styles.container, { backgroundColor: colors.bg }]}>
-        <LinearGradient colors={gradients.bg as any} style={StyleSheet.absoluteFillObject} pointerEvents="none" />
+        <LinearGradient colors={gradients.bg as any} style={StyleSheet.absoluteFill} pointerEvents="none" />
         <View style={[styles.safeArea, { paddingTop: insets.top, justifyContent: 'center', alignItems: 'center' }]}>
           <Text style={[styles.loadingText, { color: colors.textSecondary }]}>Loading Frequencies...</Text>
         </View>
@@ -433,7 +433,7 @@ export default function CategoriesScreen() {
 
   return (
     <View style={[styles.container, { backgroundColor: colors.bg }]}>
-      <LinearGradient colors={gradients.bg as any} style={StyleSheet.absoluteFillObject} pointerEvents="none" />
+      <LinearGradient colors={gradients.bg as any} style={StyleSheet.absoluteFill} pointerEvents="none" />
 
       <View style={[styles.ambientOrb1, { backgroundColor: isDark ? 'rgba(108,99,255,0.11)' : 'rgba(108,99,255,0.06)' }]} pointerEvents="none" />
       <View style={[styles.ambientOrb2, { backgroundColor: isDark ? 'rgba(244,114,182,0.07)' : 'rgba(244,114,182,0.04)' }]} pointerEvents="none" />

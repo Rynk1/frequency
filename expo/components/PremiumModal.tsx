@@ -182,16 +182,17 @@ export const PremiumModal: React.FC<PremiumModalProps> = ({
     setError(null);
     setManagementAction('cancel');
     setIsProcessing(true);
-    setProcessingLabel('Cancelling renewal…');
+    setProcessingLabel('Opening cancellation portal…');
     try {
-      await cancelSubscription();
+      const res = await cancelSubscription();
+      if (res?.url) {
+        await WebBrowser.openBrowserAsync(res.url, {
+          presentationStyle: WebBrowser.WebBrowserPresentationStyle.FULL_SCREEN,
+          toolbarColor: COLORS.bg,
+        });
+      }
       if (refreshSubscriptionStatus) await refreshSubscriptionStatus();
       setShowCancelConfirm(false);
-      Alert.alert(
-        'Subscription Cancelled',
-        'Your subscription will remain active until the end of your billing period, then will not renew.',
-        [{ text: 'OK', onPress: () => setShowManageSheet(false) }]
-      );
     } catch (e: any) {
       setError(e?.message || 'Failed to cancel subscription.');
     } finally {
@@ -205,9 +206,15 @@ export const PremiumModal: React.FC<PremiumModalProps> = ({
     setError(null);
     setManagementAction('resume');
     setIsProcessing(true);
-    setProcessingLabel('Resuming subscription…');
+    setProcessingLabel('Opening subscription portal…');
     try {
-      await resumeSubscription();
+      const res = await resumeSubscription();
+      if (res?.url) {
+        await WebBrowser.openBrowserAsync(res.url, {
+          presentationStyle: WebBrowser.WebBrowserPresentationStyle.FULL_SCREEN,
+          toolbarColor: COLORS.bg,
+        });
+      }
       if (refreshSubscriptionStatus) await refreshSubscriptionStatus();
       setShowManageSheet(false);
     } catch (e: any) {
@@ -241,7 +248,7 @@ export const PremiumModal: React.FC<PremiumModalProps> = ({
     return (
       <Modal visible={visible} animationType="slide" presentationStyle="pageSheet" onRequestClose={onClose}>
         <View style={styles.container}>
-          <LinearGradient colors={GRADIENTS.bg} style={StyleSheet.absoluteFillObject} pointerEvents="none" />
+          <LinearGradient colors={GRADIENTS.bg} style={StyleSheet.absoluteFill} pointerEvents="none" />
           <View style={styles.ambientOrb} pointerEvents="none" />
           <View style={styles.ambientOrb2} pointerEvents="none" />
 
@@ -478,7 +485,7 @@ export const PremiumModal: React.FC<PremiumModalProps> = ({
   return (
     <Modal visible={visible} animationType="slide" presentationStyle="pageSheet" onRequestClose={onClose}>
       <View style={styles.container}>
-        <LinearGradient colors={GRADIENTS.bg} style={StyleSheet.absoluteFillObject} pointerEvents="none" />
+        <LinearGradient colors={GRADIENTS.bg} style={StyleSheet.absoluteFill} pointerEvents="none" />
         <View style={styles.ambientOrb} pointerEvents="none" />
         <View style={styles.ambientOrb2} pointerEvents="none" />
         <View style={styles.ambientOrb3} pointerEvents="none" />

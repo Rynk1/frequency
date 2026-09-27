@@ -7,6 +7,7 @@ import {
   TouchableOpacity,
   TextInput,
   RefreshControl,
+  ActivityIndicator,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import {
@@ -17,8 +18,12 @@ import {
   Crown,
   Mail,
   Calendar,
+  ChevronLeft,
+  ChevronRight,
+  AlertCircle,
+  RefreshCw,
 } from 'lucide-react-native';
-import { collection, getDocs, query, limit } from 'firebase/firestore';
+import { collection, getDocs, query, limit, orderBy, startAfter, QueryDocumentSnapshot, DocumentData } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useDataMode } from '@/hooks/useDataMode';
 
@@ -42,31 +47,73 @@ export default function UsersManagement() {
   const [users, setUsers] = useState<UserRecord[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  // Pagination cursor state
+  const [currentPage, setCurrentPage] = useState(1);
+  const [hasNextPage, setHasNextPage] = useState(false);
+  const [pageDocStack, setPageDocStack] = useState<QueryDocumentSnapshot<DocumentData>[]>([]);
+  const [lastDocSnap, setLastDocSnap] = useState<QueryDocumentSnapshot<DocumentData> | null>(null);
+
   const { shouldUseFirestore } = useDataMode();
 
   const PAGE_SIZE = 50;
 
-  const loadUsers = useCallback(async () => {
+  const loadUsersPage = useCallback(async (cursorDoc: QueryDocumentSnapshot<DocumentData> | null = null, direction: 'initial' | 'next' | 'prev' = 'initial') => {
     if (!shouldUseFirestore) {
       setIsLoading(false);
+      setUsers([]);
       return;
     }
 
+    setIsLoading(true);
+    setError(null);
+
     try {
-      const q = query(collection(db, 'users'), limit(PAGE_SIZE));
+      let q;
+      if (cursorDoc) {
+        q = query(
+          collection(db, 'users'),
+          orderBy('createdAt', 'desc'),
+          startAfter(cursorDoc),
+          limit(PAGE_SIZE + 1)
+        );
+      } else {
+        q = query(
+          collection(db, 'users'),
+          orderBy('createdAt', 'desc'),
+          limit(PAGE_SIZE + 1)
+        );
+      }
+
       const snapshot = await getDocs(q);
-      const loaded: UserRecord[] = snapshot.docs.map(docSnap => ({
+      const docs = snapshot.docs;
+
+      const hasMore = docs.length > PAGE_SIZE;
+      setHasNextPage(hasMore);
+
+      const pageDocs = hasMore ? docs.slice(0, PAGE_SIZE) : docs;
+
+      const loaded: UserRecord[] = pageDocs.map(docSnap => ({
         id: docSnap.id,
         ...(docSnap.data() as any),
       }));
-      loaded.sort((a, b) => {
-        const aDate = a.createdAt?.toDate ? a.createdAt.toDate() : new Date(0);
-        const bDate = b.createdAt?.toDate ? b.createdAt.toDate() : new Date(0);
-        return bDate.getTime() - aDate.getTime();
-      });
+
       setUsers(loaded);
-    } catch (error) {
-      console.warn('Failed to load users from Firestore:', error);
+
+      if (pageDocs.length > 0) {
+        setLastDocSnap(pageDocs[pageDocs.length - 1]);
+      } else {
+        setLastDocSnap(null);
+      }
+
+      if (direction === 'initial') {
+        setCurrentPage(1);
+        setPageDocStack([]);
+      }
+    } catch (err: any) {
+      console.warn('Failed to load users from Firestore:', err);
+      setError(err?.message || 'Failed to load user list from database.');
     } finally {
       setIsLoading(false);
       setRefreshing(false);
@@ -74,13 +121,32 @@ export default function UsersManagement() {
   }, [shouldUseFirestore]);
 
   useEffect(() => {
-    loadUsers();
-  }, [loadUsers]);
+    loadUsersPage(null, 'initial');
+  }, [loadUsersPage]);
+
+  const handleNextPage = useCallback(() => {
+    if (!hasNextPage || !lastDocSnap) return;
+    setPageDocStack(prev => [...prev, lastDocSnap]);
+    setCurrentPage(prev => prev + 1);
+    loadUsersPage(lastDocSnap, 'next');
+  }, [hasNextPage, lastDocSnap, loadUsersPage]);
+
+  const handlePrevPage = useCallback(() => {
+    if (currentPage <= 1) return;
+    const newStack = [...pageDocStack];
+    newStack.pop();
+    const prevCursor = newStack.length > 0 ? newStack[newStack.length - 1] : null;
+    setPageDocStack(newStack);
+    setCurrentPage(prev => Math.max(1, prev - 1));
+    loadUsersPage(prevCursor, 'prev');
+  }, [currentPage, pageDocStack, loadUsersPage]);
 
   const handleRefresh = useCallback(() => {
     setRefreshing(true);
-    loadUsers();
-  }, [loadUsers]);
+    setPageDocStack([]);
+    setCurrentPage(1);
+    loadUsersPage(null, 'initial');
+  }, [loadUsersPage]);
 
   const formatDate = (timestamp: any): string => {
     if (!timestamp) return 'Unknown';
@@ -119,10 +185,10 @@ export default function UsersManagement() {
   const freeCount = users.filter(u => u.subscriptionStatus === 'free' || !u.subscriptionStatus).length;
 
   const stats = [
-    { label: 'Total Users', value: users.length.toString(), icon: <Users color="white" size={20} /> },
-    { label: 'Premium Users', value: premiumCount.toString(), icon: <Crown color="white" size={20} /> },
-    { label: 'Trial Users', value: trialCount.toString(), icon: <UserCheck color="white" size={20} /> },
-    { label: 'Free Users', value: freeCount.toString(), icon: <UserX color="white" size={20} /> },
+    { label: 'Page Total', value: users.length.toString(), icon: <Users color="white" size={20} /> },
+    { label: 'Page Premium', value: premiumCount.toString(), icon: <Crown color="white" size={20} /> },
+    { label: 'Page Trial', value: trialCount.toString(), icon: <UserCheck color="white" size={20} /> },
+    { label: 'Page Free', value: freeCount.toString(), icon: <UserX color="white" size={20} /> },
   ];
 
   return (
@@ -147,7 +213,7 @@ export default function UsersManagement() {
           <Search color="#9CA3AF" size={20} />
           <TextInput
             style={styles.searchInput}
-            placeholder="Search users..."
+            placeholder="Search users on this page..."
             placeholderTextColor="#6B7280"
             value={searchQuery}
             onChangeText={setSearchQuery}
@@ -185,18 +251,34 @@ export default function UsersManagement() {
         }
       >
         {isLoading && (
-          <Text style={styles.emptyText}>Loading users...</Text>
+          <View style={styles.loadingContainer}>
+            <ActivityIndicator size="large" color="#8B5CF6" />
+            <Text style={styles.emptyText}>Loading users (Page {currentPage})...</Text>
+          </View>
         )}
-        {!isLoading && filteredUsers.length === 0 && (
+
+        {error && !isLoading && (
+          <View style={styles.errorContainer}>
+            <AlertCircle color="#F87171" size={24} />
+            <Text style={styles.errorText}>{error}</Text>
+            <TouchableOpacity style={styles.retryButton} onPress={handleRefresh}>
+              <RefreshCw color="white" size={16} />
+              <Text style={styles.retryText}>Retry</Text>
+            </TouchableOpacity>
+          </View>
+        )}
+
+        {!isLoading && !error && filteredUsers.length === 0 && (
           <Text style={styles.emptyText}>
             {users.length === 0
               ? shouldUseFirestore
                 ? 'No users found. Users will appear here when they sign up.'
                 : 'Switch to Cloud mode in Settings to view real user data.'
-              : 'No users match your search.'}
+              : 'No users match your filter.'}
           </Text>
         )}
-        {filteredUsers.map((user) => (
+
+        {!isLoading && !error && filteredUsers.map((user) => (
           <View key={user.id} style={styles.userCard}>
             <View style={styles.userAvatar}>
               <Text style={styles.avatarText}>
@@ -235,6 +317,29 @@ export default function UsersManagement() {
             </View>
           </View>
         ))}
+
+        {/* Cursor Pagination Controls */}
+        <View style={styles.paginationRow}>
+          <TouchableOpacity
+            style={[styles.pageButton, currentPage <= 1 && styles.pageButtonDisabled]}
+            onPress={handlePrevPage}
+            disabled={currentPage <= 1 || isLoading}
+          >
+            <ChevronLeft color={currentPage <= 1 ? '#4B5563' : 'white'} size={18} />
+            <Text style={[styles.pageButtonText, currentPage <= 1 && styles.pageButtonTextDisabled]}>Previous</Text>
+          </TouchableOpacity>
+
+          <Text style={styles.pageLabel}>Page {currentPage}</Text>
+
+          <TouchableOpacity
+            style={[styles.pageButton, !hasNextPage && styles.pageButtonDisabled]}
+            onPress={handleNextPage}
+            disabled={!hasNextPage || isLoading}
+          >
+            <Text style={[styles.pageButtonText, !hasNextPage && styles.pageButtonTextDisabled]}>Next</Text>
+            <ChevronRight color={!hasNextPage ? '#4B5563' : 'white'} size={18} />
+          </TouchableOpacity>
+        </View>
       </ScrollView>
     </View>
   );
@@ -314,6 +419,40 @@ const styles = StyleSheet.create({
     flex: 1,
     padding: 16,
   },
+  loadingContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 30,
+  },
+  errorContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(248,113,113,0.1)',
+    borderRadius: 12,
+    padding: 20,
+    marginVertical: 12,
+  },
+  errorText: {
+    color: '#F87171',
+    fontSize: 14,
+    textAlign: 'center',
+    marginVertical: 8,
+  },
+  retryButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#374151',
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 8,
+    gap: 6,
+    marginTop: 4,
+  },
+  retryText: {
+    color: 'white',
+    fontSize: 14,
+    fontWeight: '600',
+  },
   userCard: {
     flexDirection: 'row',
     backgroundColor: '#1F2937',
@@ -386,5 +525,42 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     padding: 20,
     lineHeight: 20,
+  },
+  paginationRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 20,
+    paddingHorizontal: 8,
+    borderTopWidth: 1,
+    borderTopColor: '#374151',
+    marginTop: 12,
+    marginBottom: 40,
+  },
+  pageButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#374151',
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    borderRadius: 10,
+    gap: 4,
+  },
+  pageButtonDisabled: {
+    backgroundColor: '#1F2937',
+    opacity: 0.5,
+  },
+  pageButtonText: {
+    color: 'white',
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  pageButtonTextDisabled: {
+    color: '#6B7280',
+  },
+  pageLabel: {
+    color: '#9CA3AF',
+    fontSize: 14,
+    fontWeight: '600',
   },
 });

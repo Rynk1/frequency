@@ -56,8 +56,8 @@ export default function TabLayout() {
     <AuthWrapper>
       <Tabs
         screenOptions={{
-          tabBarActiveTintColor: colors.accent,
-          tabBarInactiveTintColor: colors.tabBarInactive,
+          tabBarActiveTintColor: String(colors.accent),
+          tabBarInactiveTintColor: String(colors.tabBarInactive),
           headerShown: false,
           tabBarStyle: {
             backgroundColor: colors.tabBarBg,
@@ -94,28 +94,28 @@ export default function TabLayout() {
           name="sessions"
           options={{
             title: "Journey",
-            tabBarIcon: ({ color, focused }) => <TabIcon icon={Home} color={color} focused={focused} />,
+            tabBarIcon: ({ color, focused }) => <TabIcon icon={Home} color={String(color)} focused={focused} />,
           }}
         />
         <Tabs.Screen
           name="categories"
           options={{
             title: "Explore",
-            tabBarIcon: ({ color, focused }) => <TabIcon icon={Compass} color={color} focused={focused} />,
+            tabBarIcon: ({ color, focused }) => <TabIcon icon={Compass} color={String(color)} focused={focused} />,
           }}
         />
         <Tabs.Screen
           name="learn"
           options={{
             title: "Learn",
-            tabBarIcon: ({ color, focused }) => <TabIcon icon={BookOpen} color={color} focused={focused} />,
+            tabBarIcon: ({ color, focused }) => <TabIcon icon={BookOpen} color={String(color)} focused={focused} />,
           }}
         />
         <Tabs.Screen
           name="settings"
           options={{
             title: "Profile",
-            tabBarIcon: ({ color, focused }) => <ProfileTabIcon color={color} focused={focused} />,
+            tabBarIcon: ({ color, focused }) => <ProfileTabIcon color={String(color)} focused={focused} />,
           }}
         />
       </Tabs>
