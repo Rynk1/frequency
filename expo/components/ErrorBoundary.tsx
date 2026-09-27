@@ -52,7 +52,7 @@ export class ErrorBoundary extends React.PureComponent<ErrorBoundaryProps, Error
 
     return (
       <View style={styles.container} testID="error-boundary">
-        <LinearGradient colors={["#0B1220", "#111827", "#0B1220"]} style={StyleSheet.absoluteFillObject} />
+        <LinearGradient colors={["#0B1220", "#111827", "#0B1220"]} style={StyleSheet.absoluteFill} />
 
         <ScrollView contentContainerStyle={styles.content} bounces={false}>
           <View style={styles.iconWrap}>

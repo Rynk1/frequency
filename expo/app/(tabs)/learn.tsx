@@ -387,7 +387,7 @@ export default function LearnScreen() {
 
   return (
     <View style={[styles.container, { backgroundColor: colors.bg }]}>
-      <LinearGradient colors={gradients.bg} style={StyleSheet.absoluteFillObject} pointerEvents="none" />
+      <LinearGradient colors={gradients.bg} style={StyleSheet.absoluteFill} pointerEvents="none" />
       <View style={styles.ambientOrb} pointerEvents="none" />
       <View style={styles.ambientOrb2} pointerEvents="none" />
       <View style={styles.ambientOrb3} pointerEvents="none" />
@@ -551,7 +551,7 @@ export default function LearnScreen() {
               <GlassCard style={styles.articleCard} depth="normal">
                 <LinearGradient
                   colors={[article.color + '18', article.color + '05', 'transparent']}
-                  style={StyleSheet.absoluteFillObject}
+                  style={StyleSheet.absoluteFill}
                   start={{ x: 0, y: 0 }}
                   end={{ x: 1, y: 1 }}
                   pointerEvents="none"
@@ -620,7 +620,7 @@ export default function LearnScreen() {
       {selectedArticle && (
         <Modal visible animationType="slide" presentationStyle="fullScreen">
           <View style={[styles.modalWrap, { backgroundColor: colors.bg }]}>
-            <LinearGradient colors={gradients.bg} style={StyleSheet.absoluteFillObject} pointerEvents="none" />
+            <LinearGradient colors={gradients.bg} style={StyleSheet.absoluteFill} pointerEvents="none" />
             {/* Ambient color orb from article */}
             <View style={[styles.modalAmbientOrb, { backgroundColor: selectedArticle.color + '12' }]} pointerEvents="none" />
             <View style={[styles.modalAmbientOrb2, { backgroundColor: selectedArticle.color + '07' }]} pointerEvents="none" />
@@ -697,7 +697,7 @@ export default function LearnScreen() {
                     <GlassCard style={styles.infoBox} depth="light">
                       <LinearGradient
                         colors={['rgba(34,211,238,0.08)', 'transparent']}
-                        style={StyleSheet.absoluteFillObject}
+                        style={StyleSheet.absoluteFill}
                         pointerEvents="none"
                       />
                       <View style={styles.infoBoxHeader}>
@@ -713,7 +713,7 @@ export default function LearnScreen() {
                     <GlassCard style={styles.infoBox} depth="light">
                       <LinearGradient
                         colors={[colors.accent + '08', 'transparent']}
-                        style={StyleSheet.absoluteFillObject}
+                        style={StyleSheet.absoluteFill}
                         pointerEvents="none"
                       />
                       <View style={styles.infoBoxHeader}>
@@ -755,7 +755,7 @@ export default function LearnScreen() {
                 <GlassCard style={styles.tipsContainer} depth="light">
                   <LinearGradient
                     colors={[colors.goldGlow, 'transparent']}
-                    style={StyleSheet.absoluteFillObject}
+                    style={StyleSheet.absoluteFill}
                     start={{ x: 0, y: 0 }}
                     end={{ x: 1, y: 1 }}
                     pointerEvents="none"
@@ -778,7 +778,7 @@ export default function LearnScreen() {
                 colors={isDark
                   ? ['rgba(10,14,26,0)', 'rgba(10,14,26,0.98)', colors.bg]
                   : ['rgba(245,246,250,0)', 'rgba(245,246,250,0.98)', colors.bg]}
-                style={StyleSheet.absoluteFillObject}
+                style={StyleSheet.absoluteFill}
                 pointerEvents="none"
               />
               <TouchableOpacity
@@ -1036,7 +1036,7 @@ const createStyles = (colors: any, gradients: any, isDark: boolean) => StyleShee
     position: 'relative',
   },
   heroGradient: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     borderRadius: 22,
   },
   heroContent: { padding: 20 },

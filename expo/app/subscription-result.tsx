@@ -196,7 +196,7 @@ export default function SubscriptionResultScreen() {
 
   return (
     <View style={styles.container}>
-      <LinearGradient colors={GRADIENTS.bg} style={StyleSheet.absoluteFillObject} pointerEvents="none" />
+      <LinearGradient colors={GRADIENTS.bg} style={StyleSheet.absoluteFill} pointerEvents="none" />
       <View style={styles.ambientOrb} pointerEvents="none" />
       <View style={styles.ambientOrb2} pointerEvents="none" />
 

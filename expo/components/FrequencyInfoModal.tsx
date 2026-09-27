@@ -622,7 +622,7 @@ export function FrequencyInfoModal({ visible, onClose, frequency, category }: Fr
       onRequestClose={onClose}
     >
       <View style={styles.container}>
-        <LinearGradient colors={[...gradients.bg]} style={StyleSheet.absoluteFillObject} pointerEvents="none" />
+        <LinearGradient colors={[...gradients.bg]} style={StyleSheet.absoluteFill} pointerEvents="none" />
 
         {/* Ambient orbs */}
         <Animated.View

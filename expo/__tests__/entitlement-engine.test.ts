@@ -57,8 +57,6 @@ describe('Entitlement Engine & State Machine', () => {
       beatFrequency: 10,
       carrierFrequency: 200,
       modality: 'binaural_beat',
-      waveform: 'sine',
-      targetCarrierFrequency: 200,
     };
 
     // Full playback attempt without entitlement -> denied

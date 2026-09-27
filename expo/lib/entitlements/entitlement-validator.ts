@@ -37,8 +37,9 @@ export class EntitlementValidator {
     }
 
     // Capability evaluation using CapabilityRegistry
+    const targetFreq = spec.modality === 'pure_tone' ? spec.frequency : spec.carrierFrequency;
     const requiredCap = CapabilityRegistry.getRequiredCapability(
-      spec.frequency || spec.targetCarrierFrequency || 0,
+      targetFreq || 0,
       spec.modality,
     );
 

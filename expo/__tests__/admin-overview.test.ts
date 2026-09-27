@@ -116,7 +116,7 @@ vi.mock('firebase/firestore', () => {
     getDoc: vi.fn(async (docRef) => {
       if (docRef.name === 'analytics' && docRef.id === 'aggregate') {
         return {
-          exists: () => true,
+          exists: (): boolean => true,
           data: () => ({
             totalListeningMinutes: 165,
             totalSessionsCompleted: 7,
@@ -124,7 +124,7 @@ vi.mock('firebase/firestore', () => {
           }),
         };
       }
-      return { exists: () => false };
+      return { exists: (): boolean => false };
     }),
   };
 });
