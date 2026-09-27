@@ -11,7 +11,18 @@ if (!admin.apps.length) {
 const db = admin.firestore();
 const auth = admin.auth();
 
-export const SUPPORTED_ROLES = ['user', 'content_editor', 'regional_manager', 'admin', 'super_admin'] as const;
+export const SUPPORTED_ROLES = [
+  'user',
+  'content_editor',
+  'regional_manager',
+  'support_admin',
+  'finance_admin',
+  'content_admin',
+  'analytics_admin',
+  'operations_admin',
+  'admin',
+  'super_admin',
+] as const;
 export type SupportedRole = typeof SUPPORTED_ROLES[number];
 
 /**
