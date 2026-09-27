@@ -1,5 +1,5 @@
 import { EventEmitter } from 'events';
-import { setAdminClaim, deleteAccount, handleSubscriptionWebhook, reconcileSubscription } from '../src/index';
+import { setAdminClaim, deleteAccount, handleSubscriptionWebhook, reconcileSubscription, executeSupportAction } from '../src/index';
 
 async function runFunctionsRegressionTests() {
   console.log('=== FIREBASE FUNCTIONS REGRESSION TEST ===\n');
@@ -171,6 +171,45 @@ async function runFunctionsRegressionTests() {
       passed++;
     } else {
       console.error('[FAIL] reconcileSubscription (Unauthorized check)');
+      failed++;
+    }
+  }
+
+  // 9. executeSupportAction - Unauthorized check
+  {
+    const req: any = { method: 'POST', headers: {}, body: { uid: 'user_123', operationType: 'REFUND' } };
+    const res = createMockResponse();
+    await (executeSupportAction as any)(req, res);
+    if (res.getStatus() === 401) {
+      console.log('[PASS] executeSupportAction (Unauthorized check)');
+      passed++;
+    } else {
+      console.error('[FAIL] executeSupportAction (Unauthorized check)');
+      failed++;
+    }
+  }
+
+  // 10. executeSupportAction - Authenticated Admin Execution
+  {
+    const req: any = {
+      method: 'POST',
+      headers: {
+        authorization: 'Bearer test-secret-key-12345',
+      },
+      body: {
+        uid: 'user_123',
+        operationType: 'REFUND',
+        idempotencyKey: 'refund_test_001',
+        reason: 'Customer Request',
+      },
+    };
+    const res = createMockResponse();
+    await (executeSupportAction as any)(req, res);
+    if (res.getStatus() === 200 && res.getBody()?.success === true) {
+      console.log('[PASS] executeSupportAction (Authenticated Admin REFUND)');
+      passed++;
+    } else {
+      console.error('[FAIL] executeSupportAction (Authenticated Admin REFUND):', res.getStatus(), res.getBody());
       failed++;
     }
   }

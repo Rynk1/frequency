@@ -18,7 +18,7 @@ import {
   Mail,
   Calendar,
 } from 'lucide-react-native';
-import { collection, getDocs } from 'firebase/firestore';
+import { collection, getDocs, query, limit } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useDataMode } from '@/hooks/useDataMode';
 
@@ -44,6 +44,8 @@ export default function UsersManagement() {
   const [refreshing, setRefreshing] = useState(false);
   const { shouldUseFirestore } = useDataMode();
 
+  const PAGE_SIZE = 50;
+
   const loadUsers = useCallback(async () => {
     if (!shouldUseFirestore) {
       setIsLoading(false);
@@ -51,7 +53,8 @@ export default function UsersManagement() {
     }
 
     try {
-      const snapshot = await getDocs(collection(db, 'users'));
+      const q = query(collection(db, 'users'), limit(PAGE_SIZE));
+      const snapshot = await getDocs(q);
       const loaded: UserRecord[] = snapshot.docs.map(docSnap => ({
         id: docSnap.id,
         ...(docSnap.data() as any),
