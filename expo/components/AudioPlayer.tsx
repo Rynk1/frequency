@@ -47,6 +47,8 @@ import { FrequencyVisualizer } from './FrequencyVisualizer';
 import { Share } from 'react-native';
 import { DEFAULT_PREMIUM_POLICY } from '@/lib/subscription-service';
 import { PremiumModal, PremiumTrigger } from './PremiumModal';
+import { AffirmationStreamCard } from './AffirmationStreamCard';
+import { Affirmation, AffirmationMode } from '@/types/affirmation';
 
 const { width, height } = Dimensions.get('window');
 
@@ -118,6 +120,11 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({
   const pulseAnim = useRef(new Animated.Value(1)).current;
   const progressAnim = useRef(new Animated.Value(0)).current;
   const volumeSlideAnim = useRef(new Animated.Value(0)).current;
+
+  // Affirmation stream states
+  const [affirmationMode, setAffirmationMode] = useState<AffirmationMode>('off');
+  const [speechVolume, setSpeechVolume] = useState<number>(0.8);
+  const [activeAffirmation, setActiveAffirmation] = useState<Affirmation | null>(null);
 
   // Session mode states
   const [currentFrequencyIndex, setCurrentFrequencyIndex] = useState<number>(0);
@@ -650,8 +657,21 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({
                           <Text style={styles.previewBadgeText}>3-MINUTE PREVIEW</Text>
                         </View>
                       )}
-                      <Text style={styles.frequencyHz}>{displayFrequency?.hz || 0} Hz</Text>
-                      <Text style={styles.frequencyName}>{displayFrequency?.name || 'No Frequency'}</Text>
+                      {(affirmationMode === 'visual' || affirmationMode === 'both') && activeAffirmation ? (
+                        <View style={styles.affirmationOverlayBox}>
+                          <Text style={styles.affirmationOverlayText} numberOfLines={3}>
+                            "{activeAffirmation.text}"
+                          </Text>
+                          <Text style={styles.affirmationOverlaySub}>
+                            {displayFrequency?.hz || 0} Hz • {activeAffirmation.title || 'Affirmation'}
+                          </Text>
+                        </View>
+                      ) : (
+                        <>
+                          <Text style={styles.frequencyHz}>{displayFrequency?.hz || 0} Hz</Text>
+                          <Text style={styles.frequencyName}>{displayFrequency?.name || 'No Frequency'}</Text>
+                        </>
+                      )}
                     </View>
                   </TouchableOpacity>
 
@@ -836,6 +856,18 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({
 
                   <Text style={styles.volumeText}>{Math.round((isMuted ? 0 : effectiveVolume) * 100)}%</Text>
                 </View>
+
+                {/* Affirmation Stream Section */}
+                <AffirmationStreamCard
+                  frequencyId={displayFrequency?.id || `solfeggio-${displayFrequency?.hz || 528}`}
+                  sessionContext={isSessionMode ? 'session' : 'reflection'}
+                  isPlaying={isCurrentlyPlaying}
+                  mode={affirmationMode}
+                  onModeChange={setAffirmationMode}
+                  speechVolume={speechVolume}
+                  onSpeechVolumeChange={setSpeechVolume}
+                  onActiveAffirmationChange={setActiveAffirmation}
+                />
 
                 {/* Duration Control Section */}
                 <GlassCard style={styles.durationCard} intensity={60}>
@@ -1624,5 +1656,25 @@ const createStyles = (colors: any, gradients: any, isDark: boolean) => StyleShee
   },
   playIcon: {
     marginLeft: 4,
+  },
+  affirmationOverlayBox: {
+    paddingHorizontal: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  affirmationOverlayText: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#FFFFFF',
+    textAlign: 'center',
+    lineHeight: 22,
+    marginBottom: 4,
+  },
+  affirmationOverlaySub: {
+    fontSize: 11,
+    color: colors.primary,
+    fontWeight: '600',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
   },
 });
