@@ -54,6 +54,20 @@ export interface AffirmationSelectionState {
   speechVolume: number;
   speechPitch: number;
   speechRate: number;
+  sourceType?: 'curated' | 'custom';
+}
+
+export interface UserCustomAffirmation {
+  id: string;
+  userId: string;
+  title: string;
+  text: string;
+  category: AffirmationCategory;
+  audioUri?: string | null;
+  audioBase64?: string | null;
+  durationSeconds?: number;
+  createdAt: string;
+  updatedAt: string;
 }
 
 export const CATEGORY_LABELS: Record<AffirmationCategory, { label: string; description: string }> = {

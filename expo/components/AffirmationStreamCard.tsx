@@ -18,16 +18,24 @@ import {
   RefreshCw,
   XCircle,
   Sliders,
+  Mic,
+  Plus,
+  Trash2,
 } from 'lucide-react-native';
 import {
   Affirmation,
   AffirmationCategory,
   AffirmationMode,
+  UserCustomAffirmation,
   CATEGORY_LABELS,
 } from '../types/affirmation';
 import { AffirmationService } from '../lib/affirmations/affirmation-service';
+import { UserAffirmationService } from '../lib/affirmations/user-affirmation-service';
 import { globalSpeechEngine } from '../lib/audio/AffirmationSpeechEngine';
+import { globalCustomAudioOverlayEngine } from '../lib/audio/CustomAudioOverlayEngine';
+import { RecordAffirmationModal } from './RecordAffirmationModal';
 import { useTheme } from '../hooks/useTheme';
+import { useAuth } from '../hooks/useAuth';
 
 const { width } = Dimensions.get('window');
 
@@ -68,11 +76,31 @@ export const AffirmationStreamCard: React.FC<AffirmationStreamCardProps> = ({
   onActiveAffirmationChange,
 }) => {
   const { colors } = useTheme();
+  const { user } = useAuth();
+  const [sourceType, setSourceType] = useState<'curated' | 'custom'>('curated');
   const [selectedIntention, setSelectedIntention] = useState<AffirmationCategory>(initialIntention);
   const [activeAffirmation, setActiveAffirmation] = useState<Affirmation | null>(null);
+  const [customAffirmations, setCustomAffirmations] = useState<UserCustomAffirmation[]>([]);
+  const [activeCustomAffirmation, setActiveCustomAffirmation] = useState<UserCustomAffirmation | null>(null);
+  const [showRecordModal, setShowRecordModal] = useState<boolean>(false);
   const [autoRotate, setAutoRotate] = useState<boolean>(false);
   const [rotationInterval, setRotationInterval] = useState<number>(30); // seconds
   const [showCategoryPicker, setShowCategoryPicker] = useState<boolean>(false);
+
+  // Fetch custom affirmations from user store
+  const loadCustomAffirmations = useCallback(async () => {
+    if (user?.uid) {
+      const items = await UserAffirmationService.getUserAffirmations(user.uid);
+      setCustomAffirmations(items);
+      if (items.length > 0 && !activeCustomAffirmation) {
+        setActiveCustomAffirmation(items[0]);
+      }
+    }
+  }, [user?.uid]);
+
+  useEffect(() => {
+    loadCustomAffirmations();
+  }, [loadCustomAffirmations]);
 
   // Fetch eligible affirmations for current query
   const query = {
@@ -105,21 +133,38 @@ export const AffirmationStreamCard: React.FC<AffirmationStreamCardProps> = ({
     }
   }, [mode, selectedIntention, frequencyId, sessionContext]);
 
-  // Handle spoken audio triggering — only speaks when frequency playback is active
+  // Handle spoken audio / custom overlay triggering — only plays when frequency playback is active
   useEffect(() => {
-    if (isPlaying && (mode === 'spoken' || mode === 'both') && activeAffirmation) {
-      globalSpeechEngine.speak(activeAffirmation.text, { volume: speechVolume });
+    if (isPlaying && (mode === 'spoken' || mode === 'both')) {
+      if (sourceType === 'curated' && activeAffirmation) {
+        globalCustomAudioOverlayEngine.stop();
+        globalSpeechEngine.speak(activeAffirmation.text, { volume: speechVolume });
+      } else if (sourceType === 'custom' && activeCustomAffirmation) {
+        globalSpeechEngine.stop();
+        if (activeCustomAffirmation.audioUri) {
+          globalCustomAudioOverlayEngine.playOverlay(activeCustomAffirmation.audioUri, {
+            volume: speechVolume,
+            isLooping: true,
+          });
+        } else {
+          // Fallback to TTS if user didn't record voice
+          globalSpeechEngine.speak(activeCustomAffirmation.text, { volume: speechVolume });
+        }
+      }
     } else {
       globalSpeechEngine.stop();
+      globalCustomAudioOverlayEngine.stop();
     }
     return () => {
       globalSpeechEngine.stop();
+      globalCustomAudioOverlayEngine.stop();
     };
-  }, [isPlaying, mode, activeAffirmation]);
+  }, [isPlaying, mode, sourceType, activeAffirmation, activeCustomAffirmation]);
 
   // Update volume dynamically without restarting speech mid-phrase
   useEffect(() => {
     globalSpeechEngine.setVolume(speechVolume);
+    globalCustomAudioOverlayEngine.setVolume(speechVolume);
   }, [speechVolume]);
 
   // Handle auto-rotation — only rotates when frequency playback is active
@@ -205,6 +250,44 @@ export const AffirmationStreamCard: React.FC<AffirmationStreamCardProps> = ({
         })}
       </View>
 
+      {/* Source Type Sub-Selector (Curated vs Custom Recordings) */}
+      {mode !== 'off' && (
+        <View style={styles.sourceTypeRow}>
+          <TouchableOpacity
+            style={[
+              styles.sourceTypeTab,
+              sourceType === 'curated' && { backgroundColor: colors.primary + '20', borderColor: colors.primary },
+            ]}
+            onPress={() => setSourceType('curated')}
+          >
+            <Sparkles color={sourceType === 'curated' ? colors.primary : colors.textMuted} size={14} />
+            <Text style={[styles.sourceTypeText, { color: sourceType === 'curated' ? colors.primary : colors.textMuted }]}>
+              Curated Catalog
+            </Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[
+              styles.sourceTypeTab,
+              sourceType === 'custom' && { backgroundColor: colors.primary + '20', borderColor: colors.primary },
+            ]}
+            onPress={() => setSourceType('custom')}
+          >
+            <Mic color={sourceType === 'custom' ? colors.primary : colors.textMuted} size={14} />
+            <Text style={[styles.sourceTypeText, { color: sourceType === 'custom' ? colors.primary : colors.textMuted }]}>
+              My Recordings ({customAffirmations.length})
+            </Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[styles.recordNewButton, { backgroundColor: colors.primary }]}
+            onPress={() => setShowRecordModal(true)}
+          >
+            <Plus color="#FFFFFF" size={14} />
+          </TouchableOpacity>
+        </View>
+      )}
+
       {/* Main Content Area (Active when Mode !== 'off') */}
       {mode !== 'off' && (
         <View style={styles.activeContent}>
@@ -262,74 +345,141 @@ export const AffirmationStreamCard: React.FC<AffirmationStreamCardProps> = ({
           )}
 
           {/* Active Affirmation Display / Empty State */}
-          {activeAffirmation ? (
-            <View style={[styles.affirmationDisplay, { backgroundColor: colors.glass, borderColor: colors.glassBorder }]}>
-              <View style={styles.affirmationMetaRow}>
-                <Text style={[styles.affirmationCategory, { color: colors.primary }]}>
-                  {activeAffirmation.title || CATEGORY_LABELS[activeAffirmation.category]?.label}
+          {sourceType === 'curated' ? (
+            activeAffirmation ? (
+              <View style={[styles.affirmationDisplay, { backgroundColor: colors.glass, borderColor: colors.glassBorder }]}>
+                <View style={styles.affirmationMetaRow}>
+                  <Text style={[styles.affirmationCategory, { color: colors.primary }]}>
+                    {activeAffirmation.title || CATEGORY_LABELS[activeAffirmation.category]?.label}
+                  </Text>
+                  {activeAffirmation.tone && (
+                    <Text style={[styles.toneBadge, { color: colors.textMuted }]}>
+                      {activeAffirmation.tone}
+                    </Text>
+                  )}
+                </View>
+
+                <Text style={[styles.affirmationText, { color: colors.textPrimary }]}>
+                  "{activeAffirmation.text}"
                 </Text>
-                {activeAffirmation.tone && (
-                  <Text style={[styles.toneBadge, { color: colors.textMuted }]}>
-                    {activeAffirmation.tone}
-                  </Text>
-                )}
+
+                {/* Navigation & Rotation Controls */}
+                <View style={styles.controlsRow}>
+                  <TouchableOpacity
+                    style={[styles.navButton, { backgroundColor: colors.glass }]}
+                    onPress={handlePrev}
+                    disabled={eligibleList.length <= 1}
+                  >
+                    <ChevronLeft color={eligibleList.length > 1 ? colors.textPrimary : colors.textMuted} size={18} />
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    style={[
+                      styles.rotateButton,
+                      {
+                        backgroundColor: autoRotate ? colors.primary + '20' : colors.glass,
+                        borderColor: autoRotate ? colors.primary : colors.glassBorder,
+                      },
+                    ]}
+                    onPress={() => setAutoRotate((prev) => !prev)}
+                  >
+                    <RefreshCw color={autoRotate ? colors.primary : colors.textMuted} size={14} />
+                    <Text style={[styles.rotateText, { color: autoRotate ? colors.primary : colors.textMuted }]}>
+                      {autoRotate ? `Rotate (${rotationInterval}s)` : 'Manual'}
+                    </Text>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    style={[styles.navButton, { backgroundColor: colors.glass }]}
+                    onPress={handleNext}
+                    disabled={eligibleList.length <= 1}
+                  >
+                    <ChevronRight color={eligibleList.length > 1 ? colors.textPrimary : colors.textMuted} size={18} />
+                  </TouchableOpacity>
+                </View>
               </View>
-
-              <Text style={[styles.affirmationText, { color: colors.textPrimary }]}>
-                "{activeAffirmation.text}"
-              </Text>
-
-              {/* Navigation & Rotation Controls */}
-              <View style={styles.controlsRow}>
+            ) : (
+              <View style={[styles.emptyState, { backgroundColor: colors.glass }]}>
+                <Text style={[styles.emptyTitle, { color: colors.textPrimary }]}>
+                  No affirmations found for this context
+                </Text>
+                <Text style={[styles.emptyBody, { color: colors.textSecondary }]}>
+                  Choose another intention scope or continue listening to sound only.
+                </Text>
                 <TouchableOpacity
-                  style={[styles.navButton, { backgroundColor: colors.glass }]}
-                  onPress={handlePrev}
-                  disabled={eligibleList.length <= 1}
+                  style={[styles.emptyButton, { backgroundColor: colors.primary }]}
+                  onPress={() => setSelectedIntention('confidence')}
                 >
-                  <ChevronLeft color={eligibleList.length > 1 ? colors.textPrimary : colors.textMuted} size={18} />
-                </TouchableOpacity>
-
-                <TouchableOpacity
-                  style={[
-                    styles.rotateButton,
-                    {
-                      backgroundColor: autoRotate ? colors.primary + '20' : colors.glass,
-                      borderColor: autoRotate ? colors.primary : colors.glassBorder,
-                    },
-                  ]}
-                  onPress={() => setAutoRotate((prev) => !prev)}
-                >
-                  <RefreshCw color={autoRotate ? colors.primary : colors.textMuted} size={14} />
-                  <Text style={[styles.rotateText, { color: autoRotate ? colors.primary : colors.textMuted }]}>
-                    {autoRotate ? `Rotate (${rotationInterval}s)` : 'Manual'}
-                  </Text>
-                </TouchableOpacity>
-
-                <TouchableOpacity
-                  style={[styles.navButton, { backgroundColor: colors.glass }]}
-                  onPress={handleNext}
-                  disabled={eligibleList.length <= 1}
-                >
-                  <ChevronRight color={eligibleList.length > 1 ? colors.textPrimary : colors.textMuted} size={18} />
+                  <Text style={styles.emptyButtonText}>Switch Intention</Text>
                 </TouchableOpacity>
               </View>
-            </View>
+            )
           ) : (
-            <View style={[styles.emptyState, { backgroundColor: colors.glass }]}>
-              <Text style={[styles.emptyTitle, { color: colors.textPrimary }]}>
-                No affirmations found for this context
-              </Text>
-              <Text style={[styles.emptyBody, { color: colors.textSecondary }]}>
-                Choose another intention scope or continue listening to sound only.
-              </Text>
-              <TouchableOpacity
-                style={[styles.emptyButton, { backgroundColor: colors.primary }]}
-                onPress={() => setSelectedIntention('confidence')}
-              >
-                <Text style={styles.emptyButtonText}>Switch Intention</Text>
-              </TouchableOpacity>
-            </View>
+            customAffirmations.length > 0 && activeCustomAffirmation ? (
+              <View style={[styles.affirmationDisplay, { backgroundColor: colors.glass, borderColor: colors.glassBorder }]}>
+                <View style={styles.affirmationMetaRow}>
+                  <Text style={[styles.affirmationCategory, { color: colors.primary }]}>
+                    {activeCustomAffirmation.title}
+                  </Text>
+                  <Text style={[styles.toneBadge, { color: colors.accent }]}>
+                    {activeCustomAffirmation.audioUri ? '🎙️ Recorded Audio' : '📝 Written Text'}
+                  </Text>
+                </View>
+
+                <Text style={[styles.affirmationText, { color: colors.textPrimary }]}>
+                  "{activeCustomAffirmation.text}"
+                </Text>
+
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.customListRow}>
+                  {customAffirmations.map((item) => {
+                    const isSelected = activeCustomAffirmation.id === item.id;
+                    return (
+                      <TouchableOpacity
+                        key={item.id}
+                        style={[
+                          styles.customChip,
+                          {
+                            backgroundColor: isSelected ? colors.primary + '25' : colors.glass,
+                            borderColor: isSelected ? colors.primary : colors.glassBorder,
+                          },
+                        ]}
+                        onPress={() => setActiveCustomAffirmation(item)}
+                      >
+                        <Text style={[styles.customChipText, { color: isSelected ? colors.primary : colors.textSecondary }]}>
+                          {item.title}
+                        </Text>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </ScrollView>
+              </View>
+            ) : (
+              <View style={[styles.emptyState, { backgroundColor: colors.glass }]}>
+                <Text style={[styles.emptyTitle, { color: colors.textPrimary }]}>
+                  No Custom Affirmations Recorded Yet
+                </Text>
+                <Text style={[styles.emptyBody, { color: colors.textSecondary }]}>
+                  Write down your affirmation and record your voice to overlay it onto playing frequency tones.
+                </Text>
+                <TouchableOpacity
+                  style={[styles.emptyButton, { backgroundColor: colors.primary }]}
+                  onPress={() => setShowRecordModal(true)}
+                >
+                  <Text style={styles.emptyButtonText}>Record Your First Affirmation</Text>
+                </TouchableOpacity>
+              </View>
+            )
           )}
+
+          {/* Record Affirmation Modal */}
+          <RecordAffirmationModal
+            visible={showRecordModal}
+            onClose={() => setShowRecordModal(false)}
+            onSaved={() => {
+              loadCustomAffirmations();
+              setSourceType('custom');
+            }}
+          />
 
           {/* Voice Volume Control (when mode === 'spoken' or 'both') */}
           {(mode === 'spoken' || mode === 'both') && (
@@ -414,6 +564,48 @@ const styles = StyleSheet.create({
   disableText: {
     fontSize: 12,
     fontWeight: '500',
+  },
+  sourceTypeRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 12,
+  },
+  sourceTypeTab: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: 'transparent',
+  },
+  sourceTypeText: {
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  recordNewButton: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginLeft: 'auto',
+  },
+  customListRow: {
+    marginTop: 6,
+  },
+  customChip: {
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 10,
+    borderWidth: 1,
+    marginRight: 6,
+  },
+  customChipText: {
+    fontSize: 11,
+    fontWeight: '600',
   },
   modeSegment: {
     flexDirection: 'row',
