@@ -53,7 +53,8 @@ export class FrequencyAudioEngine {
   public async play(
     spec: FrequencyAudioSpec,
     name: string = '',
-    entitlementState?: EntitlementState
+    entitlementState?: EntitlementState,
+    mode: 'full' | 'preview' = 'full'
   ): Promise<void> {
     // 1. Audio Specification Validation
     const validation = AudioValidator.validate(spec);
@@ -65,7 +66,7 @@ export class FrequencyAudioEngine {
 
     // 2. Entitlement Enforcement (Fail Closed)
     if (entitlementState) {
-      const entitlementCheck = EntitlementValidator.validatePlayback(spec, entitlementState);
+      const entitlementCheck = EntitlementValidator.validatePlayback(spec, entitlementState, 0, mode);
       if (!entitlementCheck.allowed && entitlementCheck.reason === 'requires_premium') {
         const errorMsg = 'Premium subscription required to play this frequency modality.';
         this.updateState({ error: errorMsg, isPlaying: false });

@@ -23,8 +23,8 @@ export const useAudioPlayer = () => {
     await globalAudioEngine.stop();
   }, []);
 
-  const playAudioSpec = useCallback(async (spec: FrequencyAudioSpec, name: string = '') => {
-    await globalAudioEngine.play(spec, name, entitlementState);
+  const playAudioSpec = useCallback(async (spec: FrequencyAudioSpec, name: string = '', mode: 'full' | 'preview' = 'full') => {
+    await globalAudioEngine.play(spec, name, entitlementState, mode);
   }, [entitlementState]);
 
   /**
@@ -34,7 +34,7 @@ export const useAudioPlayer = () => {
    *   playFrequency(frequencyRecord, "Name")
    */
   const playFrequency = useCallback(
-    async (itemOrHz: any, name: string = '') => {
+    async (itemOrHz: any, name: string = '', mode: 'full' | 'preview' = 'full') => {
       try {
         let spec: FrequencyAudioSpec;
         if (typeof itemOrHz === 'number') {
@@ -43,7 +43,7 @@ export const useAudioPlayer = () => {
           spec = AudioResolver.resolve(itemOrHz);
         }
         const displayName = name || itemOrHz?.name || `${spec.modality === 'pure_tone' ? spec.frequency : spec.beatFrequency} Hz`;
-        await globalAudioEngine.play(spec, displayName, entitlementState);
+        await globalAudioEngine.play(spec, displayName, entitlementState, mode);
       } catch (error: any) {
         console.error('Error in playFrequency:', error);
         alert(`Error playing audio: ${error?.message || error}`);

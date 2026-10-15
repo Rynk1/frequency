@@ -30,6 +30,15 @@ import { useTheme } from '@/hooks/useTheme';
 type TabType = 'overview' | 'library';
 type CategoryType = 'all' | 'scientific' | 'binaural' | 'solfeggio' | 'chakra';
 
+const TRUST_TRIANGLE_FREE_HZ = [432, 528, 639, 7.83, 8];
+
+const isFrequencyGated = (freq: any): boolean => {
+  if (typeof freq?.isPremium === 'boolean') {
+    return freq.isPremium;
+  }
+  return !TRUST_TRIANGLE_FREE_HZ.includes(freq?.hz);
+};
+
 const GlassCard = SharedGlassCard;
 
 export default function CategoriesScreen() {
@@ -241,12 +250,21 @@ export default function CategoriesScreen() {
                     <Text style={[styles.catDescription, { color: colors.textSecondary }]}>{cat.description}</Text>
 
                     <View style={styles.catPreviewList}>
-                      {cat.data.slice(0, 3).map((freq: any, idx: number) => (
-                        <View key={idx} style={styles.catPreviewRow}>
-                          <View style={[styles.catBullet, { backgroundColor: cc.primary }]} />
-                          <Text style={[styles.catPreviewText, { color: colors.textSecondary }]}>{freq.name} — <Text style={{ color: cc.primary }}>{freq.hz}Hz</Text></Text>
-                        </View>
-                      ))}
+                      {cat.data.slice(0, 3).map((freq: any, idx: number) => {
+                        const gated = isFrequencyGated(freq);
+                        return (
+                          <View key={idx} style={styles.catPreviewRow}>
+                            <View style={[styles.catBullet, { backgroundColor: cc.primary }]} />
+                            <Text style={[styles.catPreviewText, { color: colors.textSecondary }]}>{freq.name} — <Text style={{ color: cc.primary }}>{freq.hz}Hz</Text></Text>
+                            {gated && (
+                              <View style={styles.miniPremiumBadge}>
+                                <Crown color={colors.gold} size={10} />
+                                <Text style={styles.miniPremiumText}>PREMIUM</Text>
+                              </View>
+                            )}
+                          </View>
+                        );
+                      })}
                       {cat.data.length > 3 && (
                         <Text style={[styles.catMoreText, { color: colors.textMuted }]}>+{cat.data.length - 3} more</Text>
                       )}
@@ -362,6 +380,7 @@ export default function CategoriesScreen() {
           ) : (
             freqs.map((freq) => {
               const cc = CATEGORY_COLORS[freq.colorKey] || CATEGORY_COLORS.scientific;
+              const isGated = isFrequencyGated(freq);
               return (
                 <GlassCard
                   key={`${freq.categoryId}-${freq.hz}-${freq.name}`}
@@ -372,6 +391,11 @@ export default function CategoriesScreen() {
 
                   <View style={styles.freqCardInner}>
                     <View style={[styles.freqCardLeft, { borderColor: cc.primary + '30' }]}>
+                      {isGated && (
+                        <View style={styles.freqHzCrownBadge}>
+                          <Crown color={colors.gold} size={10} />
+                        </View>
+                      )}
                       <Text style={[styles.freqHz, { color: cc.primary }]}>{freq.hz}</Text>
                       <Text style={[styles.freqHzLabel, { color: cc.primary + 'AA' }]}>Hz</Text>
                     </View>
@@ -379,8 +403,16 @@ export default function CategoriesScreen() {
                     <View style={styles.freqCardBody}>
                       <View style={styles.freqCardTopRow}>
                         <Text style={[styles.freqName, { color: colors.textPrimary }]}>{freq.name}</Text>
-                        <View style={[styles.freqCatBadge, { borderColor: cc.primary + '30' }]}>
-                          <Text style={[styles.freqCatBadgeText, { color: cc.primary }]}>{freq.category}</Text>
+                        <View style={styles.badgeGroup}>
+                          {isGated && (
+                            <View style={styles.freqPremiumBadge}>
+                              <Crown color={colors.gold} size={10} />
+                              <Text style={styles.freqPremiumBadgeText}>PREMIUM</Text>
+                            </View>
+                          )}
+                          <View style={[styles.freqCatBadge, { borderColor: cc.primary + '30' }]}>
+                            <Text style={[styles.freqCatBadgeText, { color: cc.primary }]}>{freq.category}</Text>
+                          </View>
                         </View>
                       </View>
                       <Text style={[styles.freqDesc, { color: colors.textMuted }]} numberOfLines={2}>{freq.description}</Text>
@@ -404,11 +436,17 @@ export default function CategoriesScreen() {
                         <Info color={cc.primary} size={15} />
                       </TouchableOpacity>
                       <TouchableOpacity
-                        style={[styles.freqPlayBtn, { backgroundColor: cc.primary }]}
+                        style={[
+                          styles.freqPlayBtn,
+                          { backgroundColor: isGated && !isPremium ? colors.gold : cc.primary }
+                        ]}
                         onPress={() => setSelectedFrequency(freq)}
                       >
                         <Play color="#fff" size={14} fill="#fff" />
                       </TouchableOpacity>
+                      {isGated && !isPremium && (
+                        <Text style={styles.previewTagText}>3m preview</Text>
+                      )}
                     </View>
                   </View>
                 </GlassCard>
@@ -967,10 +1005,58 @@ const createStyles = (colors: any, isDark: boolean) => StyleSheet.create({
     flex: 1,
   },
   freqCardActions: {
-    gap: 8,
+    gap: 6,
     alignItems: 'center',
     justifyContent: 'center',
     flexShrink: 0,
+  },
+  badgeGroup: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+  },
+  freqHzCrownBadge: {
+    position: 'absolute',
+    top: 3,
+    right: 4,
+  },
+  freqPremiumBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
+    backgroundColor: isDark ? 'rgba(212,175,55,0.18)' : 'rgba(212,175,55,0.12)',
+    borderWidth: 1,
+    borderColor: isDark ? 'rgba(212,175,55,0.4)' : 'rgba(212,175,55,0.3)',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 6,
+  },
+  freqPremiumBadgeText: {
+    fontSize: 9,
+    fontWeight: '700' as const,
+    color: colors.gold,
+    letterSpacing: 0.5,
+  },
+  miniPremiumBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
+    backgroundColor: 'rgba(212,175,55,0.15)',
+    paddingHorizontal: 5,
+    paddingVertical: 2,
+    borderRadius: 4,
+    marginLeft: 'auto',
+  },
+  miniPremiumText: {
+    fontSize: 8,
+    fontWeight: '700' as const,
+    color: colors.gold,
+  },
+  previewTagText: {
+    fontSize: 9,
+    fontWeight: '600' as const,
+    color: colors.gold,
+    textAlign: 'center',
   },
   freqInfoBtn: {
     width: 34,

@@ -147,6 +147,44 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({
 
   const maxFreeDuration = Math.floor(DEFAULT_PREMIUM_POLICY.freeSessionMaxDuration / 60); // 15 minutes
 
+  // Popover Volume Controller states
+  const [showVolumeSlider, setShowVolumeSlider] = useState<boolean>(false);
+  const volumeAnim = useRef(new Animated.Value(0)).current;
+  const volumeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const resetVolumeTimer = useCallback(() => {
+    if (volumeTimerRef.current) {
+      clearTimeout(volumeTimerRef.current);
+    }
+    volumeTimerRef.current = setTimeout(() => {
+      Animated.timing(volumeAnim, {
+        toValue: 0,
+        duration: 220,
+        useNativeDriver: true,
+      }).start(() => setShowVolumeSlider(false));
+    }, 3500);
+  }, [volumeAnim]);
+
+  const toggleVolumeSlider = useCallback(() => {
+    if (showVolumeSlider) {
+      if (volumeTimerRef.current) clearTimeout(volumeTimerRef.current);
+      Animated.timing(volumeAnim, {
+        toValue: 0,
+        duration: 200,
+        useNativeDriver: true,
+      }).start(() => setShowVolumeSlider(false));
+    } else {
+      setShowVolumeSlider(true);
+      Animated.spring(volumeAnim, {
+        toValue: 1,
+        useNativeDriver: true,
+        tension: 90,
+        friction: 8,
+      }).start();
+      resetVolumeTimer();
+    }
+  }, [showVolumeSlider, volumeAnim, resetVolumeTimer]);
+
   // Sync local volume state with global settings
   useEffect(() => {
     if (visible) {
@@ -163,15 +201,18 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({
       onStartShouldSetPanResponder: () => true,
       onMoveShouldSetPanResponder: () => true,
       onPanResponderMove: (_, gestureState) => {
-        const newVolume = Math.max(0, Math.min(1, (gestureState.moveX - 40) / (width - 120)));
+        const trackWidth = Math.max(100, width - 140);
+        const newVolume = Math.max(0, Math.min(1, (gestureState.moveX - 70) / trackWidth));
         setVolume(newVolume);
         setPlayerVolumeOverride(newVolume);
         if (!isMuted) {
           setAudioVolume(newVolume);
         }
+        resetVolumeTimer();
       },
       onPanResponderRelease: () => {
         updateSetting('volume', playerVolumeOverride !== null ? playerVolumeOverride : volume);
+        resetVolumeTimer();
       },
     })
   ).current;
@@ -321,8 +362,10 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({
             if (elapsedTime >= acc && elapsedTime < acc + fd) {
               if (i !== st.currentFrequencyIndex) {
                 const nf = st.sessionFrequencies[i];
+                const nfCat = String(nf?.category || '').toLowerCase();
+                const nfLocked = (nf?.isPremium || nfCat === 'chakra' || nfCat === 'binaural') && !capabilities?.premiumFrequencies;
                 setCurrentFrequencyIndex(i);
-                setTimeout(() => playFrequency(nf, nf.name), 100);
+                setTimeout(() => playFrequency(nf, nf.name, nfLocked ? 'preview' : 'full'), 100);
               }
               break;
             }
@@ -401,6 +444,7 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({
     const targetCategory = String(targetFreq?.category || '').toLowerCase();
     const isFreqLocked = targetFreq?.isPremium || targetCategory === 'chakra' || targetCategory === 'binaural';
     const isLockedForUser = isFreqLocked && !capabilities?.premiumFrequencies;
+    const playbackMode: 'full' | 'preview' = (isLockedForUser || isPreviewActive) ? 'preview' : 'full';
 
     if (isSessionMode) {
       if (isPlaying && isSessionActive) {
@@ -413,7 +457,7 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({
             setIsPreviewActive(true);
             setTimeLeft(DEFAULT_PREMIUM_POLICY.premiumPreviewDuration);
           }
-          playFrequency(currentFreq, currentFreq.name);
+          playFrequency(currentFreq, currentFreq.name, playbackMode);
           setIsSessionActive(true);
         }
       }
@@ -428,36 +472,40 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({
             setDuration(3);
             setTimeLeft(DEFAULT_PREMIUM_POLICY.premiumPreviewDuration);
           }
-          playFrequency(frequency, frequency.name);
+          playFrequency(frequency, frequency.name, playbackMode);
           if (timeLeft > 0) {
             setIsTimerActive(true);
           }
         }
       }
     }
-  }, [isSessionMode, isPlaying, isSessionActive, sessionFrequencies, currentFrequencyIndex, frequency, sessionTimeLeft, timeLeft, playFrequency, stopFrequency, currentFrequency, capabilities]);
+  }, [isSessionMode, isPlaying, isSessionActive, sessionFrequencies, currentFrequencyIndex, frequency, sessionTimeLeft, timeLeft, playFrequency, stopFrequency, currentFrequency, capabilities, isPreviewActive]);
 
   const handleSkipNext = useCallback(() => {
     if (isSessionMode && currentFrequencyIndex < sessionFrequencies.length - 1) {
       const nextIndex = currentFrequencyIndex + 1;
       const nextFreq = sessionFrequencies[nextIndex];
+      const nextCat = String(nextFreq?.category || '').toLowerCase();
+      const nextLocked = (nextFreq?.isPremium || nextCat === 'chakra' || nextCat === 'binaural') && !capabilities?.premiumFrequencies;
       setCurrentFrequencyIndex(nextIndex);
       if (isPlaying) {
-        playFrequency(nextFreq, nextFreq.name);
+        playFrequency(nextFreq, nextFreq.name, nextLocked ? 'preview' : 'full');
       }
     }
-  }, [isSessionMode, currentFrequencyIndex, sessionFrequencies, isPlaying, playFrequency]);
+  }, [isSessionMode, currentFrequencyIndex, sessionFrequencies, isPlaying, playFrequency, capabilities]);
 
   const handleSkipPrevious = useCallback(() => {
     if (isSessionMode && currentFrequencyIndex > 0) {
       const prevIndex = currentFrequencyIndex - 1;
       const prevFreq = sessionFrequencies[prevIndex];
+      const prevCat = String(prevFreq?.category || '').toLowerCase();
+      const prevLocked = (prevFreq?.isPremium || prevCat === 'chakra' || prevCat === 'binaural') && !capabilities?.premiumFrequencies;
       setCurrentFrequencyIndex(prevIndex);
       if (isPlaying) {
-        playFrequency(prevFreq, prevFreq.name);
+        playFrequency(prevFreq, prevFreq.name, prevLocked ? 'preview' : 'full');
       }
     }
-  }, [isSessionMode, currentFrequencyIndex, sessionFrequencies, isPlaying, playFrequency]);
+  }, [isSessionMode, currentFrequencyIndex, sessionFrequencies, isPlaying, playFrequency, capabilities]);
 
   const handleStop = useCallback(() => {
     stopFrequency();
@@ -771,13 +819,73 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({
                   </View>
                 </View>
 
+                {/* Popover Volume Control (Non-disruptive, Premium Glass Overlay) */}
+                {showVolumeSlider && (
+                  <Animated.View
+                    style={[
+                      styles.volumePopoverWrapper,
+                      {
+                        opacity: volumeAnim,
+                        transform: [
+                          {
+                            translateY: volumeAnim.interpolate({
+                              inputRange: [0, 1],
+                              outputRange: [8, 0],
+                            }),
+                          },
+                          {
+                            scale: volumeAnim.interpolate({
+                              inputRange: [0, 1],
+                              outputRange: [0.96, 1],
+                            }),
+                          },
+                        ],
+                      },
+                    ]}
+                  >
+                    <GlassCard style={styles.volumePopoverCard} intensity={80}>
+                      <TouchableOpacity onPress={toggleMute} style={styles.volumePopoverIcon}>
+                        {isMuted ? (
+                          <VolumeX color={colors.textSecondary} size={18} />
+                        ) : (
+                          <Volume2 color={colors.textPrimary} size={18} />
+                        )}
+                      </TouchableOpacity>
+
+                      <View style={styles.volumePopoverSlider} {...volumePanResponder.panHandlers}>
+                        <View style={styles.volumePopoverTrack}>
+                          <LinearGradient
+                            colors={[colors.primary, colors.primaryDark] as const}
+                            start={{ x: 0, y: 0 }}
+                            end={{ x: 1, y: 0 }}
+                            style={[
+                              styles.volumePopoverFill,
+                              { width: `${isMuted ? 0 : effectiveVolume * 100}%` }
+                            ]}
+                          />
+                          <View
+                            style={[
+                              styles.volumePopoverThumb,
+                              { left: `${isMuted ? 0 : effectiveVolume * 100}%` }
+                            ]}
+                          />
+                        </View>
+                      </View>
+
+                      <Text style={styles.volumePopoverText}>{Math.round((isMuted ? 0 : effectiveVolume) * 100)}%</Text>
+                    </GlassCard>
+                  </Animated.View>
+                )}
+
                 {/* Main Controls */}
                 <View style={styles.mainControls}>
                   <TouchableOpacity
                     style={styles.secondaryControl}
-                    onPress={toggleShuffle}
+                    onPress={toggleRepeat}
+                    accessibilityRole="button"
+                    accessibilityLabel="Toggle repeat"
                   >
-                    <Shuffle color={isShuffle ? colors.primary : colors.textMuted} size={20} />
+                    <Repeat color={isRepeat ? colors.primary : colors.textMuted} size={20} />
                   </TouchableOpacity>
 
                   <TouchableOpacity
@@ -817,44 +925,18 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({
                   </TouchableOpacity>
 
                   <TouchableOpacity
-                    style={styles.secondaryControl}
-                    onPress={toggleRepeat}
+                    style={[styles.secondaryControl, showVolumeSlider && styles.secondaryControlActive]}
+                    onPress={toggleVolumeSlider}
+                    accessibilityRole="button"
+                    accessibilityLabel="Adjust volume"
+                    accessibilityHint="Double tap to open volume slider"
                   >
-                    <Repeat color={isRepeat ? colors.primary : colors.textMuted} size={20} />
-                  </TouchableOpacity>
-                </View>
-
-                {/* Volume Control */}
-                <View style={styles.volumeSection}>
-                  <TouchableOpacity onPress={toggleMute} style={styles.volumeIcon}>
                     {isMuted ? (
                       <VolumeX color={colors.textSecondary} size={20} />
                     ) : (
-                      <Volume2 color={colors.textPrimary} size={20} />
+                      <Volume2 color={showVolumeSlider ? colors.primary : colors.textPrimary} size={20} />
                     )}
                   </TouchableOpacity>
-
-                  <View style={styles.volumeSlider} {...volumePanResponder.panHandlers}>
-                    <View style={styles.volumeTrack}>
-                      <LinearGradient
-                        colors={[colors.primary, colors.primaryDark] as const}
-                        start={{ x: 0, y: 0 }}
-                        end={{ x: 1, y: 0 }}
-                        style={[
-                          styles.volumeFill,
-                          { width: `${isMuted ? 0 : effectiveVolume * 100}%` }
-                        ]}
-                      />
-                      <View
-                        style={[
-                          styles.volumeThumb,
-                          { left: `${isMuted ? 0 : effectiveVolume * 100}%` }
-                        ]}
-                      />
-                    </View>
-                  </View>
-
-                  <Text style={styles.volumeText}>{Math.round((isMuted ? 0 : effectiveVolume) * 100)}%</Text>
                 </View>
 
                 {/* Affirmation Stream Section */}
@@ -1332,53 +1414,65 @@ const createStyles = (colors: any, gradients: any, isDark: boolean) => StyleShee
     justifyContent: 'center',
     alignItems: 'center',
   },
-  volumeSection: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 14,
+  secondaryControlActive: {
+    backgroundColor: colors.primary + '25',
+    borderColor: colors.primary + '80',
+  },
+  volumePopoverWrapper: {
+    marginBottom: 12,
     paddingHorizontal: 10,
   },
-  volumeIcon: {
-    marginRight: 15,
-    minWidth: 44,
-    minHeight: 44,
+  volumePopoverCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 20,
+    backgroundColor: isDark ? colors.glassStrong : 'rgba(255, 255, 255, 0.85)',
+    borderWidth: 1,
+    borderColor: colors.glassBorderBright,
+  },
+  volumePopoverIcon: {
+    padding: 6,
     justifyContent: 'center',
     alignItems: 'center',
   },
-  volumeSlider: {
+  volumePopoverSlider: {
     flex: 1,
-    height: 44,
+    height: 36,
     justifyContent: 'center',
+    marginHorizontal: 10,
   },
-  volumeTrack: {
+  volumePopoverTrack: {
     height: 4,
     backgroundColor: colors.glassMid,
     borderRadius: 2,
     position: 'relative',
   },
-  volumeFill: {
+  volumePopoverFill: {
     height: '100%',
     borderRadius: 2,
   },
-  volumeThumb: {
+  volumePopoverThumb: {
     position: 'absolute',
-    width: 16,
-    height: 16,
-    borderRadius: 8,
+    width: 14,
+    height: 14,
+    borderRadius: 7,
     backgroundColor: colors.textPrimary,
-    top: -6,
-    marginLeft: -8,
+    top: -5,
+    marginLeft: -7,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.25,
-    shadowRadius: 4,
-    elevation: 5,
+    shadowRadius: 3,
+    elevation: 4,
   },
-  volumeText: {
-    fontSize: 14,
+  volumePopoverText: {
+    fontSize: 12,
+    fontWeight: '600',
     color: colors.textSecondary,
-    marginLeft: 15,
-    minWidth: 35,
+    minWidth: 32,
+    textAlign: 'right',
   },
   durationCard: {
     marginBottom: 10,
