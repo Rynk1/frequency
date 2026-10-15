@@ -120,6 +120,11 @@ service cloud.firestore {
       allow read, write: if isOwner(userId);
     }
 
+    // ── User custom recorded affirmations (Tenant Isolated) ──
+    match /userAffirmations/{userId}/custom/{affirmationId} {
+      allow read, write: if isOwner(userId);
+    }
+
     // ── Subscription Events (Idempotency Ledger) ──
     match /subscriptionEvents/{eventId} {
       allow read: if isAdmin();

@@ -19,7 +19,8 @@
       "infoPlist": {
         "UIBackgroundModes": [
           "audio"
-        ]
+        ],
+        "NSMicrophoneUsageDescription": "Harmony Frequency requires microphone access so you can record custom voice affirmations to play over healing soundscapes."
       }
     },
     "android": {
@@ -30,7 +31,8 @@
       "package": "com.harmonyfrequency.app",
       "versionCode": 1,
       "permissions": [
-        "INTERNET"
+        "INTERNET",
+        "RECORD_AUDIO"
       ]
     },
     "web": {
@@ -46,7 +48,7 @@
       [
         "expo-av",
         {
-          "microphonePermission": false
+          "microphonePermission": "Allow Harmony Frequency to record your voice for custom audio affirmations."
         }
       ],
       "expo-font",
