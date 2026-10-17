@@ -118,6 +118,16 @@ export const FrequencyVisualizer: React.FC<FrequencyVisualizerProps> = ({
       {isPlaying && (
         <View style={styles.rippleContainer} pointerEvents="none">
           <Animated.View
+            style={[
+              styles.auraGlow,
+              {
+                backgroundColor: color,
+                opacity: rippleOpacity,
+                transform: [{ scale: rippleScale }],
+              },
+            ]}
+          />
+          <Animated.View
             style={[styles.ripple, { borderColor: color, transform: [{ scale: rippleScale }], opacity: rippleOpacity }]}
           />
           <Animated.View
@@ -127,16 +137,23 @@ export const FrequencyVisualizer: React.FC<FrequencyVisualizerProps> = ({
       )}
 
       <View style={styles.barsRow} pointerEvents="none">
-        {bars.map((anim, index) => (
-          <View key={index} style={styles.barColumn}>
-            <Animated.View
-              style={[
-                styles.bar,
-                { backgroundColor: color, opacity: 0.9, transform: [{ scaleY: anim }] },
-              ]}
-            />
-          </View>
-        ))}
+        {bars.map((anim, index) => {
+          const isCenterPeak = Math.abs(index - BAR_COUNT / 2) < 4;
+          return (
+            <View key={index} style={styles.barColumn}>
+              <Animated.View
+                style={[
+                  styles.bar,
+                  {
+                    backgroundColor: isCenterPeak ? color : color + 'CC',
+                    shadowColor: color,
+                    transform: [{ scaleY: anim }],
+                  },
+                ]}
+              />
+            </View>
+          );
+        })}
       </View>
     </View>
   );
@@ -144,19 +161,25 @@ export const FrequencyVisualizer: React.FC<FrequencyVisualizerProps> = ({
 
 const styles = StyleSheet.create({
   container: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-  barsRow: { width: '100%', flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between', height: 100, gap: 3, paddingHorizontal: 18 },
-  barColumn: { flex: 1, alignItems: 'center', justifyContent: 'flex-end', height: 100 },
+  barsRow: { width: '100%', flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between', height: 110, gap: 3, paddingHorizontal: 16 },
+  barColumn: { flex: 1, alignItems: 'center', justifyContent: 'flex-end', height: 110 },
   bar: {
     width: '100%',
-    maxWidth: 7,
-    height: 90,
-    borderRadius: 2,
+    maxWidth: 6,
+    height: 100,
+    borderRadius: 3,
     marginBottom: 0,
     shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.5,
-    shadowRadius: 4,
-    elevation: 3,
+    shadowOpacity: 0.8,
+    shadowRadius: 6,
+    elevation: 4,
   },
   rippleContainer: { position: 'absolute', alignItems: 'center', justifyContent: 'center' },
-  ripple: { position: 'absolute', width: 140, height: 140, borderRadius: 70, borderWidth: 1.5 },
+  auraGlow: {
+    position: 'absolute',
+    width: 160,
+    height: 160,
+    borderRadius: 80,
+  },
+  ripple: { position: 'absolute', width: 150, height: 150, borderRadius: 75, borderWidth: 1.5 },
 });

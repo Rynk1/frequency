@@ -949,6 +949,7 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({
                   speechVolume={speechVolume}
                   onSpeechVolumeChange={setSpeechVolume}
                   onActiveAffirmationChange={setActiveAffirmation}
+                  onOpenPremiumModal={openPremiumFeature}
                 />
 
                 {/* Duration Control Section */}
@@ -1752,23 +1753,34 @@ const createStyles = (colors: any, gradients: any, isDark: boolean) => StyleShee
     marginLeft: 4,
   },
   affirmationOverlayBox: {
-    paddingHorizontal: 20,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    marginHorizontal: 16,
+    borderRadius: 16,
+    backgroundColor: isDark ? 'rgba(10, 14, 26, 0.65)' : 'rgba(255, 255, 255, 0.75)',
+    borderWidth: 1,
+    borderColor: colors.glassBorderBright,
     alignItems: 'center',
     justifyContent: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 6,
   },
   affirmationOverlayText: {
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: '700',
-    color: '#FFFFFF',
+    color: colors.textPrimary,
     textAlign: 'center',
-    lineHeight: 22,
+    lineHeight: 21,
     marginBottom: 4,
   },
   affirmationOverlaySub: {
-    fontSize: 11,
+    fontSize: 10,
     color: colors.primary,
-    fontWeight: '600',
+    fontWeight: '700',
     textTransform: 'uppercase',
-    letterSpacing: 0.5,
+    letterSpacing: 0.8,
   },
 });

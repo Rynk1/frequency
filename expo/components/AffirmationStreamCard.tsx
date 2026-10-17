@@ -21,7 +21,10 @@ import {
   Mic,
   Plus,
   Trash2,
+  Lock,
+  Crown,
 } from 'lucide-react-native';
+import { PremiumModal, PremiumTrigger } from './PremiumModal';
 import {
   Affirmation,
   AffirmationCategory,
@@ -49,6 +52,7 @@ interface AffirmationStreamCardProps {
   speechVolume: number;
   onSpeechVolumeChange: (volume: number) => void;
   onActiveAffirmationChange?: (affirmation: Affirmation | null) => void;
+  onOpenPremiumModal?: (trigger: PremiumTrigger) => void;
 }
 
 const CATEGORIES: AffirmationCategory[] = [
@@ -74,18 +78,44 @@ export const AffirmationStreamCard: React.FC<AffirmationStreamCardProps> = ({
   speechVolume,
   onSpeechVolumeChange,
   onActiveAffirmationChange,
+  onOpenPremiumModal,
 }) => {
   const { colors } = useTheme();
-  const { user } = useAuth();
+  const { user, isPremium } = useAuth();
   const [sourceType, setSourceType] = useState<'curated' | 'custom'>('curated');
   const [selectedIntention, setSelectedIntention] = useState<AffirmationCategory>(initialIntention);
   const [activeAffirmation, setActiveAffirmation] = useState<Affirmation | null>(null);
   const [customAffirmations, setCustomAffirmations] = useState<UserCustomAffirmation[]>([]);
   const [activeCustomAffirmation, setActiveCustomAffirmation] = useState<UserCustomAffirmation | null>(null);
   const [showRecordModal, setShowRecordModal] = useState<boolean>(false);
+  const [showLocalPremiumModal, setShowLocalPremiumModal] = useState<boolean>(false);
   const [autoRotate, setAutoRotate] = useState<boolean>(false);
   const [rotationInterval, setRotationInterval] = useState<number>(30); // seconds
   const [showCategoryPicker, setShowCategoryPicker] = useState<boolean>(false);
+
+  const triggerPremiumModal = useCallback((trigger: PremiumTrigger = 'premium_content') => {
+    if (onOpenPremiumModal) {
+      onOpenPremiumModal(trigger);
+    } else {
+      setShowLocalPremiumModal(true);
+    }
+  }, [onOpenPremiumModal]);
+
+  const handleSelectCustomTab = useCallback(() => {
+    if (!isPremium) {
+      triggerPremiumModal('premium_content');
+      return;
+    }
+    setSourceType('custom');
+  }, [isPremium, triggerPremiumModal]);
+
+  const handleOpenRecordModal = useCallback(() => {
+    if (!isPremium) {
+      triggerPremiumModal('premium_content');
+      return;
+    }
+    setShowRecordModal(true);
+  }, [isPremium, triggerPremiumModal]);
 
   // Fetch custom affirmations from user store
   const loadCustomAffirmations = useCallback(async () => {
@@ -259,6 +289,8 @@ export const AffirmationStreamCard: React.FC<AffirmationStreamCardProps> = ({
               sourceType === 'curated' && { backgroundColor: colors.primary + '20', borderColor: colors.primary },
             ]}
             onPress={() => setSourceType('curated')}
+            accessibilityRole="button"
+            accessibilityLabel="Curated Catalog Affirmations"
           >
             <Sparkles color={sourceType === 'curated' ? colors.primary : colors.textMuted} size={14} />
             <Text style={[styles.sourceTypeText, { color: sourceType === 'curated' ? colors.primary : colors.textMuted }]}>
@@ -271,19 +303,29 @@ export const AffirmationStreamCard: React.FC<AffirmationStreamCardProps> = ({
               styles.sourceTypeTab,
               sourceType === 'custom' && { backgroundColor: colors.primary + '20', borderColor: colors.primary },
             ]}
-            onPress={() => setSourceType('custom')}
+            onPress={handleSelectCustomTab}
+            accessibilityRole="button"
+            accessibilityLabel="My Recordings Affirmations"
+            accessibilityHint={!isPremium ? "Premium feature. Double tap to unlock" : undefined}
           >
             <Mic color={sourceType === 'custom' ? colors.primary : colors.textMuted} size={14} />
             <Text style={[styles.sourceTypeText, { color: sourceType === 'custom' ? colors.primary : colors.textMuted }]}>
-              My Recordings ({customAffirmations.length})
+              My Recordings {isPremium ? `(${customAffirmations.length})` : '🔒'}
             </Text>
           </TouchableOpacity>
 
           <TouchableOpacity
-            style={[styles.recordNewButton, { backgroundColor: colors.primary }]}
-            onPress={() => setShowRecordModal(true)}
+            style={[styles.recordNewButton, { backgroundColor: isPremium ? colors.primary : colors.glass, borderWidth: isPremium ? 0 : 1, borderColor: colors.gold + '60' }]}
+            onPress={handleOpenRecordModal}
+            accessibilityRole="button"
+            accessibilityLabel="Record new custom affirmation"
+            accessibilityHint={!isPremium ? "Premium feature" : undefined}
           >
-            <Plus color="#FFFFFF" size={14} />
+            {isPremium ? (
+              <Plus color="#FFFFFF" size={14} />
+            ) : (
+              <Crown color={colors.gold} size={14} />
+            )}
           </TouchableOpacity>
         </View>
       )}
@@ -463,7 +505,9 @@ export const AffirmationStreamCard: React.FC<AffirmationStreamCardProps> = ({
                 </Text>
                 <TouchableOpacity
                   style={[styles.emptyButton, { backgroundColor: colors.primary }]}
-                  onPress={() => setShowRecordModal(true)}
+                  onPress={handleOpenRecordModal}
+                  accessibilityRole="button"
+                  accessibilityLabel="Record Your First Affirmation"
                 >
                   <Text style={styles.emptyButtonText}>Record Your First Affirmation</Text>
                 </TouchableOpacity>
@@ -479,6 +523,12 @@ export const AffirmationStreamCard: React.FC<AffirmationStreamCardProps> = ({
               loadCustomAffirmations();
               setSourceType('custom');
             }}
+          />
+
+          <PremiumModal
+            visible={showLocalPremiumModal}
+            onClose={() => setShowLocalPremiumModal(false)}
+            trigger="premium_content"
           />
 
           {/* Voice Volume Control (when mode === 'spoken' or 'both') */}
@@ -568,6 +618,7 @@ const styles = StyleSheet.create({
   sourceTypeRow: {
     flexDirection: 'row',
     alignItems: 'center',
+    flexWrap: 'wrap',
     gap: 8,
     marginBottom: 12,
   },
@@ -576,7 +627,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 6,
     paddingHorizontal: 12,
-    paddingVertical: 6,
+    paddingVertical: 8,
+    minHeight: 44,
     borderRadius: 12,
     borderWidth: 1,
     borderColor: 'transparent',
@@ -586,9 +638,9 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   recordNewButton: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
+    width: 38,
+    height: 38,
+    borderRadius: 19,
     justifyContent: 'center',
     alignItems: 'center',
     marginLeft: 'auto',
@@ -615,7 +667,8 @@ const styles = StyleSheet.create({
   },
   modeOption: {
     flex: 1,
-    paddingVertical: 8,
+    paddingVertical: 10,
+    minHeight: 44,
     borderRadius: 10,
     alignItems: 'center',
     justifyContent: 'center',
@@ -703,9 +756,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   navButton: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -713,8 +766,9 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    minHeight: 44,
     borderRadius: 12,
     borderWidth: 1,
   },
