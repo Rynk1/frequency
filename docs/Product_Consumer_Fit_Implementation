@@ -1,0 +1,687 @@
+Harmony Frequency: Product--Consumer Fit and Jules Implementation Report
+Prepared: 18 October 2026
+Purpose: A practical product strategy and staged implementation
+brief for the Harmony Frequency mobile app.
+1. Executive recommendation
+Position Harmony Frequency as a personal sound experience for sleep
+wind-down, focus, relaxation and intentional listening. Combine a
+reliable frequency/sound player with straightforward discovery, optional
+ambience, optional spoken affirmations and concise explanations that
+distinguish acoustic facts from research findings and traditional
+associations.
+This is a strategic hypothesis to test, not proven product-market fit.
+Actual usage, retention, user interviews, store analytics and purchase
+cohorts must determine whether it is correct.
+Working product promise
+Create a sound session that fits what you want from this
+moment---simple to start, easy to personalise, and honest about what
+the sound can do.
+
+Immediate priorities
+1. Audit before changing code. Verify the current repository,
+   branch, configuration, audio packages, Firebase project/rules,
+   content models, subscription flow and tests. Earlier reports are not
+   proof that a feature exists or works.
+2. Make listening reliable. Start, pause, stop, timer, fade,
+   interruptions and audio-state UI should work consistently before
+   catalogue expansion.
+3. Test differentiation in small steps. Validate intention-led
+   discovery and optional affirmations/ambience with users before
+   investing in a large new library.
+Non-negotiable principles
+- No unsupported claims about DNA repair, immune activation, medical
+  treatment, anxiety relief, guaranteed sleep or guaranteed brain
+  states.
+- No feature is "complete" until source inspection, tests and (for
+  audio) real-device checks support that status.
+- Preserve the existing authentication, Firebase, entitlement, payment
+  and admin architecture unless a documented audit proves a change is
+  necessary.
+- Seed data is a bootstrap/recovery baseline; it must not overwrite
+  admin-created content.
+- Keep the first session low-friction. Do not require a long
+  onboarding questionnaire before the user can hear the core product.
+- Minimise data collection. Never send private affirmation text,
+  journal entries or sensitive notes to analytics.
+- Treat market percentages, demographic claims, pricing targets and
+  conversion forecasts as hypotheses unless supported by Harmony
+  Frequency's own data.
+2. Evidence and uncertainty
+This report distinguishes external evidence, product hypotheses,
+and repository facts. Jules must verify repository facts; market
+hypotheses need experiments.
+What external sources support
+- Health-related advertising claims must be truthful, not misleading,
+  and appropriately substantiated. Overall impression and implied
+  claims matter, not just literal wording. FTC: Health Products
+  Compliance
+  Guidance.
+- Health and wellness apps should minimise data collection, secure
+  data, explain data use and request only appropriate permissions.
+  FTC: Mobile Health App Developers---Best
+  Practices.
+- Google Play has requirements for health-related content/services,
+  privacy and misleading or harmful functionality: Health Content and
+  Services
+  policy.
+- Apple's App Store Review
+  Guidelines
+  require truthful presentation and clear subscription terms/value.
+- A systematic review of binaural-beat research found mixed results
+  and methodological variation; it does not support blanket claims
+  that binaural beats reliably create a particular mental state. 2023
+  systematic
+  review.
+- A meta-analysis of music-based sleep interventions reported mixed
+  overall findings; it does not prove that a specific pure frequency
+  treats insomnia. PubMed
+  record.
+- Self-affirmation research is not proof that generic spoken
+  affirmations layered over a named frequency improve outcomes. A
+  meta-analysis found small effects for some self-affirmation outcomes
+  (Epton et al.); other
+  work found positive self-statements can backfire for some people
+  (Wood et
+  al.).
+What is not established
+The sources do not establish Harmony Frequency's demographic split,
+audience percentages, optimal price, trial conversion, customer
+acquisition cost, or likely retention. They also do not establish that
+528 Hz repairs DNA, 40 Hz guarantees focus, 639 Hz improves
+relationships, or a specific frequency reliably induces a brain state.
+These claims must not be presented as facts.
+Do not treat previously suggested prices or targets (for example,
+$7.99/month, $49.99/year or 68--75% trial conversion) as forecasts.
+Subscription benchmarks such as RevenueCat's State of Subscription
+Apps are
+broad context, not a forecast for this app.
+3. Market and competitor interpretation
+  Category                       Publicly visible        Implication
+                                 strengths               
+  Calm                           Meditation, sleep       Do not attempt to match
+                                 stories, music,         a large general
+                                 soundscapes, breathing  catalogue immediately.
+                                 and programmes          
+  Insight Timer                  Extensive               Catalogue size alone is
+                                 meditation/sleep        not a realistic
+                                 library, courses and    small-team
+                                 free content            differentiator.
+  Brain.fm                       Focus-oriented          A focused use case and
+                                 functional music and a  credible explanation
+                                 research-led brand      can be distinctive;
+                                                         claims still need
+                                                         scrutiny.
+  Frequency-generator/binaural   Tone generation,        Basic frequency
+  apps                           oscillators, noise,     generation is not
+                                 custom mixes and        unique by itself.
+                                 technical controls      Reliability, clarity
+                                                         and an easy session
+                                                     experience matter.
+Reference points: Calm
+listing,
+Calm free
+content,
+Insight Timer free
+features,
+Brain.fm science page, and Frequency
+Generator on Google
+Play.
+Competitor science pages are company-authored, not independent proof.
+Qualitative online complaints about wellness apps sometimes mention too
+many screens, excessive narration or paywall frustration. Treat these as
+usability prompts, not representative statistics.
+Strategic implication: aim to make the first useful session quick to
+start, easy to control, pleasant to revisit and credible in its
+explanations. Do not try to win by adding every possible feature.
+4. Audience hypotheses: segment by user need
+Do not invent demographic profiles or market-share percentages. Start
+with jobs-to-be-done and validate them.
+  Hypothesis              User need         Entry point to    Signals to
+                                            test              observe
+  Sleep wind-down         A repeatable      Sleep/wind-down   Nightly starts,
+                          bedtime sound     session, timer,   completion,
+                          routine           fade              repeat use
+  Focus/study             A consistent      Focus session,    Repeat workdays,
+                          sound environment duration control  completion,
+                          for a work block                    return
+  Relaxation              A short           One-tap short     Starts,
+                          decompression     session, optional completion,
+                          break             ambience          qualitative
+                                                              feedback
+  Meditation/reflection   A quiet support   Sound-only        Favourites,
+                          for an existing   sessions, timer,  repeat use
+                          practice          optional prompts  
+  Spiritual/frequency     Learn and explore Browse/search     Searches, saves,
+  exploration             named frequencies with transparent  article
+                                            explanations      engagement
+  Affirmation listeners   Optional spoken   Previewable       Opt-in,
+                          reflection        affirmation       skip/mute,
+                                            toggle            completion,
+                                                              feedback
+  Technical sound         Control tone and  Frequency         Mix creation,
+  explorers               sound layers      controls, stereo  saves, repeat use
+                                            guidance, saved
+                                        mixes             
+Initially test sleep wind-down, focus and relaxation as clear use cases.
+Keep frequency exploration accessible, but avoid therapeutic promises.
+Treat affirmations as an experiment, not an assumed core demand.
+Lightweight user research
+Conduct 8--15 exploratory interviews/usability sessions if feasible;
+this is qualitative discovery, not a representative survey. Ask: - What
+do you currently listen to for sleep, focus or relaxation? - What
+frustrates you about current options? - Would you rather choose an
+intention, a frequency or a ready-made session? - Are spoken
+affirmations useful, distracting or something you would switch off? -
+What would make you return next week? - What would you expect for free,
+and what might be worth paying for? - Which wording would increase or
+reduce trust?
+Record themes and quotes only with appropriate consent.
+5. Product model and first-session experience
+Use three simple layers:
+1. Intention: Sleep, Focus, Relax, Meditate, Explore.
+2. Sound session: primary tone/sound, optional ambience, duration
+   and supported audio mode.
+3. Explanation: what the sound is, what is known, and what is not
+   established.
+Support two routes: - Start with an intention for beginners. -
+Choose a frequency or sound for users who know what they want.
+A user should be able to open the app, select a session, see its
+name/duration/sound type, tap Play and reach essential controls without
+a long onboarding flow. If account creation is needed for syncing,
+explain why and preserve a usable path where technically possible.
+Player quality checklist
+Audit and test: - clear play/pause/stop and accurate playback state; -
+reliable restart and no duplicate streams after repeated
+taps/navigation; - timer and fade behaviour; - layer volume controls
+where supported; - clear stop-all-audio control; - calls, alarms, voice
+assistant interruptions and headphone disconnection; - app
+backgrounding, lock screen and returning to the app; - no unexpected
+restart; - visible playback errors rather than a false "playing"
+state; - accessibility labels and touch targets.
+Do not claim background playback, offline support or robust audio-focus
+handling until tested on supported real iOS and Android devices.
+6. Science and editorial integrity
+Internal evidence labels
+Tag content internally as: 1. Acoustic fact --- measurable
+properties of sound/signal. 2. Research finding --- evidence-linked
+claim with limitations and date. 3. Traditional/spiritual
+association --- a belief or interpretation within a
+tradition/community. 4. Personal preference/experiential framing ---
+e.g. "some listeners prefer..." 5. Unsupported claim---do not publish
+as fact --- medical/biological/neurological claims lacking adequate
+evidence.
+These labels can guide review without requiring prominent consumer
+badges.
+Claims to avoid
+Do not state that: - 528 Hz repairs DNA; - a tone activates the immune
+system; - 40 Hz guarantees focus or induces a specific brain state; -
+639 Hz heals relationships; - a frequency treats anxiety, depression,
+insomnia or pain; - "scientifically calibrated" proves therapeutic
+benefit unless that precise implication is genuinely substantiated.
+Better wording examples
+  Avoid                               Prefer
+  "528 Hz repairs DNA."               "528 Hz is discussed in some modern
+                                      sound-wellness communities. Claims
+                                      that it repairs DNA are not
+                                      established by reliable clinical
+                                      evidence."
+  "40 Hz is a gamma focus hack."      "This session uses a 40 Hz tone.
+                                      Research on rhythmic auditory
+                                      stimulation and cognition is
+                                      complex; the app does not claim the
+                                      tone guarantees focus or a
+                                      particular brain state."
+  "639 Hz heals relationships."       "639 Hz is associated with
+                                      connection themes in some modern
+                                      frequency traditions. This is a
+                                      symbolic association, not an
+                                      established treatment."
+  "Sleep in minutes with 1.5 Hz."     "This is a wind-down soundscape. A
+                                      1.5 Hz signal itself is below
+                                      ordinary human hearing and may not
+                                      be reproduced as an audible tone by
+                                  a phone speaker."
+Technical accuracy: low tones and binaural beats
+- Pure 1.5 Hz or 7.83 Hz is below ordinary human hearing. Do not
+  describe it as a normally audible phone-speaker tone.
+- If using "Schumann-inspired," distinguish an audible sound design
+  inspired by the concept from reproducing Earth's electromagnetic
+  resonance itself.
+- Binaural beats require different tones delivered separately to left
+  and right ears. A mono 1.5 Hz signal is not a valid binaural-beat
+  implementation.
+- Explain that binaural sessions require stereo separation and
+  headphones.
+- Do not claim binaural beats reliably produce a specific brain state,
+  mood or performance outcome.
+- Test sample rate, clipping, clicks at start/stop, continuity and
+  channel output.
+Editorial workflow
+Jules should inventory exact current claims in UI, seed data, frequency
+descriptions, programmes, articles, notifications and store-copy assets.
+For each item record: exact wording, location, evidence category,
+source, risk, proposed action and whether owner review is required. Do
+not silently invent sources or rewrite high-risk claims without showing
+the owner.
+7. Optional spoken affirmations and layered audio
+Product hypothesis and UX
+Affirmations may make the experience feel more personal, but may
+distract listeners who want sound only. Keep them optional; initially
+off by default unless research supports another default.
+- Let users preview the voice and type of wording.
+- Provide a clear sound-only mode.
+- If mixing is supported, expose separate controls for primary sound,
+  ambience and speech.
+- Allow skip/stop for speech without unexpectedly stopping the primary
+  sound.
+- Use compassionate, non-coercive wording; avoid guarantees of wealth,
+  medical recovery or transformation.
+- Do not claim that a particular affirmation works better at 528 Hz,
+  639 Hz or another frequency without evidence.
+- Do not present affirmations as treatment for mental-health
+  conditions.
+Technical proof-of-concept gate
+Before producing a large library, Jules must inspect the actual Expo
+SDK, audio packages and native configuration, then test one primary
+sound plus one short spoken clip on real iOS and Android devices.
+Test: 1. simultaneous playback and independent volume; 2.
+play/pause/stop and fade transitions; 3. whether speech needs ducking
+and whether transitions are smooth; 4. interruption by calls/other
+audio; 5. app backgrounding, device lock and headphone disconnection; 6.
+navigation/repeated taps and duplicate-stream prevention; 7. voice
+availability, language and offline constraints; 8. exact device, OS and
+package versions.
+Do not assume two independent player components will mix correctly. Do
+not treat a fixed "minus 5 dB" ducking value as proven; test
+intelligibility and comfort. Choose native TTS, prerecorded audio or a
+hybrid only after the proof of concept.
+  Approach                Benefit                 Risks/checks
+  Native text-to-speech   Flexible text, smaller  Voice
+                          initial asset library   quality/availability
+                                                  varies by device and
+                                                  language; mixing and
+                                                  offline behaviour need
+                                                  testing
+  Prerecorded voice       Consistent timing and   Larger assets,
+                          quality                 localisation/licensing,
+                                                  storage and update costs
+  Hybrid                  Flexible plus           More complexity; define
+                          consistent curated      fallback and user choice
+                      content                 
+8. Monetisation and subscription integrity
+Value hypothesis
+Let free users experience the core value: a meaningful session, clear
+controls and honest explanations. Potential premium value to test: -
+expanded curated programmes; - saved custom mixes/advanced controls; -
+additional ambience and spoken sessions; - offline access, only if
+reliably implemented; - useful privacy-conscious
+history/personalisation.
+Do not paywall essential stop controls, basic reliability or transparent
+content explanations.
+Technical and policy requirements
+Before changing payments, Jules must audit the current implementation.
+Preserve existing architecture unless a verified defect requires change.
+- The purchase provider (e.g. RevenueCat/Apple/Google system as
+  applicable) is the financial source of truth.
+- Entitlements should be server-synchronised; an untrusted client must
+  not grant or extend premium access.
+- Firestore rules must prevent client-side entitlement manipulation.
+- Cancellation does not necessarily end access immediately; follow
+  provider-confirmed entitlement/paid-through state unless refund,
+  revocation or expiry is reported.
+- Webhooks should be authenticated, idempotent, auditable and
+  resilient to duplicate/out-of-order events.
+- Test restore purchases, renewal, cancellation, expiry,
+  refund/revocation and entitlement refresh.
+- Explain price, billing period, trial, renewal and cancellation
+  clearly.
+- Do not deploy or change live payment configuration without approval.
+Do not use previously suggested prices or conversion targets as
+forecasts. Test pricing and package descriptions against actual cohort
+retention, refunds, cancellations and user feedback.
+9. Privacy and data handling
+- Collect only data needed for the feature.
+- Avoid health diagnoses, detailed mental-health state, journals or
+  sensitive notes unless there is a compelling need and appropriate
+  safeguards.
+- Never send affirmation text or private notes to analytics.
+- Explain local storage versus Firebase sync.
+- Review analytics, logs, crash reports and third-party SDKs for
+  accidental data leakage.
+- For user recordings, notes, affirmations or saved mixes, inspect
+  existing data models and rules before adding paths. Enforce
+  ownership, payload limits, authorised admin writes and separation of
+  public content from private user content.
+- Do not implement guessed Firestore schemas or broadly readable
+  upload paths.
+- Document deletion, retention and recovery behaviour.
+Potential minimal events: session_started, session_completed,
+favourite_added, mix_saved, affirmations_enabled,
+affirmation_skipped, playback_error, paywall_viewed and
+provider-confirmed purchase/entitlement events. Use minimal
+non-sensitive properties; no raw free text.
+10. Marketing and distribution
+Create separate, truthful entry points for: - frequency/tone
+exploration; - binaural beats and stereo listening; - sleep wind-down; -
+focus/study; - relaxation/meditation; - optional spoken affirmations.
+Each campaign must lead to an in-app experience that fulfils its
+promise. Avoid "heals," "repairs DNA," "eliminates anxiety," "guarantees
+deep sleep" and similar claims.
+Low-cost plan: 1. Publish concise, evidence-aware pages explaining
+tones, binaural beats, headphone requirements and session design. 2. Use
+actual product demonstrations; do not depict features that are not
+implemented. 3. Run small creator tests with relevant audiences and
+clear sponsorship disclosures. 4. Test store-page screenshots and copy.
+Apple provides Product Page
+Optimisation
+and Custom Product
+Pages;
+verify current eligibility and limits. 5. Measure activated and retained
+users, not downloads alone.
+Track: store impression → page visit → install → first session → first
+completion → repeat session → D7/D30 return → trial/purchase → retained
+paid user. Establish baseline first; do not invent universal targets.
+11. Analytics and experiments
+Core metrics
+- Activation: new users who start and complete a first session.
+- Time to value: time from opening app to first successful sound.
+- Reliability: playback errors, duplicate streams, crashes and
+  interruption failures.
+- Retention: D1/D7/D30 return with consistent definitions.
+- Repeat value: repeat sessions and favourites.
+- Feature adoption: intention discovery, saved mixes, affirmation
+  opt-in/skip.
+- Commercial quality: trial starts, conversion, refunds,
+  cancellations and paid retention by cohort.
+- Trust: support complaints, claim confusion and qualitative
+  feedback.
+Do not optimise raw listening minutes alone; longer playback is not
+automatically a better outcome.
+Experiments
+A. Home-screen entry - A: intention-first; B: frequency-first. -
+Primary metric: successful first session. - Guardrails: time to first
+sound, early exits, errors and comprehension.
+B. Affirmation discovery - A: optional control on a session; B: a
+dedicated optional step. - Primary metrics: opt-in and session
+completion. - Guardrails: rapid disable/skip, complaints and sound-only
+usage.
+C. Free value - Compare simple free-content packages without
+restricting essential controls. - Primary metrics: repeat sessions and
+retained paid conversion. - Guardrails: cancellations, refunds, negative
+feedback and first-session abandonment.
+D. Store-page message - Compare an intention-led message with a
+frequency-personalisation message. - Primary metrics: install conversion
+and downstream first-session completion. - Guardrail: do not increase
+installs with a promise the app cannot fulfil.
+Predefine each hypothesis, primary metric, observation period and
+decision rule. Do not claim a conclusive result from an inadequate
+sample.
+12. Proposed 90-day roadmap
+Days 1--10: audit and baseline
+- Inspect branch, dependencies, Expo configuration and tests.
+- Confirm Firebase project IDs across client, rules and Functions.
+- Audit audio engine, stereo/binaural implementation, interruptions
+  and background behaviour.
+- Audit content models, seed behaviour, admin workflow, cache/offline
+  behaviour and entitlement architecture.
+- Inventory high-risk claims and privacy-sensitive data paths.
+- Run tests and document exact results.
+- Test builds on representative real devices where available.
+Deliverables: - docs/HARMONY_FREQUENCY_CURRENT_STATE_AUDIT.md -
+docs/HARMONY_FREQUENCY_CLAIMS_INVENTORY.md -
+docs/HARMONY_FREQUENCY_TEST_BASELINE.md
+Days 11--30: core player reliability
+Fix only verified, prioritised gaps. Improve playback state, stop/start,
+timer, fade, interruptions, duplicate-stream prevention, accessibility
+and error handling. Confirm admin-managed content is not overwritten by
+seed routines.
+Acceptance: core tests pass; manual device matrix is complete; no
+critical audio, entitlement or Firebase regression; user can start/stop
+clearly; tested flows contain no unsupported efficacy claims.
+Days 31--50: validate differentiation
+Prototype intention-first discovery and, only after audio audit, one
+primary sound plus optional ambience/speech. Run small usability
+sessions and compare entry routes.
+Acceptance: feature behaviour documented; optional layers remain
+optional; no duplicate streams or unexpected stops; no guaranteed
+physiological claims; product owner approves expansion.
+Days 51--70: monetisation/acquisition experiments
+Test free/premium boundaries, purchase restore and entitlement edge
+cases. Test truthful store-page variants and a small number of relevant
+acquisition channels. Measure activation/retention.
+Acceptance: purchase regression tests pass; terms are clear;
+marketing matches the app; analytics exclude sensitive text; experiments
+have defined metrics.
+Days 71--90: review and scale only what works
+Review activation, retention, playback reliability, paid cohorts,
+affirmation opt-in/skip and user feedback. Interview active/lapsed users
+where feasible. Stop or revise features that add complexity without
+evidence of value.
+Deliverable: docs/HARMONY_FREQUENCY_90_DAY_LEARNING_REVIEW.md, a
+ranked next-quarter backlog and a scale/revise/stop decision for each
+experiment.
+13. Master prompt to paste into Jules
+Project: Harmony Frequency mobile app
+Task: Conduct a repository-grounded product and technical audit,
+then propose staged improvements for product--consumer fit, core audio
+reliability, evidence-aware content, optional personalisation and safe
+monetisation.
+Rules 1. Investigate before coding. Inspect current branch/git
+status, repository structure, package files, Expo/React Native
+configuration, audio implementation, Firebase
+configuration/rules/Functions, content models, seed routines, admin
+workflow, subscription architecture and tests. 2. Verify every feature
+from code, tests and device behaviour. Mark each Verified,
+Partially verified, Not implemented or Unknown. A component
+existing is not proof it works. 3. Preserve existing authentication,
+Firebase, payment, entitlement and admin architecture unless a
+specific defect is proven. Prefer the smallest safe change. 4. Do not
+introduce dependencies, migrate schemas, change Firebase paths or
+refactor broadly without documenting need, impact, migration/rollback
+and tests. 5. Do not change production configuration, live rules, real
+user data, deploy, trigger purchases or perform destructive migrations
+without explicit approval. 6. Seed data must be idempotent and
+non-destructive; it must never automatically overwrite admin-created
+content. 7. Keep science/health claims evidence-calibrated. Inventory
+risky claims and request owner review; do not invent supporting
+sources. 8. Minimise data collection. Never log affirmation text,
+journal entries or sensitive free text. 9. At each stage, report
+changed files, reasons, tests and exact outcomes, remaining risks and
+rollback steps.
+Stage 1 --- Audit only; no functional code changes
+Produce: - docs/HARMONY_FREQUENCY_CURRENT_STATE_AUDIT.md -
+docs/HARMONY_FREQUENCY_CLAIMS_INVENTORY.md -
+docs/HARMONY_FREQUENCY_TEST_BASELINE.md
+The audit must cover app architecture; Expo/React Native versions and
+dependencies; audio source concurrency and mixing; mono/stereo and
+binaural correctness; timers/fades/background/interruption/headphone
+behaviour; Firebase project ID consistency; content models and
+seed/admin/cache behaviour; subscription provider, entitlement source
+of truth, webhooks, restore, expiry, cancellation and
+refund/revocation; private data paths/rules/analytics; tests and gaps;
+iOS/Android build and device status.
+For every feature, report status, file/code evidence, test evidence,
+confidence, risk and recommended action. For the claims inventory,
+include exact wording, location, evidence category, risk, proposed
+replacement/action and whether human review is required. Search UI,
+seeds, frequency metadata, programmes, articles, notifications and
+store-copy assets. The test baseline must state exact commands,
+environment, pass/fail and tests not run.
+Stop after Stage 1. Present findings and a prioritised
+implementation plan for approval. Do not implement Stage 2 in the same
+change set.
+Stage 2 --- Core player (after approval): implement only verified,
+prioritised defects; add regression tests and a real-device matrix;
+document limitations; do not claim untested background/offline/mixing
+support.
+Stage 3 --- Content integrity (after approval): propose compatible
+evidence labels/source metadata; flag unsupported medical/biological
+guarantees for owner review; distinguish acoustics, research,
+tradition and preference; do not invent citations.
+Stage 4 --- Audio layers/affirmations proof of concept (after
+approval): establish package/platform feasibility; test one primary
+sound plus one spoken clip on real iOS and Android; test volume,
+ducking, transitions, interruptions, lock/background, headphones and
+duplicate-stream prevention; keep speech optional with sound-only
+mode; do not create a large library until validated.
+Stage 5 --- Analytics/experiments (after approval): audit existing
+analytics; propose minimal event schemas and experiment definitions;
+exclude private text; do not add analytics SDKs without approval.
+Stage 6 --- Release readiness (after approval): run regression
+suite; verify entitlement, rules, admin-content and seed behaviour;
+document known issues and rollback. Do not deploy/publish without
+approval.
+Final report structure: executive summary; verified facts versus
+assumptions; P0/P1/P2/P3 findings with evidence; proposed changes;
+likely files affected; test plan and acceptance criteria;
+privacy/security implications; risks/dependencies/rollback; questions
+for the product owner.
+Do not implement the whole roadmap at once. Audit first, report, and
+wait for approval.
+
+14. Separate Jules tasks and acceptance criteria
+Task A --- Audit (P0)
+- Three audit documents produced; no functional changes.
+- Firebase IDs compared across client, rules and Functions.
+- Tests run or explicitly marked not runnable.
+- Audio, claims, subscription and privacy risks evidenced.
+- No production data/configuration changed.
+Task B --- Core player (P0/P1)
+- Deterministic play/pause/stop transitions.
+- Repeated taps do not create multiple streams.
+- Timer/fade and interruption behaviour verified.
+- UI does not falsely show playing after an error.
+- Regression suite and device matrix completed.
+- No entitlement/Firebase regressions.
+Task C --- Content integrity (P1)
+- Exact claims inventoried.
+- High-risk claims corrected or escalated for owner review.
+- Frequency tradition distinguished from established science.
+- Low-frequency/binaural explanations technically accurate.
+- Research sources and review dates included; no invented citations.
+Task D --- Intention-first discovery (P1)
+- Users can start from intention or browse frequencies.
+- No mandatory long onboarding.
+- Cards accurately represent actual session behaviour.
+- Experiment has primary metric and guardrails.
+- Favourites, deep links and admin content remain functional.
+Task E --- Affirmation audio proof of concept (P1/P2)
+- One primary sound plus one spoken source tested on supported
+  iOS/Android.
+- Speech can be disabled without unexpectedly stopping the primary
+  sound.
+- No duplicate streams; volume/ducking documented.
+- Interruption, lock/background and headphone behaviour recorded.
+- Optional feature with sound-only mode.
+Task F --- Analytics (P1/P2)
+- Each event supports a defined decision.
+- No sensitive free text logged.
+- Purchase events rely on provider-confirmed state.
+- Collection/retention documented.
+- Analytics failure does not block playback.
+Task G --- Monetisation/release (P1)
+- Restore purchases tested.
+- Provider-confirmed entitlement updates verified.
+- Cancellation, expiry, refund/revocation paths tested or marked as
+  gaps.
+- Client cannot grant itself premium.
+- Billing terms clear; no live change without approval.
+15. Priorities, gates and risks
+  Priority                Work                    Rationale
+  P0                      Build/runtime, playback Protects trust and
+                          reliability, Firebase   release readiness
+                          alignment,
+                          entitlement/security
+                          integrity               
+  P1                      First-session           Makes the product
+                          usability, content      clearer and enables
+                          integrity, discovery    learning
+                          and analytics baseline  
+  P1/P2                   Small                   Potential
+                          affirmation/layering    differentiation,
+                          proof of concept        dependent on technical
+                                                  feasibility
+  P2                      Expanded catalogue,     Invest after demand and
+                          advanced mixer, offline reliability are
+                          library                 demonstrated
+  P2/P3                   Complex                 Higher privacy and
+                          personalisation, social support cost; not
+                          features, health-data   needed to validate the
+                      integrations            core proposition
+Go/no-go gates 1. Technical baseline: app builds, loads correct
+content, authenticates and plays/stops reliably. 2. Trust baseline:
+high-risk claims reviewed and corrected. 3. Differentiation: users
+understand and value intention-led sessions or optional layers. 4.
+Commercial value: cohorts return and premium value is understood. 5.
+Scale: acquisition grows without harming retention, support, privacy or
+claim integrity.
+Main risks and mitigations
+  Risk                                Mitigation
+  Unsupported health claims           Exact claim inventory, source
+                                      review, qualified copy and human
+                                      approval
+  Incorrect low-frequency/binaural    Inspect signal generation and
+  implementation                      verify stereo output
+  Feature sprawl                      Stage work and test user value
+                                      before expanding
+  Affirmations distract some users    Optional by default, preview, easy
+                                      disable/skip
+  Audio mixing differs by platform    Small proof of concept and
+                                      real-device matrix
+  Seed routines overwrite editorial   Idempotent non-destructive seeding
+  work                                tests
+  Client-side entitlement             Provider/server authority, rules
+  manipulation                        and webhook tests
+  Over-collection                     Data minimisation and
+                                      sensitive-text exclusion from
+                                      analytics
+  Downloads without retention         Measure activation, repeat sessions
+                                      and retained cohorts
+  Unverified pricing assumptions      Small tests, cohort analysis and
+                                  user research
+16. Source register
+1. FTC, Health Products Compliance Guidance ---
+   https://www.ftc.gov/business-guidance/resources/health-products-compliance-guidance
+2. FTC, Mobile Health App Developers: FTC Best Practices ---
+   https://www.ftc.gov/business-guidance/resources/mobile-health-app-developers-ftc-best-practices
+3. Google Play, Health Content and Services policy ---
+   https://support.google.com/googleplay/android-developer/answer/16679511
+4. Apple, App Store Review Guidelines ---
+   https://developer.apple.com/app-store/review/guidelines/
+5. Ingendoh et al. (2023), Binaural beats to entrain the brain? ---
+   https://pmc.ncbi.nlm.nih.gov/articles/PMC10198548/
+6. Jespersen et al. (2021), Music for insomnia in adults ---
+   https://pubmed.ncbi.nlm.nih.gov/33896299/
+7. Epton et al. (2015), The impact of self-affirmation on
+   health-behavior change: a meta-analysis ---
+   https://pubmed.ncbi.nlm.nih.gov/25133846/
+8. Wood et al. (2009), Positive self-statements: power for some,
+   peril for others ---
+   https://www.psychologicalscience.org/journals/psychological-science/j.1467-9280.2009.02370.x
+9. Calm, App Store listing ---
+   https://apps.apple.com/gb/app/calm-sleep-meditation/id571800810
+10. Calm, Free content ---
+    https://support.calm.com/hc/en-us/articles/360044707294-What-Free-Content-is-Available-on-the-Calm-App
+11. Insight Timer, Free features ---
+    https://help.insighttimer.com/support/solutions/articles/67000664765-what-free-features-does-insight-timer-offer-
+12. Brain.fm, Science --- https://www.brain.fm/science
+13. Google Play, Frequency Generator listing ---
+    https://play.google.com/store/apps/details?id=com.boedec.hoel.frequencygenerator
+14. RevenueCat, State of Subscription Apps 2025 ---
+    https://www.revenuecat.com/state-of-subscription-apps-2025
+15. Apple, Product Page Optimisation ---
+    https://developer.apple.com/help/app-store-connect/analytics/acquisition/product-page-optimization
+16. Apple, Custom Product Pages ---
+    https://developer.apple.com/help/app-store-connect/create-custom-product-page-versions/configure-multiple-product-page-versions/
+17. Final recommendation
+Harmony Frequency should be built around reliable listening, clear
+personal choice and credible explanations. The near-term strategy is
+not to add every possible wellness feature. Establish a dependable
+player, make the first session obvious, support intention- or
+frequency-led discovery, then test whether optional ambience and
+affirmations produce repeat value.
+The most important instruction for Jules is: audit first, prove the
+current state, report gaps, and wait for approval before
+implementation. This protects the existing architecture and user data
+while giving the product owner a defensible basis for deciding what to
+build next.
