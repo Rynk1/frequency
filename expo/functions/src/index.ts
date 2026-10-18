@@ -4,7 +4,7 @@ import * as admin from 'firebase-admin';
 // Initialize Firebase Admin SDK
 if (!admin.apps.length) {
   admin.initializeApp({
-    projectId: process.env.GCP_PROJECT || process.env.GCLOUD_PROJECT || 'harmony-frequency-app',
+    projectId: process.env.GCP_PROJECT || process.env.GCLOUD_PROJECT || 'frequency-c6236',
   });
 }
 

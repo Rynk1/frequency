@@ -34,7 +34,7 @@ export const SOLFEGGIO_FREQUENCIES = [
     benefits: ["Facilitating perspective", "Clearing mental clutter", "Transformative reflection", "Sacral chakra balance"],
   },
   {
-    name: "Love & Miracles Pure",
+    name: "Love & Harmony Pure",
     hz: 528,
     description: "A 528-Hz pure tone associated with love, harmony and transformation in contemporary wellness traditions",
     color: "#EC4899",
