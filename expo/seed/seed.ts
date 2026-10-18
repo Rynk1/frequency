@@ -7,7 +7,7 @@ const isDryRun = process.argv.includes('--dry-run');
 
 if (!admin.apps.length) {
   admin.initializeApp({
-    projectId: process.env.GCP_PROJECT || process.env.FIREBASE_PROJECT_ID || 'harmony-frequency-app',
+    projectId: process.env.GCP_PROJECT || process.env.FIREBASE_PROJECT_ID || 'frequency-c6236',
   });
 }
 

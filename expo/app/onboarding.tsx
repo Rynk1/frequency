@@ -73,7 +73,7 @@ export default function OnboardingPage() {
         errorMessage: errMsg,
         payloadKeys: Object.keys(payloadUpdates),
         authReady: !isLoading,
-        firebaseProjectId: process.env.EXPO_PUBLIC_FIREBASE_PROJECT_ID || 'harmony-frequency-app',
+        firebaseProjectId: process.env.EXPO_PUBLIC_FIREBASE_PROJECT_ID || 'frequency-c6236',
       });
 
       setSaveError(errMsg || 'Profile could not be saved. Please check your connection and try again.');

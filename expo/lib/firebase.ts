@@ -67,5 +67,7 @@ try {
   }
 }
 
+export const defaultFirebaseProjectId = 'frequency-c6236';
+
 export { db, auth, app };
 export default app;
