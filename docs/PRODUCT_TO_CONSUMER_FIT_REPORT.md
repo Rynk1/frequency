@@ -362,9 +362,10 @@ Harmony Frequency's monetization architecture balances free accessibility with p
 
 | Subscription Tier | Consumer Price Point | Targeted Segment | Key Value Trigger |
 | :--- | :--- | :--- | :--- |
-| **Monthly Subscription** | **$7.99 / month** | Flexible trial seekers, short-term project focus. | Full access with zero commitment. |
-| **Annual Subscription** | **$49.99 / year** ($4.16/mo — *Save 48%*) | Core recurring users, habit builders. | 7-day free trial, best long-term value. |
-| **Lifetime Access** | **$149.99 one-time** | Premium biohackers, power users, gifting. | Permanent unlock across all future updates. |
+| **Monthly Subscription** | **$9.99 / month** | Flexible trial seekers, short-term project focus. | Full access with zero commitment. |
+| **Annual Subscription** | **$59.99 / year** ($5.00/mo — *Save 50%*) | Core recurring users, habit builders. | 7-day free trial, best long-term value. |
+
+> Prices above are the canonical in-app figures (`expo/lib/pricing.ts`). Google Play is the billing authority and the paywall renders the live store price at runtime. A lifetime-access tier is **not implemented** in the app and must not be advertised until a matching store product exists.
 
 * **Conversion Rate Targets**:
   * Onboarding-to-Free Trial Conversion: **8.5% – 12.0%**

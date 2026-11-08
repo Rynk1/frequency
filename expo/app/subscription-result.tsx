@@ -34,15 +34,16 @@ type ResultKind = 'success' | 'cancelled' | 'pending' | 'error';
 /**
  * Subscription result screen.
  *
- * Reached after the user is redirected back from Stripe Checkout via:
- *   - success_url:  <app>?subscription=success&session_id={CHECKOUT_SESSION_ID}
+ * Reached after the user returns from a Google Play purchase via an external
+ * confirmation deep link:
+ *   - success_url:  <app>?subscription=success
  *   - cancel_url:   <app>?subscription=cancelled
  *
  * The app's root index reads the `subscription` query param and redirects here.
- * This screen verifies the entitlement against the server (Stripe-via-Hono)
- * and surfaces a clear premium outcome to the user. It never mutates
- * subscription state itself — the Stripe webhook remains the single source of
- * truth. We only refresh the cached profile via useAuth().
+ * This screen verifies the entitlement against the server (Google Play /
+ * RevenueCat) and surfaces a clear premium outcome to the user. It never
+ * mutates subscription state itself — the store webhook remains the single
+ * source of truth. We only refresh the cached profile via useAuth().
  */
 export default function SubscriptionResultScreen() {
   const params = useLocalSearchParams<{ subscription?: string; session_id?: string }>();
@@ -94,7 +95,7 @@ export default function SubscriptionResultScreen() {
       setIsVerifying(true);
       setVerifyError(null);
       try {
-        // Pull server-verified entitlement (queries Stripe, then Firestore fallback).
+        // Pull server-verified entitlement (queries Google Play / RevenueCat, then Firestore fallback).
         const status = await getSubscriptionStatus();
         if (!mounted) return;
         setServerStatus(status);
@@ -115,7 +116,7 @@ export default function SubscriptionResultScreen() {
         if (!mounted) return;
         setVerifyError(e?.message || 'We could not verify your subscription right now.');
         // If the redirect said success but verification failed, keep showing
-        // success (Stripe will still fire the webhook and update Firestore).
+        // success (the store will still fire the webhook and update Firestore).
         if (initialKind !== 'success') setKind('error');
       } finally {
         if (mounted) setIsVerifying(false);
@@ -132,11 +133,10 @@ export default function SubscriptionResultScreen() {
 
   const handleManageBilling = useCallback(async () => {
     try {
-      const { createBillingPortalSession } = await import('@/lib/subscription-service');
-      const { url } = await createBillingPortalSession();
-      if (url) await Linking.openURL(url);
+      const { getManageSubscriptionUrl } = await import('@/lib/subscription-service');
+      await Linking.openURL(getManageSubscriptionUrl());
     } catch (e: any) {
-      setVerifyError(e?.message || 'Could not open the billing portal.');
+      setVerifyError(e?.message || 'Could not open the Google Play subscriptions screen.');
     }
   }, []);
 
@@ -253,7 +253,7 @@ export default function SubscriptionResultScreen() {
                     <Text style={styles.statusLabel}>Entitlement</Text>
                     <Text style={styles.statusValue}>
                       {isVerifying
-                        ? 'Verifying with Stripe…'
+                        ? 'Verifying with Google Play…'
                         : serverStatus
                           ? serverStatus.isPremium
                             ? 'Premium Active'
@@ -294,7 +294,7 @@ export default function SubscriptionResultScreen() {
             {isVerifying && (
               <GlassCard style={styles.verifyCard}>
                 <ActivityIndicator color={COLORS.accent} size="small" />
-                <Text style={styles.verifyText}>Verifying your payment with Stripe…</Text>
+                <Text style={styles.verifyText}>Verifying your payment with Google Play…</Text>
               </GlassCard>
             )}
 
@@ -373,7 +373,7 @@ export default function SubscriptionResultScreen() {
             </View>
 
             <Text style={styles.disclaimer}>
-              Subscriptions auto-renew unless cancelled at least 24 hours before the period ends. Manage your subscription anytime in Settings.
+              Subscriptions auto-renew unless cancelled at least 24 hours before the period ends. Manage or cancel your subscription anytime in Google Play.
             </Text>
           </Animated.View>
         </ScrollView>

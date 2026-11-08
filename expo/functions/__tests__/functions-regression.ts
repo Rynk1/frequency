@@ -121,7 +121,41 @@ async function runFunctionsRegressionTests() {
     }
   }
 
-  // 6. handleSubscriptionWebhook - Authenticated RevenueCat Event Payload
+  // 6. handleSubscriptionWebhook - Fail Closed When Secret Not Configured
+  {
+    const savedWebhookSecret = process.env.WEBHOOK_SECRET;
+    const savedRcSecret = process.env.REVENUECAT_WEBHOOK_SECRET;
+    delete process.env.WEBHOOK_SECRET;
+    delete process.env.REVENUECAT_WEBHOOK_SECRET;
+
+    const req: any = {
+      method: 'POST',
+      headers: {
+        authorization: 'Bearer some-arbitrary-token',
+      },
+      body: {
+        event: {
+          app_user_id: 'test-user-123',
+          type: 'INITIAL_PURCHASE',
+          entitlement_id: 'premium',
+        },
+      },
+    };
+    const res = createMockResponse();
+    await (handleSubscriptionWebhook as any)(req, res);
+    if (res.getStatus() === 500) {
+      console.log('[PASS] handleSubscriptionWebhook (Fails closed when secret unconfigured)');
+      passed++;
+    } else {
+      console.error('[FAIL] handleSubscriptionWebhook (Fail closed):', res.getStatus(), res.getBody());
+      failed++;
+    }
+
+    process.env.WEBHOOK_SECRET = savedWebhookSecret;
+    if (savedRcSecret !== undefined) process.env.REVENUECAT_WEBHOOK_SECRET = savedRcSecret;
+  }
+
+  // 7. handleSubscriptionWebhook - Authenticated RevenueCat Event Payload
   {
     const req: any = {
       method: 'POST',

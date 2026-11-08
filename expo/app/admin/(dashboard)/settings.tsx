@@ -22,6 +22,7 @@ import {
   Save,
   RefreshCw,
 } from 'lucide-react-native';
+import { PREMIUM_PLANS, PREMIUM_TRIAL_DAYS } from '@/lib/pricing';
 
 const SETTINGS_KEY = 'adminAppSettings';
 
@@ -31,9 +32,10 @@ export default function SettingsManagement() {
     allowRegistration: true,
     requireEmailVerification: true,
     enablePayments: true,
-    premiumPrice: '29.99',
-    currency: 'USD',
-    trialDays: '7',
+    premiumMonthlyPrice: PREMIUM_PLANS.monthly.price.toFixed(2),
+    premiumYearlyPrice: PREMIUM_PLANS.yearly.price.toFixed(2),
+    currency: PREMIUM_PLANS.monthly.currency,
+    trialDays: String(PREMIUM_TRIAL_DAYS),
     defaultFreePremium: false,
     allowGuestAccess: true,
     maxSessionDuration: '60',
@@ -161,13 +163,28 @@ export default function SettingsManagement() {
         </View>
 
         <View style={styles.inputGroup}>
-          <Text style={styles.inputLabel}>Premium Price</Text>
+          <Text style={styles.inputLabel}>Monthly Price</Text>
           <View style={styles.inputRow}>
             <TextInput
               style={styles.input}
-              value={settings.premiumPrice}
-              onChangeText={(text) => setSettings({ ...settings, premiumPrice: text })}
-              placeholder="29.99"
+              value={settings.premiumMonthlyPrice}
+              onChangeText={(text) => setSettings({ ...settings, premiumMonthlyPrice: text })}
+              placeholder={PREMIUM_PLANS.monthly.price.toFixed(2)}
+              placeholderTextColor="#6B7280"
+              keyboardType="numeric"
+            />
+            <Text style={styles.inputSuffix}>{settings.currency}</Text>
+          </View>
+        </View>
+
+        <View style={styles.inputGroup}>
+          <Text style={styles.inputLabel}>Yearly Price</Text>
+          <View style={styles.inputRow}>
+            <TextInput
+              style={styles.input}
+              value={settings.premiumYearlyPrice}
+              onChangeText={(text) => setSettings({ ...settings, premiumYearlyPrice: text })}
+              placeholder={PREMIUM_PLANS.yearly.price.toFixed(2)}
               placeholderTextColor="#6B7280"
               keyboardType="numeric"
             />

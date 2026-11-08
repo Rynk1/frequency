@@ -4,9 +4,9 @@ import { Redirect, useRouter, useGlobalSearchParams } from 'expo-router';
 /**
  * Root entry route.
  *
- * Reads the `subscription` query param that Stripe Checkout attaches to its
- * success/cancel redirect URLs:
- *   - success: ?subscription=success&session_id={CHECKOUT_SESSION_ID}
+ * Reads the `subscription` query param used by external subscription
+ * confirmation deep links:
+ *   - success: ?subscription=success
  *   - cancel:  ?subscription=cancelled
  *
  * When present, route to the dedicated subscription-result screen so the user

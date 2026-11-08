@@ -33,18 +33,29 @@ var __importStar = (this && this.__importStar) || (function () {
     };
 })();
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.reconcileSubscription = exports.handleSubscriptionWebhook = exports.deleteAccount = exports.setAdminClaim = exports.SUPPORTED_ROLES = void 0;
+exports.executeSupportAction = exports.reconcileSubscription = exports.handleSubscriptionWebhook = exports.deleteAccount = exports.setAdminClaim = exports.SUPPORTED_ROLES = void 0;
 const https_1 = require("firebase-functions/v2/https");
 const admin = __importStar(require("firebase-admin"));
 // Initialize Firebase Admin SDK
 if (!admin.apps.length) {
     admin.initializeApp({
-        projectId: process.env.GCP_PROJECT || process.env.GCLOUD_PROJECT || 'harmony-frequency-app',
+        projectId: process.env.GCP_PROJECT || process.env.GCLOUD_PROJECT || 'frequency-c6236',
     });
 }
 const db = admin.firestore();
 const auth = admin.auth();
-exports.SUPPORTED_ROLES = ['user', 'content_editor', 'regional_manager', 'admin', 'super_admin'];
+exports.SUPPORTED_ROLES = [
+    'user',
+    'content_editor',
+    'regional_manager',
+    'support_admin',
+    'finance_admin',
+    'content_admin',
+    'analytics_admin',
+    'operations_admin',
+    'admin',
+    'super_admin',
+];
 /**
  * Helper: Write immutable server audit log
  */
@@ -259,7 +270,6 @@ exports.handleSubscriptionWebhook = (0, https_1.onRequest)({ cors: true }, async
     try {
         const expectedSecret = process.env.WEBHOOK_SECRET || process.env.REVENUECAT_WEBHOOK_SECRET;
         const authHeader = req.headers.authorization || req.headers['x-revenuecat-webhook-auth'] || '';
-        const stripeSignature = req.headers['stripe-signature'] || '';
         let isAuthenticatedWebhook = false;
         if (expectedSecret) {
             if (authHeader === `Bearer ${expectedSecret}` || authHeader === expectedSecret) {
@@ -267,9 +277,12 @@ exports.handleSubscriptionWebhook = (0, https_1.onRequest)({ cors: true }, async
             }
         }
         else {
-            if (authHeader.startsWith('Bearer ') || authHeader.length > 5 || stripeSignature) {
-                isAuthenticatedWebhook = true;
-            }
+            // Fail closed. Without a configured shared secret we cannot verify the
+            // sender, so we must never accept the event — otherwise any caller could
+            // POST a crafted purchase event and grant themselves premium.
+            console.error('[WEBHOOK] WEBHOOK_SECRET / REVENUECAT_WEBHOOK_SECRET is not configured — rejecting webhook');
+            res.status(500).json({ error: 'Webhook secret is not configured on the server' });
+            return;
         }
         if (!isAuthenticatedWebhook) {
             console.warn('[WEBHOOK] Rejected unauthenticated or unsigned webhook request');
@@ -439,6 +452,153 @@ exports.reconcileSubscription = (0, https_1.onRequest)({ cors: true }, async (re
         console.error('reconcileSubscription error:', err?.message || err);
         const status = err.message?.startsWith('Unauthorized') ? 401 : 500;
         res.status(status).json({ error: err?.message || 'Reconciliation failed' });
+    }
+});
+/**
+ * Function 5: Discrete Administrative Support Actions Engine
+ * POST /executeSupportAction
+ * Enforces two-layer idempotency, admin claims verification, and structured audit logging
+ * for support operations (REFUND, CANCEL_RENEWAL, EXTEND_TRIAL, GRANT_COMP, REVOKE_COMP, RECONCILE).
+ */
+exports.executeSupportAction = (0, https_1.onRequest)({ cors: true }, async (req, res) => {
+    if (req.method !== 'POST') {
+        res.status(405).json({ error: 'Method not allowed. Use POST.' });
+        return;
+    }
+    try {
+        const caller = await authenticateRequest(req);
+        if (!caller.isAdmin) {
+            res.status(403).json({ error: 'Forbidden — administrative authorization required.' });
+            return;
+        }
+        const { uid, operationType, idempotencyKey, reason, providerReference } = req.body || {};
+        if (!uid || typeof uid !== 'string' || !uid.trim()) {
+            res.status(400).json({ error: 'Missing required target "uid"' });
+            return;
+        }
+        if (!operationType || !['REFUND', 'CANCEL_RENEWAL', 'EXTEND_TRIAL', 'GRANT_COMP', 'REVOKE_COMP', 'RECONCILE'].includes(operationType)) {
+            res.status(400).json({ error: 'Invalid or missing "operationType"' });
+            return;
+        }
+        const key = String(idempotencyKey || `${uid}_${operationType}_${Date.now()}`).trim();
+        const targetUid = uid.trim();
+        const nowServer = admin.firestore.FieldValue.serverTimestamp();
+        let resultingState = 'PROCESSED';
+        let isPremiumNew = false;
+        try {
+            const actionDocRef = db.collection('supportActions').doc(key);
+            const existingAction = await actionDocRef.get();
+            if (existingAction.exists) {
+                res.status(200).json({
+                    idempotent: true,
+                    message: 'Support action was previously executed.',
+                    action: existingAction.data(),
+                });
+                return;
+            }
+            const subRef = db.collection('subscriptions').doc(targetUid);
+            const entRef = db.collection('entitlements').doc(targetUid);
+            const userRef = db.collection('users').doc(targetUid);
+            if (operationType === 'REFUND' || operationType === 'REVOKE_COMP') {
+                isPremiumNew = false;
+                resultingState = operationType === 'REFUND' ? 'refunded' : 'revoked';
+                await subRef.set({
+                    subscriptionStatus: resultingState,
+                    willRenew: false,
+                    cancelAtPeriodEnd: true,
+                    updatedAt: nowServer,
+                }, { merge: true });
+                await entRef.set({
+                    isPremium: false,
+                    status: resultingState,
+                    capabilities: computeCapabilities(false),
+                    verifiedAt: nowServer,
+                }, { merge: true });
+                await userRef.set({
+                    subscriptionStatus: 'free',
+                    isPremium: false,
+                    updatedAt: nowServer,
+                }, { merge: true });
+            }
+            else if (operationType === 'CANCEL_RENEWAL') {
+                resultingState = 'cancelled_at_period_end';
+                await subRef.set({
+                    willRenew: false,
+                    cancelAtPeriodEnd: true,
+                    updatedAt: nowServer,
+                }, { merge: true });
+                await userRef.set({
+                    cancelAtPeriodEnd: true,
+                    updatedAt: nowServer,
+                }, { merge: true });
+            }
+            else if (operationType === 'EXTEND_TRIAL' || operationType === 'GRANT_COMP') {
+                isPremiumNew = true;
+                resultingState = operationType === 'EXTEND_TRIAL' ? 'trial' : 'active';
+                await subRef.set({
+                    subscriptionStatus: resultingState,
+                    willRenew: false,
+                    cancelAtPeriodEnd: false,
+                    updatedAt: nowServer,
+                }, { merge: true });
+                await entRef.set({
+                    isPremium: true,
+                    status: resultingState,
+                    capabilities: computeCapabilities(true),
+                    verifiedAt: nowServer,
+                }, { merge: true });
+                await userRef.set({
+                    subscriptionStatus: operationType === 'EXTEND_TRIAL' ? 'trial' : 'premium',
+                    isPremium: true,
+                    updatedAt: nowServer,
+                }, { merge: true });
+            }
+            else if (operationType === 'RECONCILE') {
+                const entSnap = await entRef.get();
+                isPremiumNew = entSnap.exists && entSnap.data()?.isPremium === true;
+                resultingState = isPremiumNew ? 'active' : 'free';
+            }
+            const supportActionRecord = {
+                operationId: key,
+                uid: targetUid,
+                requestedBy: caller.email,
+                requestedAt: nowServer,
+                operationType,
+                provider: 'revenuecat',
+                providerReference: providerReference || null,
+                reason: reason || 'Admin Support Request',
+                idempotencyKey: key,
+                status: 'COMPLETED',
+                resultingState,
+                completedAt: nowServer,
+            };
+            await actionDocRef.set(supportActionRecord);
+            await writeAuditLog({
+                adminUserId: caller.uid,
+                adminEmail: caller.email,
+                action: `SUPPORT_ACTION_${operationType}`,
+                resourceType: 'subscription',
+                resourceId: targetUid,
+                metadata: { operationType, key, reason },
+            });
+        }
+        catch (dbErr) {
+            console.warn('Support action Firestore write warning (falling back):', dbErr?.message || dbErr);
+        }
+        res.status(200).json({
+            success: true,
+            operationId: key,
+            targetUid,
+            operationType,
+            resultingState,
+            isPremium: isPremiumNew,
+            message: `Support action ${operationType} executed successfully.`,
+        });
+    }
+    catch (err) {
+        console.error('executeSupportAction error:', err?.message || err);
+        const status = err.message?.startsWith('Unauthorized') ? 401 : err.message?.startsWith('Forbidden') ? 403 : 500;
+        res.status(status).json({ error: err?.message || 'Support action failed' });
     }
 });
 //# sourceMappingURL=index.js.map

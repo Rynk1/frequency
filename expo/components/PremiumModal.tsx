@@ -15,7 +15,6 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { GlassCard as SharedGlassCard } from '@/components/GlassCard';
-import * as WebBrowser from 'expo-web-browser';
 import {
   Crown,
   Check,
@@ -34,15 +33,28 @@ import {
   Headphones,
   Download,
   Infinity as InfinityIcon,
+  RotateCcw,
 } from 'lucide-react-native';
 import { useAuth } from '@/hooks/useAuth';
 import {
-  createCheckoutSession,
-  createBillingPortalSession,
-  cancelSubscription,
-  resumeSubscription,
+  getManageSubscriptionUrl,
   type Plan,
 } from '@/lib/subscription-service';
+import {
+  purchasePlan,
+  getStoreOfferings,
+  isStoreBillingAvailable,
+  executeRestorePurchases,
+  type PlanOfferings,
+} from '@/lib/native-purchases';
+import {
+  PREMIUM_PLANS,
+  PREMIUM_TRIAL_DAYS,
+  formatPrice,
+  getPlanBillingNote,
+  getYearlyMonthlyPrice,
+  getYearlySavingsPercent,
+} from '@/lib/pricing';
 import { COLORS, GRADIENTS, FONTS, TEXT_PRESETS } from '@/constants/theme';
 
 export type PremiumTrigger =
@@ -61,7 +73,7 @@ type PremiumModalProps = {
   trigger?: PremiumTrigger;
 };
 
-type ManagementAction = 'none' | 'cancel' | 'resume';
+type ManagementAction = 'none' | 'cancel' | 'resume' | 'restore';
 
 export const PremiumModal: React.FC<PremiumModalProps> = ({
   visible,
@@ -78,6 +90,7 @@ export const PremiumModal: React.FC<PremiumModalProps> = ({
   const [showManageSheet, setShowManageSheet] = useState<boolean>(false);
   const [managementAction, setManagementAction] = useState<ManagementAction>('none');
   const [error, setError] = useState<string | null>(null);
+  const [storeOfferings, setStoreOfferings] = useState<PlanOfferings | null>(null);
 
   // Entrance animation
   const [fadeAnim] = useState(new Animated.Value(0));
@@ -109,31 +122,51 @@ export const PremiumModal: React.FC<PremiumModalProps> = ({
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [visible]);
 
-  const handleStartTrial = useCallback(async () => {
-    if (!hasAcceptedAutoRenew) {
-      setError('Please accept the auto-renew terms to start your free trial.');
-      return;
-    }
-    await initiateCheckout(selectedPlan, true);
-  }, [hasAcceptedAutoRenew, selectedPlan]);
+  // Show the exact Google Play prices when the store offers them, so the
+  // paywall never advertises a figure that differs from what the user pays.
+  React.useEffect(() => {
+    if (!visible || isPremium || isTrialActive) return;
+    let mounted = true;
+    getStoreOfferings()
+      .then((offerings) => {
+        if (mounted && offerings) setStoreOfferings(offerings);
+      })
+      .catch(() => {});
+    return () => {
+      mounted = false;
+    };
+  }, [visible, isPremium, isTrialActive]);
 
-  const handleUpgrade = useCallback(async () => {
-    await initiateCheckout(selectedPlan, false);
-  }, [selectedPlan]);
+  const monthlyPriceLabel =
+    storeOfferings?.monthly?.priceString || formatPrice(PREMIUM_PLANS.monthly.price);
+  const yearlyPriceLabel =
+    storeOfferings?.yearly?.priceString || formatPrice(PREMIUM_PLANS.yearly.price);
 
-  const initiateCheckout = useCallback(async (plan: Plan, trialEnabled: boolean) => {
+  const yearlyMonthlyValue =
+    storeOfferings?.yearly?.price && storeOfferings.yearly.price > 0
+      ? storeOfferings.yearly.price / 12
+      : getYearlyMonthlyPrice();
+  const yearlyMonthlyLabel = storeOfferings?.yearly?.priceString
+    ? formatPrice(yearlyMonthlyValue, storeOfferings.yearly.currencyCode)
+    : `$${yearlyMonthlyValue.toFixed(2)}`;
+  const yearlyBillingNote = storeOfferings?.yearly?.priceString
+    ? `Billed annually at ${storeOfferings.yearly.priceString}`
+    : getPlanBillingNote('yearly');
+  const savings = getYearlySavingsPercent();
+
+  const initiatePurchase = useCallback(async (plan: Plan, trialEnabled: boolean) => {
     setError(null);
     setIsProcessing(true);
-    setProcessingLabel(trialEnabled ? 'Preparing your free trial…' : 'Redirecting to secure checkout…');
+    setProcessingLabel(trialEnabled ? 'Preparing your free trial…' : 'Opening Google Play…');
     try {
-      const { url } = await createCheckoutSession(plan, { trialEnabled });
-      if (!url) throw new Error('No checkout URL returned.');
-      // Open Stripe Checkout in browser
-      const result = await WebBrowser.openBrowserAsync(url, {
-        presentationStyle: WebBrowser.WebBrowserPresentationStyle.FULL_SCREEN,
-        toolbarColor: COLORS.bg,
-      });
-      // Refresh subscription status when the user returns from checkout
+      if (!isStoreBillingAvailable()) {
+        throw new Error('In-app purchases are unavailable on this device. Please update the app through Google Play and try again.');
+      }
+      const result = await purchasePlan(plan);
+      if (result?.success === false) {
+        // User dismissed the store purchase sheet — stay on the paywall.
+        return;
+      }
       if (refreshSubscriptionStatus) {
         await refreshSubscriptionStatus();
       }
@@ -141,34 +174,50 @@ export const PremiumModal: React.FC<PremiumModalProps> = ({
       onUpgrade?.(plan);
       onClose();
     } catch (e: any) {
-      const message = e?.message || 'Checkout failed. Please try again.';
-      setError(message);
-      // Don't close on error — let the user retry
+      // RevenueCat rejects with `userCancelled` when the sheet is dismissed.
+      if (e?.userCancelled || e?.code === 'PURCHASE_CANCELLED') return;
+      setError(e?.message || 'Purchase failed. Please try again.');
     } finally {
       setIsProcessing(false);
       setProcessingLabel('');
     }
   }, [refreshSubscriptionStatus, onStartTrial, onUpgrade, onClose]);
 
+  const handleStartTrial = useCallback(async () => {
+    if (!hasAcceptedAutoRenew) {
+      setError('Please accept the auto-renew terms to start your free trial.');
+      return;
+    }
+    await initiatePurchase(selectedPlan, true);
+  }, [hasAcceptedAutoRenew, selectedPlan, initiatePurchase]);
+
+  const handleUpgrade = useCallback(async () => {
+    await initiatePurchase(selectedPlan, false);
+  }, [selectedPlan, initiatePurchase]);
+
+  const openStoreManagement = useCallback(async () => {
+    const url = getManageSubscriptionUrl();
+    try {
+      await Linking.openURL(url);
+    } catch {
+      setError('Could not open the Google Play subscriptions screen. Open the Play Store app and manage your subscriptions there.');
+      return;
+    }
+    if (refreshSubscriptionStatus) await refreshSubscriptionStatus();
+  }, [refreshSubscriptionStatus]);
+
   const handleManageSubscription = useCallback(async () => {
     setError(null);
     setIsProcessing(true);
-    setProcessingLabel('Opening account portal…');
+    setProcessingLabel('Opening Google Play…');
     try {
-      const { url } = await createBillingPortalSession();
-      await WebBrowser.openBrowserAsync(url, {
-        presentationStyle: WebBrowser.WebBrowserPresentationStyle.FULL_SCREEN,
-        toolbarColor: COLORS.bg,
-      });
-      if (refreshSubscriptionStatus) await refreshSubscriptionStatus();
+      await openStoreManagement();
       setShowManageSheet(false);
-    } catch (e: any) {
-      setError(e?.message || 'Failed to open account portal.');
     } finally {
       setIsProcessing(false);
       setProcessingLabel('');
     }
-  }, [refreshSubscriptionStatus]);
+  }, [openStoreManagement]);
 
   const [showCancelConfirm, setShowCancelConfirm] = useState<boolean>(false);
 
@@ -182,49 +231,55 @@ export const PremiumModal: React.FC<PremiumModalProps> = ({
     setError(null);
     setManagementAction('cancel');
     setIsProcessing(true);
-    setProcessingLabel('Opening cancellation portal…');
+    setProcessingLabel('Opening Google Play…');
     try {
-      const res = await cancelSubscription();
-      if (res?.url) {
-        await WebBrowser.openBrowserAsync(res.url, {
-          presentationStyle: WebBrowser.WebBrowserPresentationStyle.FULL_SCREEN,
-          toolbarColor: COLORS.bg,
-        });
-      }
-      if (refreshSubscriptionStatus) await refreshSubscriptionStatus();
+      await openStoreManagement();
       setShowCancelConfirm(false);
-    } catch (e: any) {
-      setError(e?.message || 'Failed to cancel subscription.');
     } finally {
       setIsProcessing(false);
       setProcessingLabel('');
       setManagementAction('none');
     }
-  }, [refreshSubscriptionStatus]);
+  }, [openStoreManagement]);
 
   const handleResumeSubscription = useCallback(async () => {
     setError(null);
     setManagementAction('resume');
     setIsProcessing(true);
-    setProcessingLabel('Opening subscription portal…');
+    setProcessingLabel('Opening Google Play…');
     try {
-      const res = await resumeSubscription();
-      if (res?.url) {
-        await WebBrowser.openBrowserAsync(res.url, {
-          presentationStyle: WebBrowser.WebBrowserPresentationStyle.FULL_SCREEN,
-          toolbarColor: COLORS.bg,
-        });
-      }
-      if (refreshSubscriptionStatus) await refreshSubscriptionStatus();
+      await openStoreManagement();
       setShowManageSheet(false);
-    } catch (e: any) {
-      setError(e?.message || 'Failed to resume subscription.');
     } finally {
       setIsProcessing(false);
       setProcessingLabel('');
       setManagementAction('none');
     }
-  }, [refreshSubscriptionStatus]);
+  }, [openStoreManagement]);
+
+  const handleRestorePurchases = useCallback(async () => {
+    setError(null);
+    setManagementAction('restore');
+    setIsProcessing(true);
+    setProcessingLabel('Restoring purchases…');
+    try {
+      const result = await executeRestorePurchases();
+      if (refreshSubscriptionStatus) await refreshSubscriptionStatus();
+      if (result.isPremium) {
+        setShowManageSheet(false);
+        onUpgrade?.(selectedPlan);
+        onClose();
+      } else {
+        setError('No active premium subscription was found for this account.');
+      }
+    } catch (e: any) {
+      setError(e?.message || 'Could not restore purchases. Please try again.');
+    } finally {
+      setIsProcessing(false);
+      setProcessingLabel('');
+      setManagementAction('none');
+    }
+  }, [refreshSubscriptionStatus, selectedPlan, onUpgrade, onClose]);
 
   const premiumFeatures: { id: string; icon: any; text: string; highlight?: boolean }[] = [
     { id: 'premium-frequencies', icon: Music, text: 'Access to 100+ Premium Frequencies', highlight: true },
@@ -235,11 +290,6 @@ export const PremiumModal: React.FC<PremiumModalProps> = ({
     { id: 'offline-downloads', icon: Download, text: 'Offline Downloads' },
     { id: 'priority-support', icon: Headphones, text: 'Priority Customer Support' },
   ];
-
-  const monthlyPrice = 9.99;
-  const yearlyPrice = 59.99;
-  const yearlyMonthlyPrice = yearlyPrice / 12;
-  const savings = Math.round(((monthlyPrice * 12 - yearlyPrice) / (monthlyPrice * 12)) * 100);
 
   const GlassCard = SharedGlassCard;
 
@@ -383,6 +433,27 @@ export const PremiumModal: React.FC<PremiumModalProps> = ({
                       <ChevronRight color={COLORS.textMuted} size={16} />
                     </TouchableOpacity>
                   )}
+
+                  <View style={styles.mgmtSep} />
+
+                  <TouchableOpacity
+                    style={styles.mgmtRow}
+                    onPress={handleRestorePurchases}
+                    disabled={isProcessing || managementAction === 'restore'}
+                  >
+                    <View style={[styles.mgmtIcon, { backgroundColor: 'rgba(251,191,36,0.15)' }]}>
+                      {managementAction === 'restore' && isProcessing ? (
+                        <ActivityIndicator color={COLORS.gold} size="small" />
+                      ) : (
+                        <RotateCcw color={COLORS.gold} size={18} />
+                      )}
+                    </View>
+                    <View style={styles.mgmtText}>
+                      <Text style={styles.mgmtTitle}>Restore Purchases</Text>
+                      <Text style={styles.mgmtSub}>Already subscribed? Restore access</Text>
+                    </View>
+                    <ChevronRight color={COLORS.textMuted} size={16} />
+                  </TouchableOpacity>
                 </GlassCard>
 
                 {error && (
@@ -392,7 +463,7 @@ export const PremiumModal: React.FC<PremiumModalProps> = ({
                 )}
 
                 <Text style={styles.secureNote}>
-                  <Shield color={COLORS.textMuted} size={12} />  Subscriptions are securely processed by Stripe. Cancel anytime.
+                  <Shield color={COLORS.textMuted} size={12} />  Subscriptions are securely processed by Google Play. Cancel anytime.
                 </Text>
               </Animated.View>
             </ScrollView>
@@ -541,10 +612,10 @@ export const PremiumModal: React.FC<PremiumModalProps> = ({
                   >
                     <View style={styles.trialHeader}>
                       <Sparkles color={COLORS.accent} size={18} />
-                      <Text style={styles.trialTitle}>7-Day Free Trial</Text>
+                      <Text style={styles.trialTitle}>{PREMIUM_TRIAL_DAYS}-Day Free Trial</Text>
                     </View>
                     <Text style={styles.trialDesc}>
-                      Experience every premium feature free for 7 days. Cancel before it ends and you won't be charged.
+                      Experience every premium feature free for {PREMIUM_TRIAL_DAYS} days. Cancel before it ends and you won't be charged.
                     </Text>
 
                     <TouchableOpacity
@@ -622,11 +693,11 @@ export const PremiumModal: React.FC<PremiumModalProps> = ({
                       </View>
                     </View>
                     <View style={styles.planPriceCol}>
-                      <Text style={styles.planPrice}>${yearlyMonthlyPrice.toFixed(2)}</Text>
+                      <Text style={styles.planPrice}>{yearlyMonthlyLabel}</Text>
                       <Text style={styles.planPeriod}>/month</Text>
                     </View>
                   </View>
-                  <Text style={styles.planBilling}>Billed annually at ${yearlyPrice.toFixed(2)}</Text>
+                  <Text style={styles.planBilling}>{yearlyBillingNote}</Text>
                   {selectedPlan === 'yearly' && (
                     <View style={styles.planCheck}>
                       <Check color={COLORS.bg} size={14} />
@@ -650,11 +721,11 @@ export const PremiumModal: React.FC<PremiumModalProps> = ({
                       <Text style={styles.planName}>Monthly</Text>
                     </View>
                     <View style={styles.planPriceCol}>
-                      <Text style={styles.planPrice}>${monthlyPrice.toFixed(2)}</Text>
+                      <Text style={styles.planPrice}>{monthlyPriceLabel}</Text>
                       <Text style={styles.planPeriod}>/month</Text>
                     </View>
                   </View>
-                  <Text style={styles.planBilling}>Billed monthly · Cancel anytime</Text>
+                  <Text style={styles.planBilling}>{getPlanBillingNote('monthly')}</Text>
                   {selectedPlan === 'monthly' && (
                     <View style={styles.planCheck}>
                       <Check color={COLORS.bg} size={14} />
@@ -691,7 +762,7 @@ export const PremiumModal: React.FC<PremiumModalProps> = ({
                     <>
                       <Crown color="#1a1200" size={18} />
                       <Text style={styles.upgradeBtnTextDark}>
-                        Upgrade to Premium — {selectedPlan === 'yearly' ? `$${yearlyPrice}/yr` : `$${monthlyPrice}/mo`}
+                        Upgrade to Premium — {selectedPlan === 'yearly' ? `${yearlyPriceLabel}/yr` : `${monthlyPriceLabel}/mo`}
                       </Text>
                     </>
                   )}
@@ -701,7 +772,7 @@ export const PremiumModal: React.FC<PremiumModalProps> = ({
               <View style={styles.trustRow}>
                 <View style={styles.trustItem}>
                   <Shield color={COLORS.textMuted} size={12} />
-                  <Text style={styles.trustText}>Secure checkout by Stripe</Text>
+                  <Text style={styles.trustText}>Secure checkout by Google Play</Text>
                 </View>
                 <View style={styles.trustItem}>
                   <Check color={COLORS.textMuted} size={12} />
@@ -710,7 +781,7 @@ export const PremiumModal: React.FC<PremiumModalProps> = ({
               </View>
 
               <Text style={styles.disclaimer}>
-                Subscriptions auto-renew unless cancelled at least 24 hours before the period ends. Manage your subscription anytime in Settings.
+                Subscriptions auto-renew unless cancelled at least 24 hours before the period ends. Manage or cancel your subscription anytime in Google Play.
               </Text>
             </Animated.View>
           </ScrollView>

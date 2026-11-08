@@ -21,7 +21,7 @@ export interface EntitlementState {
   status: EntitlementStatus;
   expiresAt?: Date;
   trialEndsAt?: Date;
-  source?: 'google_play' | 'revenuecat' | 'stripe';
+  source?: 'google_play' | 'revenuecat';
   lastVerifiedAt?: Date;
   capabilities: EntitlementCapabilities;
 }

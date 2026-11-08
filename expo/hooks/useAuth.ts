@@ -13,6 +13,11 @@ import { globalEntitlementEngine } from '@/lib/entitlements/entitlement-service'
 import { getLocalDateString } from '@/lib/recommendation';
 import { USAGE_EVENTS_STORAGE_KEY } from './useUsageAnalytics';
 import { sanitizeForFirestore } from '@/lib/validation';
+import {
+  initializeNativePurchases,
+  identifyNativeUser,
+  resetNativeUser,
+} from '@/lib/native-purchases';
 
 export type BootstrapState =
   | 'AUTH_LOADING'
@@ -515,6 +520,9 @@ export const [AuthProvider, useAuth] = createContextHook((): AuthContextType => 
     let mounted = true;
     let resolved = false;
 
+    // Configure Google Play billing (RevenueCat SDK) once on mount.
+    initializeNativePurchases().catch(() => {});
+
     const safetyTimeout = setTimeout(() => {
       if (mounted && !resolved) {
         resolved = true;
@@ -545,6 +553,10 @@ export const [AuthProvider, useAuth] = createContextHook((): AuthContextType => 
 
         setUser((prev) => (prev?.uid === authUser.uid && prev?.email === authUser.email ? prev : authUser));
         setBootstrapState('AUTHENTICATED');
+
+        // Bind the Google Play billing customer to this account so purchases
+        // and restores attribute to the signed-in user.
+        identifyNativeUser(authUser.uid).catch(() => {});
 
         loadUserProfileRef.current(authUser.uid, authUser, false).catch(() => {});
       });
@@ -610,6 +622,7 @@ export const [AuthProvider, useAuth] = createContextHook((): AuthContextType => 
       if (retryTimerRef.current) clearTimeout(retryTimerRef.current);
       const currentUid = userProfileRef.current?.uid || user?.uid;
       await authService.signOut();
+      await resetNativeUser().catch(() => {});
 
       if (currentUid) {
         // Clear all UID-namespaced user cache keys on signout
