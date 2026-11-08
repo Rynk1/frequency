@@ -17,7 +17,7 @@
     "@react-native-async-storage/async-storage": "2.2.0",
     "@tanstack/react-query": "^5.87.4",
     "concurrently": "^9.2.1",
-    "expo": "^57.0.20",
+    "expo": "^57.0.32",
     "expo-av": "~16.0.8",
     "expo-blur": "~57.0.2",
     "expo-constants": "~57.0.17",
@@ -60,5 +60,11 @@
     "typescript": "~6.0.3",
     "vitest": "^2.1.8"
   },
-  "private": true
+  "private": true,
+  "allowScripts": {
+    "@firebase/util": true,
+    "protobufjs": true,
+    "unrs-resolver": true,
+    "esbuild@0.21.5": true
+  }
 }
