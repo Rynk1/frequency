@@ -1,6 +1,21 @@
 import { Platform } from 'react-native';
 import { auth } from './firebase';
-import { createCheckoutSession, reconcileSubscription, restorePurchases } from './subscription-service';
+import { reconcileSubscription, restorePurchases } from './subscription-service';
+import { PREMIUM_PRODUCT_IDS, type BillingPlanId } from './pricing';
+
+/**
+ * Google Play billing engine.
+ *
+ * Purchases are processed by Google Play Billing and brokered through
+ * RevenueCat (`react-native-purchases`), the native store SDK for this app. The
+ * store is the financial source of truth: the client never grants or extends
+ * premium access itself — it only asks the SDK to open the native purchase
+ * sheet, then reconciles the resulting entitlement with the server.
+ *
+ * The SDK is loaded dynamically so web builds and Expo Go keep working; when it
+ * is unavailable (web, or a build without the native module) callers fall back
+ * to server-side reconciliation / store management deep links.
+ */
 
 export interface NativePackage {
   identifier: string;
@@ -22,8 +37,24 @@ export interface NativeCustomerInfo {
   latestExpirationDate?: string;
 }
 
+export interface StorePrice {
+  /** Localized price string straight from the store, e.g. "$9.99". */
+  priceString: string;
+  currencyCode: string;
+  /** Numeric price from the store, used for per-month / savings maths. */
+  price: number;
+}
+
+export interface PlanOfferings {
+  monthly?: StorePrice;
+  yearly?: StorePrice;
+}
+
 const REVENUECAT_API_KEY_IOS = process.env.EXPO_PUBLIC_REVENUECAT_API_KEY_IOS || '';
 const REVENUECAT_API_KEY_ANDROID = process.env.EXPO_PUBLIC_REVENUECAT_API_KEY_ANDROID || '';
+
+/** RevenueCat entitlement identifier that unlocks premium. */
+const PREMIUM_ENTITLEMENT_ID = 'premium';
 
 let isRevenueCatConfigured = false;
 
@@ -37,8 +68,13 @@ async function getPurchasesModule(): Promise<any | null> {
   }
 }
 
+function isPremiumCustomerInfo(customerInfo: any): boolean {
+  const active = customerInfo?.entitlements?.active || {};
+  return Boolean(active[PREMIUM_ENTITLEMENT_ID]);
+}
+
 /**
- * Initialize RevenueCat SDK on native mobile platforms (iOS / Android)
+ * Initialize the native store billing SDK on mobile platforms (iOS / Android).
  */
 export async function initializeNativePurchases(): Promise<boolean> {
   if (Platform.OS === 'web') {
@@ -47,7 +83,7 @@ export async function initializeNativePurchases(): Promise<boolean> {
 
   const apiKey = Platform.OS === 'ios' ? REVENUECAT_API_KEY_IOS : REVENUECAT_API_KEY_ANDROID;
   if (!apiKey) {
-    console.warn('[Purchases] RevenueCat API key not configured for platform:', Platform.OS);
+    console.warn('[Purchases] Store billing API key not configured for platform:', Platform.OS);
     return false;
   }
 
@@ -65,13 +101,13 @@ export async function initializeNativePurchases(): Promise<boolean> {
 
     return true;
   } catch (err) {
-    console.warn('[Purchases] Native Purchases SDK initialization skipped or unavailable:', err);
+    console.warn('[Purchases] Native store billing SDK initialization skipped or unavailable:', err);
     return false;
   }
 }
 
 /**
- * Bind current Firebase UID to RevenueCat App User ID
+ * Bind current Firebase UID to the store billing customer id.
  */
 export async function identifyNativeUser(uid: string): Promise<void> {
   if (!isRevenueCatConfigured || Platform.OS === 'web') return;
@@ -85,7 +121,7 @@ export async function identifyNativeUser(uid: string): Promise<void> {
 }
 
 /**
- * Log out user from RevenueCat on sign out
+ * Log out user from the store billing SDK on sign out.
  */
 export async function resetNativeUser(): Promise<void> {
   if (!isRevenueCatConfigured || Platform.OS === 'web') return;
@@ -98,60 +134,105 @@ export async function resetNativeUser(): Promise<void> {
   }
 }
 
+/** Whether the native store purchase sheet can be presented on this platform. */
+export function isStoreBillingAvailable(): boolean {
+  return isRevenueCatConfigured && Platform.OS !== 'web';
+}
+
 /**
- * Execute purchase flow via Native Store Billing or Web Checkout Fallback
+ * Read the live store prices so the paywall shows exactly what Google Play
+ * charges, instead of a hardcoded figure that can drift from the store listing.
+ */
+export async function getStoreOfferings(): Promise<PlanOfferings | null> {
+  if (!isRevenueCatConfigured || Platform.OS === 'web') return null;
+
+  try {
+    const Purchases = await getPurchasesModule();
+    if (!Purchases) return null;
+
+    const offerings = await Purchases.getOfferings();
+    const packages = offerings?.current?.availablePackages;
+    if (!Array.isArray(packages) || packages.length === 0) return null;
+
+    const toPrice = (pkg: any): StorePrice | undefined => {
+      const product = pkg?.product;
+      if (!product) return undefined;
+      return {
+        priceString: product.priceString ?? String(product.price ?? ''),
+        currencyCode: product.currencyCode ?? 'USD',
+        price: typeof product.price === 'number' ? product.price : Number(product.price) || 0,
+      };
+    };
+
+    const monthlyPkg = packages.find(
+      (p: any) => p.packageType === 'MONTHLY' || p.product?.identifier === PREMIUM_PRODUCT_IDS.monthly
+    );
+    const yearlyPkg = packages.find(
+      (p: any) => p.packageType === 'ANNUAL' || p.product?.identifier === PREMIUM_PRODUCT_IDS.yearly
+    );
+
+    return {
+      monthly: monthlyPkg ? toPrice(monthlyPkg) : undefined,
+      yearly: yearlyPkg ? toPrice(yearlyPkg) : undefined,
+    };
+  } catch (err) {
+    console.warn('[Purchases] Failed to load store offerings:', err);
+    return null;
+  }
+}
+
+/**
+ * Execute the purchase flow through Google Play Billing.
  */
 export async function purchasePlan(
-  plan: 'monthly' | 'yearly',
-  options: { trialEnabled?: boolean } = {}
-): Promise<{ success: boolean; redirectUrl?: string; isPremium?: boolean }> {
+  plan: BillingPlanId
+): Promise<{ success: boolean; isPremium?: boolean }> {
   const currentUser = auth.currentUser;
   if (!currentUser) {
     throw new Error('User must be authenticated to complete a purchase.');
   }
 
-  if (isRevenueCatConfigured && Platform.OS !== 'web') {
-    try {
-      const Purchases = await getPurchasesModule();
-      if (Purchases) {
-        const offerings = await Purchases.getOfferings();
-
-        if (offerings.current && offerings.current.availablePackages?.length > 0) {
-          const pkg = offerings.current.availablePackages.find((p: any) =>
-            plan === 'yearly' ? p.packageType === 'ANNUAL' : p.packageType === 'MONTHLY'
-          ) || offerings.current.availablePackages[0];
-
-          const { customerInfo } = await Purchases.purchasePackage(pkg);
-          const isPremium = Boolean(customerInfo?.entitlements?.active?.['premium'] || customerInfo?.entitlements?.active?.['pro']);
-
-          await reconcileSubscription();
-
-          return { success: true, isPremium };
-        }
-      }
-    } catch (err: any) {
-      if (err.userCancelled) {
-        return { success: false };
-      }
-      console.warn('[Purchases] Native store purchase failed, falling back to web checkout:', err?.message || err);
-    }
+  if (!isStoreBillingAvailable()) {
+    throw new Error('In-app purchases are unavailable on this device. Please update the app or try again on a supported device.');
   }
 
-  // Web Checkout Fallback
-  const { url } = await createCheckoutSession(plan, options);
-  return { success: true, redirectUrl: url };
+  const Purchases = await getPurchasesModule();
+  if (!Purchases) {
+    throw new Error('In-app purchases are unavailable on this device.');
+  }
+
+  const offerings = await Purchases.getOfferings();
+  const packages = offerings?.current?.availablePackages;
+  if (!Array.isArray(packages) || packages.length === 0) {
+    throw new Error('No subscription plans are available right now. Please try again later.');
+  }
+
+  const productId = PREMIUM_PRODUCT_IDS[plan];
+  const pkg =
+    packages.find((p: any) =>
+      plan === 'yearly'
+        ? p.packageType === 'ANNUAL' || p.product?.identifier === productId
+        : p.packageType === 'MONTHLY' || p.product?.identifier === productId
+    ) || packages[0];
+
+  const { customerInfo } = await Purchases.purchasePackage(pkg);
+
+  // The store confirmed the purchase; sync the server-authoritative entitlement.
+  await reconcileSubscription();
+
+  return { success: true, isPremium: isPremiumCustomerInfo(customerInfo) };
 }
 
 /**
- * Restore purchases across Native Stores or Server Reconciliation
+ * Restore purchases across the native store, then reconcile the server.
  */
 export async function executeRestorePurchases(): Promise<{ success: boolean; isPremium: boolean; message: string }> {
-  if (isRevenueCatConfigured && Platform.OS !== 'web') {
+  if (isStoreBillingAvailable()) {
     try {
       const Purchases = await getPurchasesModule();
       if (Purchases) {
         const customerInfo = await Purchases.restorePurchases();
-        const isPremium = Boolean(customerInfo?.entitlements?.active?.['premium'] || customerInfo?.entitlements?.active?.['pro']);
+        const isPremium = isPremiumCustomerInfo(customerInfo);
 
         await reconcileSubscription();
 
@@ -160,7 +241,7 @@ export async function executeRestorePurchases(): Promise<{ success: boolean; isP
           isPremium,
           message: isPremium
             ? 'Your store purchase was successfully verified and restored.'
-            : 'No active native store subscription was found for your store account.',
+            : 'No active store subscription was found for your account.',
         };
       }
     } catch (err: any) {

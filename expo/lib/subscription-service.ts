@@ -1,10 +1,7 @@
+import { Platform } from 'react-native';
 import { auth, db } from './firebase';
 import { getIdToken } from 'firebase/auth';
 import { doc, getDoc } from 'firebase/firestore';
-import {
-  EntitlementCapabilities,
-  EntitlementState,
-} from './entitlements/entitlement-types';
 import { computeCapabilities } from './entitlements/entitlement-service';
 
 const API_BASE = process.env.EXPO_PUBLIC_API_BASE_URL || '';
@@ -35,7 +32,8 @@ export interface SubscriptionStatus {
   trialEndsAt?: string;
   willRenew: boolean;
   cancelAtPeriodEnd: boolean;
-  source?: 'google_play' | 'revenuecat' | 'stripe';
+  /** Store that owns the subscription. Google Play for this mobile app. */
+  source?: 'google_play' | 'revenuecat';
   lastVerifiedAt?: string;
 }
 
@@ -144,54 +142,18 @@ export async function restorePurchases(): Promise<{
   };
 }
 
-export async function createCheckoutSession(
-  plan: Plan,
-  options: { trialEnabled?: boolean } = {}
-): Promise<{ url: string }> {
-  if (API_BASE) {
-    return apiCall<{ url: string }>('/createCheckoutSession', {
-      method: 'POST',
-      body: JSON.stringify({ plan, trialEnabled: options.trialEnabled }),
-    });
+/**
+ * Deep link to the store subscription management surface.
+ *
+ * On mobile the store (Google Play) is the billing authority — cancellation,
+ * payment method updates and plan changes must happen there, never through a
+ * third-party web portal.
+ */
+export function getManageSubscriptionUrl(): string {
+  if (Platform.OS === 'ios') {
+    return 'https://apps.apple.com/account/subscriptions';
   }
-  throw new Error('Checkout service endpoint is not configured.');
-}
-
-export async function createBillingPortalSession(): Promise<{ url: string }> {
-  if (API_BASE) {
-    return apiCall<{ url: string }>('/createBillingPortalSession', {
-      method: 'POST',
-    });
-  }
-  throw new Error('Billing portal endpoint is not configured.');
-}
-
-export async function cancelSubscription(): Promise<{ url?: string }> {
-  const user = auth.currentUser;
-  if (!user) throw new Error('Not authenticated.');
-
-  if (API_BASE) {
-    try {
-      return await createBillingPortalSession();
-    } catch {
-      // ignore
-    }
-  }
-  throw new Error('Please manage or cancel your subscription through your App Store, Google Play, or Billing Account settings.');
-}
-
-export async function resumeSubscription(): Promise<{ url?: string }> {
-  const user = auth.currentUser;
-  if (!user) throw new Error('Not authenticated.');
-
-  if (API_BASE) {
-    try {
-      return await createBillingPortalSession();
-    } catch {
-      // ignore
-    }
-  }
-  throw new Error('Please manage or resume your subscription through your App Store, Google Play, or Billing Account settings.');
+  return 'https://play.google.com/store/account/subscriptions';
 }
 
 export async function getSubscriptionStatus(): Promise<SubscriptionStatus> {
@@ -203,7 +165,7 @@ export async function getSubscriptionStatus(): Promise<SubscriptionStatus> {
     subscriptionStatus: reconciled.subscriptionStatus,
     willRenew: reconciled.isPremium,
     cancelAtPeriodEnd: false,
-    source: 'revenuecat',
+    source: 'google_play',
     lastVerifiedAt: new Date().toISOString(),
   };
 }

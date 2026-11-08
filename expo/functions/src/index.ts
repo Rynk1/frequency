@@ -278,9 +278,12 @@ export const handleSubscriptionWebhook = onRequest({ cors: true }, async (req, r
         isAuthenticatedWebhook = true;
       }
     } else {
-      if (authHeader.startsWith('Bearer ') || authHeader.length > 5) {
-        isAuthenticatedWebhook = true;
-      }
+      // Fail closed. Without a configured shared secret we cannot verify the
+      // sender, so we must never accept the event — otherwise any caller could
+      // POST a crafted purchase event and grant themselves premium.
+      console.error('[WEBHOOK] WEBHOOK_SECRET / REVENUECAT_WEBHOOK_SECRET is not configured — rejecting webhook');
+      res.status(500).json({ error: 'Webhook secret is not configured on the server' });
+      return;
     }
 
     if (!isAuthenticatedWebhook) {

@@ -12,8 +12,10 @@ This document details the exact pre-requisites, configuration steps, and release
 
 ### B. In-App Subscription Product Setup
 1. In Google Play Console → **Monetization** → **Subscriptions**, create two subscription products:
-   * **Monthly Plan:** Product ID `monthly_premium` (e.g. $9.99/mo with 7-day free trial).
-   * **Yearly Plan:** Product ID `yearly_premium` (e.g. $95.99/yr with 7-day free trial).
+   * **Monthly Plan:** Product ID `monthly_premium` ($9.99/mo with 7-day free trial).
+   * **Yearly Plan:** Product ID `yearly_premium` ($59.99/yr with 7-day free trial).
+
+   > These figures are the canonical prices defined in `expo/lib/pricing.ts`. The paywall renders the live Google Play price at runtime, but the store listings, RevenueCat products and this file must stay in sync with `pricing.ts`.
 
 ### C. Compliance Declarations
 1. **Data Safety Form:** Declare email address collection for authentication and session stats for personal app usage.
