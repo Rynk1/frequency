@@ -34,7 +34,7 @@ import {
 } from 'lucide-react-native';
 import { useLearningContent } from '@/hooks/useLearningContent';
 import { useLearningArticles } from '@/hooks/useDataHelpers';
-import { AudioPlayer } from '@/components/AudioPlayer';
+import { usePlayer } from '@/lib/player/PlayerContext';
 import {
   SOLFEGGIO_FREQUENCIES,
   CHAKRA_FREQUENCIES,
@@ -300,8 +300,7 @@ export default function LearnScreen() {
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [selectedArticle, setSelectedArticle] = useState<Article | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
-  const [showAudioPlayer, setShowAudioPlayer] = useState(false);
-  const [practiceFrequency, setPracticeFrequency] = useState<any>(null);
+  const { open: openPlayer } = usePlayer();
 
   const {
     progress,
@@ -347,8 +346,7 @@ export default function LearnScreen() {
     const freqs = map[article.category] || [];
     if (freqs.length > 0) {
       const f = freqs[Math.floor(Math.random() * freqs.length)];
-      setPracticeFrequency({ ...f, categoryContext: article.category, articleTitle: article.title });
-      setShowAudioPlayer(true);
+      openPlayer({ frequency: { ...f, categoryContext: article.category, articleTitle: article.title } });
       endReadingSession();
       setSelectedArticle(null);
     }
@@ -800,11 +798,6 @@ export default function LearnScreen() {
         </Modal>
       )}
 
-      <AudioPlayer
-        visible={showAudioPlayer}
-        onClose={() => setShowAudioPlayer(false)}
-        frequency={practiceFrequency}
-      />
     </View>
   );
 }

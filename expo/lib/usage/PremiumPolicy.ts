@@ -14,6 +14,15 @@ export const CANONICAL_PREMIUM_POLICY: CommercialPolicy = {
 
 export const TRUST_TRIANGLE_FREQUENCIES = [432, 528, 639, 7.83, 8];
 
+/**
+ * Catalogue size surfaced in premium copy ("N premium frequencies"). This is the
+ * single source of truth for that claim; `__tests__/premium-claims.test.ts`
+ * asserts it against the shipped seed catalogue so the paywall can never
+ * advertise a count the app does not actually deliver.
+ */
+export const TOTAL_FREQUENCY_COUNT = 46;
+export const PREMIUM_FREQUENCY_COUNT = 37;
+
 export type CapabilityName =
   | 'premiumFrequencies'
   | 'extendedSessions'

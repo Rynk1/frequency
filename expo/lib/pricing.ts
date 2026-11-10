@@ -22,8 +22,6 @@ export interface BillingPlan {
   /** Fallback price amount in `currency`. */
   price: number;
   currency: string;
-  /** Cadence copy shown next to the price, e.g. "/month". */
-  period: string;
 }
 
 export const PREMIUM_PRODUCT_IDS: Record<BillingPlanId, string> = {
@@ -40,7 +38,6 @@ export const PREMIUM_PLANS: Record<BillingPlanId, BillingPlan> = {
     label: 'Monthly',
     price: 9.99,
     currency: 'USD',
-    period: '/month',
   },
   yearly: {
     id: 'yearly',
@@ -48,7 +45,6 @@ export const PREMIUM_PLANS: Record<BillingPlanId, BillingPlan> = {
     label: 'Yearly',
     price: 59.99,
     currency: 'USD',
-    period: '/month',
   },
 };
 
@@ -70,10 +66,47 @@ export function getPlanBillingNote(plan: BillingPlanId): string {
   return 'Billed monthly · Cancel anytime';
 }
 
+/**
+ * Whole days remaining in a trial, as the single source of truth for every
+ * "N days left" label in the app.
+ *
+ * Clamped to a minimum of 1 while the trial is still running so a user on their
+ * final day is never shown "0 days left", and 0 once it has ended.
+ */
+export function getTrialDaysLeft(
+  trialEndsAt?: Date | string | number | null,
+  nowMs: number = Date.now()
+): number {
+  if (!trialEndsAt) return 0;
+  const end = trialEndsAt instanceof Date ? trialEndsAt.getTime() : new Date(trialEndsAt).getTime();
+  if (!Number.isFinite(end) || end <= nowMs) return 0;
+  return Math.max(1, Math.ceil((end - nowMs) / (1000 * 60 * 60 * 24)));
+}
+
 /** Percentage saved by paying annually versus twelve monthly payments. */
-export function getYearlySavingsPercent(): number {
-  const monthlyAnnualized = PREMIUM_PLANS.monthly.price * 12;
+export function getYearlySavingsPercent(
+  monthlyPrice: number = PREMIUM_PLANS.monthly.price,
+  yearlyPrice: number = PREMIUM_PLANS.yearly.price
+): number {
+  const monthlyAnnualized = monthlyPrice * 12;
   if (monthlyAnnualized <= 0) return 0;
-  const saved = monthlyAnnualized - PREMIUM_PLANS.yearly.price;
-  return Math.round((saved / monthlyAnnualized) * 100);
+  const saved = monthlyAnnualized - yearlyPrice;
+  return Math.max(0, Math.round((saved / monthlyAnnualized) * 100));
+}
+
+/**
+ * Savings percentage computed from the live store prices when both are known,
+ * falling back to the canonical constants. Keeps the paywall's "Save X%" badge
+ * consistent with the prices the user is actually charged.
+ */
+export function getSavingsPercentForOfferings(offerings?: {
+  monthly?: { price?: number };
+  yearly?: { price?: number };
+} | null): number {
+  const monthly = offerings?.monthly?.price;
+  const yearly = offerings?.yearly?.price;
+  if (typeof monthly === 'number' && monthly > 0 && typeof yearly === 'number' && yearly > 0) {
+    return getYearlySavingsPercent(monthly, yearly);
+  }
+  return getYearlySavingsPercent();
 }

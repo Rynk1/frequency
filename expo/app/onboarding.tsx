@@ -35,7 +35,7 @@ export default function OnboardingPage() {
 
   if (!user || bootstrapState === 'SIGNED_OUT') return <Redirect href={'/' as any} />;
   if (userProfile?.onboardingCompleted) {
-    return <Redirect href={'/(tabs)/categories' as any} />;
+    return <Redirect href={'/(tabs)/sessions' as any} />;
   }
 
   const finishOnboarding = async () => {
@@ -57,7 +57,7 @@ export default function OnboardingPage() {
       updateSetting('notifications', notifications);
       await updateProfile(payloadUpdates);
       // Navigate ONLY when profile update succeeds
-      router.replace('/(tabs)/categories' as any);
+      router.replace('/(tabs)/sessions' as any);
     } catch (err: any) {
       const errCode = err?.code || 'unknown';
       const errMsg = err?.message || String(err);

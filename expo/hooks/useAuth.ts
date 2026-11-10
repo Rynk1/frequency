@@ -10,6 +10,7 @@ import {
   EntitlementState,
 } from '@/lib/entitlements/entitlement-types';
 import { globalEntitlementEngine } from '@/lib/entitlements/entitlement-service';
+import { getTrialDaysLeft } from '@/lib/pricing';
 import { getLocalDateString } from '@/lib/recommendation';
 import { USAGE_EVENTS_STORAGE_KEY } from './useUsageAnalytics';
 import { sanitizeForFirestore } from '@/lib/validation';
@@ -79,6 +80,8 @@ interface AuthContextType {
   lastSyncErrorCode: string | null;
   isLoading: boolean;
   isAuthenticated: boolean;
+  /** True only when the signed-in account carries the `admin` custom claim. */
+  isAdmin: boolean;
   isPremium: boolean;
   isTrialActive: boolean;
   trialDaysLeft: number;
@@ -100,6 +103,9 @@ const getUserProfileStorageKey = (uid: string) => `hf:user:${uid}:profile`;
 export const [AuthProvider, useAuth] = createContextHook((): AuthContextType => {
   const [user, setUser] = useState<AuthUser | null>(null);
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
+  // Admin status is derived from Firebase custom claims, never from the client
+  // profile. Defaults to false so a free/regular user is never shown admin UI.
+  const [isAdmin, setIsAdmin] = useState<boolean>(false);
 
   const userProfileRef = useRef<UserProfile | null>(null);
   userProfileRef.current = userProfile;
@@ -134,7 +140,7 @@ export const [AuthProvider, useAuth] = createContextHook((): AuthContextType => 
   const isLoading = bootstrapState === 'AUTH_LOADING' || bootstrapState === 'AUTHENTICATED' || (bootstrapState === 'PROFILE_LOADING' && !userProfile);
 
   const trialDaysLeft = (profileSource === 'AUTHORITATIVE_FIRESTORE' && userProfile?.trialEndsAt)
-    ? Math.max(0, Math.ceil((userProfile.trialEndsAt.getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24)))
+    ? getTrialDaysLeft(userProfile.trialEndsAt)
     : 0;
 
   const createUserProfile = useCallback((authUser: AuthUser): UserProfile => {
@@ -543,6 +549,7 @@ export const [AuthProvider, useAuth] = createContextHook((): AuthContextType => 
         if (!authUser?.uid?.trim()) {
           setUser(null);
           setUserProfile(null);
+          setIsAdmin(false);
           setBootstrapState('SIGNED_OUT');
           setProfileSource('UNAVAILABLE');
           setSyncStatus('synchronized');
@@ -553,6 +560,13 @@ export const [AuthProvider, useAuth] = createContextHook((): AuthContextType => 
 
         setUser((prev) => (prev?.uid === authUser.uid && prev?.email === authUser.email ? prev : authUser));
         setBootstrapState('AUTHENTICATED');
+
+        // Resolve the admin custom claim so admin-only UI is gated by the
+        // server-issued token, not by anything the client can set.
+        authService
+          .isAdmin(auth.currentUser, true)
+          .then((admin) => { if (mounted) setIsAdmin(admin); })
+          .catch(() => { if (mounted) setIsAdmin(false); });
 
         // Bind the Google Play billing customer to this account so purchases
         // and restores attribute to the signed-in user.
@@ -638,6 +652,7 @@ export const [AuthProvider, useAuth] = createContextHook((): AuthContextType => 
 
       setUser(null);
       setUserProfile(null);
+      setIsAdmin(false);
       setBootstrapState('SIGNED_OUT');
       setProfileSource('UNAVAILABLE');
       setSyncStatus('synchronized');
@@ -776,6 +791,7 @@ export const [AuthProvider, useAuth] = createContextHook((): AuthContextType => 
     lastSyncErrorCode,
     isLoading,
     isAuthenticated,
+    isAdmin,
     isPremium,
     isTrialActive,
     trialDaysLeft,
@@ -800,6 +816,7 @@ export const [AuthProvider, useAuth] = createContextHook((): AuthContextType => 
     lastSyncErrorCode,
     isLoading,
     isAuthenticated,
+    isAdmin,
     isPremium,
     isTrialActive,
     trialDaysLeft,

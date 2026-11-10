@@ -137,7 +137,7 @@ const sliderStyles = StyleSheet.create({
 export default function SettingsScreen() {
   const { settings, updateSetting } = useSettings();
   const { favorites } = useFavorites();
-  const { user, userProfile, isPremium, isTrialActive, trialDaysLeft, signOut } = useAuth();
+  const { user, userProfile, isPremium, isTrialActive, trialDaysLeft, isAdmin, signOut } = useAuth();
   const { mode, colors, gradients, isDark, toggleTheme } = useTheme();
   const insets = useSafeAreaInsets();
   const [showPremiumModal, setShowPremiumModal] = React.useState(false);
@@ -161,7 +161,9 @@ export default function SettingsScreen() {
 
   const getSubscriptionStatus = () => {
     if (isPremium) return 'Premium Active';
-    if (isTrialActive) return `Free Trial · ${trialDaysLeft} days left`;
+    if (isTrialActive) {
+      return `Free Trial · ${trialDaysLeft} day${trialDaysLeft === 1 ? '' : 's'} left`;
+    }
     return 'Free Plan';
   };
 
@@ -554,17 +556,21 @@ export default function SettingsScreen() {
               </View>
               <ChevronRight color={colors.textMuted} size={16} />
             </TouchableOpacity>
-            <View style={[styles.islandSep, { backgroundColor: colors.divider }]} />
-            <TouchableOpacity style={styles.islandRow} onPress={() => router.push('/admin/login' as any)}>
-              <View style={[styles.islandIcon, islandIconBg(colors.textSecondary)]}>
-                <Shield color={colors.textSecondary} size={18} />
-              </View>
-              <View style={styles.islandText}>
-                <Text style={[styles.islandRowTitle, { color: colors.textPrimary }]}>Admin Panel</Text>
-                <Text style={[styles.islandRowSub, { color: colors.textMuted }]}>Access admin dashboard</Text>
-              </View>
-              <ChevronRight color={colors.textMuted} size={16} />
-            </TouchableOpacity>
+            {isAdmin && (
+              <>
+                <View style={[styles.islandSep, { backgroundColor: colors.divider }]} />
+                <TouchableOpacity style={styles.islandRow} onPress={() => router.push('/admin/login' as any)}>
+                  <View style={[styles.islandIcon, islandIconBg(colors.textSecondary)]}>
+                    <Shield color={colors.textSecondary} size={18} />
+                  </View>
+                  <View style={styles.islandText}>
+                    <Text style={[styles.islandRowTitle, { color: colors.textPrimary }]}>Admin Panel</Text>
+                    <Text style={[styles.islandRowSub, { color: colors.textMuted }]}>Access admin dashboard</Text>
+                  </View>
+                  <ChevronRight color={colors.textMuted} size={16} />
+                </TouchableOpacity>
+              </>
+            )}
             <View style={[styles.islandSep, { backgroundColor: colors.divider }]} />
             <TouchableOpacity
               style={styles.islandRow}
