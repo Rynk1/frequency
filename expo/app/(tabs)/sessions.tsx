@@ -53,7 +53,7 @@ import {
 import { useSessionManager } from '@/hooks/useSessionManager';
 import CreateSessionModal from '@/components/CreateSessionModal';
 import { useCuratedPrograms } from '@/hooks/useDataHelpers';
-import { AudioPlayer } from '@/components/AudioPlayer';
+import { usePlayer } from '@/lib/player/PlayerContext';
 import { DataModeIndicator } from '@/components/DataModeIndicator';
 import { FONTS } from '@/constants/theme';
 import { useAuth } from '@/hooks/useAuth';
@@ -219,16 +219,10 @@ export default function SessionsScreen() {
   const [selectedSession, setSelectedSession] = useState<Session | null>(null);
   const [showStarterDetails, setShowStarterDetails] = useState(false);
   const [selectedStarterSession, setSelectedStarterSession] = useState<typeof STARTER_SESSIONS[0] | null>(null);
-  const [showAudioPlayer, setShowAudioPlayer] = useState(false);
   const [showUsageAnalytics, setShowUsageAnalytics] = useState(false);
   const [selectedAchievement, setSelectedAchievement] = useState<any | null>(null);
   const [showRewardPaywall, setShowRewardPaywall] = useState(false);
-  const [audioPlayerFrequency, setAudioPlayerFrequency] = useState<any>(null);
-  const [audioPlayerSession, setAudioPlayerSession] = useState<{
-    frequencies: { hz: number; name: string; duration: number }[];
-    name: string;
-    sessionId?: string;
-  } | null>(null);
+  const { open: openPlayer } = usePlayer();
 
   const pulseAnim = useRef(new Animated.Value(1)).current;
   const auraAnim = useRef(new Animated.Value(0.85)).current;
@@ -349,40 +343,41 @@ export default function SessionsScreen() {
   );
 
   const handleStartDailyAlignment = () => {
-    setAudioPlayerFrequency({ hz: dailyAlignment.frequencies[0]?.hz || 528, name: 'Daily Alignment', description: 'Your dynamic daily alignment session' });
-    setAudioPlayerSession({
-      frequencies: dailyAlignment.frequencies,
-      name: 'Daily Alignment',
+    openPlayer({
+      frequency: { hz: dailyAlignment.frequencies[0]?.hz || 528, name: 'Daily Alignment', description: 'Your dynamic daily alignment session' },
+      session: { frequencies: dailyAlignment.frequencies, name: 'Daily Alignment' },
     });
-    setShowAudioPlayer(true);
   };
 
   const handleStartStarterSession = (session: typeof STARTER_SESSIONS[0]) => {
-    setAudioPlayerFrequency({
-      hz: session.frequencies[0]?.hz || 528,
-      name: session.name,
-      description: session.goal,
+    openPlayer({
+      frequency: {
+        hz: session.frequencies[0]?.hz || 528,
+        name: session.name,
+        description: session.goal,
+      },
+      session: {
+        frequencies: session.frequencies,
+        name: session.name,
+      },
     });
-    setAudioPlayerSession({
-      frequencies: session.frequencies,
-      name: session.name,
-    });
-    setShowAudioPlayer(true);
     setShowStarterDetails(false);
   };
 
   const handleStartSession = (session: Session) => {
-    setAudioPlayerFrequency({
-      hz: session.frequencies[0]?.hz || 528,
-      name: session.name,
-      description: session.goal,
+    openPlayer({
+      frequency: {
+        hz: session.frequencies[0]?.hz || 528,
+        name: session.name,
+        description: session.goal,
+      },
+      session: {
+        frequencies: session.frequencies,
+        name: session.name,
+        sessionId: session.id,
+      },
+      onSessionComplete: completeSession,
     });
-    setAudioPlayerSession({
-      frequencies: session.frequencies,
-      name: session.name,
-      sessionId: session.id,
-    });
-    setShowAudioPlayer(true);
     setSelectedSession(null);
   };
 
@@ -631,20 +626,21 @@ export default function SessionsScreen() {
                   style={styles.challengeBtn}
                   onPress={() => {
                     if (dailyChallenge) {
-                      setAudioPlayerFrequency({
-                        hz: dailyChallenge.frequency,
-                        name: dailyChallenge.title,
-                        description: dailyChallenge.description,
-                      });
-                      setAudioPlayerSession({
-                        frequencies: [{
+                      openPlayer({
+                        frequency: {
                           hz: dailyChallenge.frequency,
                           name: dailyChallenge.title,
-                          duration: dailyChallenge.duration,
-                        }],
-                        name: dailyChallenge.title,
+                          description: dailyChallenge.description,
+                        },
+                        session: {
+                          frequencies: [{
+                            hz: dailyChallenge.frequency,
+                            name: dailyChallenge.title,
+                            duration: dailyChallenge.duration,
+                          }],
+                          name: dailyChallenge.title,
+                        },
                       });
-                      setShowAudioPlayer(true);
                     }
                   }}
                 >
@@ -1064,20 +1060,21 @@ export default function SessionsScreen() {
           <TouchableOpacity
             style={styles.notifBtn}
             onPress={() => {
-              setAudioPlayerFrequency({
-                hz: dailyChallenge?.frequency || 528,
-                name: dailyChallenge?.title || 'Daily Challenge',
-                description: dailyChallenge?.description || 'Your daily challenge session',
-              });
-              setAudioPlayerSession({
-                frequencies: [{
+              openPlayer({
+                frequency: {
                   hz: dailyChallenge?.frequency || 528,
                   name: dailyChallenge?.title || 'Daily Challenge',
-                  duration: dailyChallenge?.duration || 15,
-                }],
-                name: dailyChallenge?.title || 'Daily Challenge',
+                  description: dailyChallenge?.description || 'Your daily challenge session',
+                },
+                session: {
+                  frequencies: [{
+                    hz: dailyChallenge?.frequency || 528,
+                    name: dailyChallenge?.title || 'Daily Challenge',
+                    duration: dailyChallenge?.duration || 15,
+                  }],
+                  name: dailyChallenge?.title || 'Daily Challenge',
+                },
               });
-              setShowAudioPlayer(true);
             }}
           >
             <Bell color={colors.textSecondary} size={20} />
@@ -1433,17 +1430,6 @@ export default function SessionsScreen() {
         onStartTrial={() => setShowRewardPaywall(false)}
         onUpgrade={() => setShowRewardPaywall(false)}
         trigger="engagement_milestone"
-      />
-
-      <AudioPlayer
-        visible={showAudioPlayer}
-        onClose={() => setShowAudioPlayer(false)}
-        frequency={audioPlayerFrequency}
-        sessionFrequencies={audioPlayerSession?.frequencies}
-        sessionName={audioPlayerSession?.name}
-        sessionId={audioPlayerSession?.sessionId}
-        onSessionComplete={completeSession}
-        isSessionMode={!!audioPlayerSession}
       />
 
       <UsageAnalyticsModal

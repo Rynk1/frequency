@@ -11,6 +11,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Crown, Lock, Sparkles, X, Check } from 'lucide-react-native';
 import { useAuth } from '@/hooks/useAuth';
 import { PremiumModal } from './PremiumModal';
+import { PREMIUM_TRIAL_DAYS } from '@/lib/pricing';
 import { COLORS, GRADIENTS, FONTS, TEXT_PRESETS } from '@/constants/theme';
 
 interface PremiumGateProps {
@@ -125,7 +126,7 @@ export const PremiumGate: React.FC<PremiumGateProps> = ({
 
                 {!isTrialActive && (
                   <Text style={styles.trialNote}>
-                    7-day free trial · Cancel anytime
+                    {PREMIUM_TRIAL_DAYS}-day free trial · Cancel anytime
                   </Text>
                 )}
               </View>

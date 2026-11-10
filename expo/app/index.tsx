@@ -28,9 +28,10 @@ export default function Index() {
     }
   }, [params.subscription, params.session_id, router]);
 
-  // Default flow — no subscription param present.
+  // Default flow — no subscription param present. The Journey menu is the
+  // landing page for the app.
   if (!params.subscription) {
-    return <Redirect href={'/categories' as any} />;
+    return <Redirect href={'/sessions' as any} />;
   }
 
   // While the redirect effect runs, render a neutral empty shell.

@@ -11,14 +11,14 @@
 
 **PRODUCTION READY WITH DOCUMENTED LIMITATIONS**
 
-The system enforces strict payment, entitlement, user isolation, webhook idempotency, and server-authoritative security policies. Documented limitations relate to native mobile SDK bindings (replacing web checkout redirects with native `react-native-purchases` on mobile builds) and optional B2B multi-tenant schema partitioning.
+The system enforces strict payment, entitlement, user isolation, webhook idempotency, and server-authoritative security policies. Documented limitations relate to store-console product configuration and optional B2B multi-tenant schema partitioning.
 
 ---
 
 ## B. Architecture Implemented
 
 ```text
-Apple App Store / Google Play / Stripe
+Apple App Store / Google Play
                  ↓
         RevenueCat Platform
                  ↓
@@ -165,7 +165,7 @@ Dispute/Refund → Webhook REFUND → status: refunded, isPremium: false
 
 ## Q. Known Limitations
 
-1. **Native IAP SDK Integration:** Native iOS/Android builds require replacing web browser redirects (`WebBrowser.openBrowserAsync`) with RevenueCat SDK bindings (`react-native-purchases`) for in-app Apple Pay / Google Pay sheets.
+1. **Store-Native IAP:** Mobile builds bill exclusively through the native store SDK (`react-native-purchases` → Google Play / App Store). There is no web/Stripe checkout; the remaining work is store-console product configuration, not client integration.
 2. **B2B Multi-Tenancy:** Schema is currently single-tenant (B2C consumer app). Transitioning to B2B enterprise organizations requires adding `tenantId` to user profiles and security rules.
 
 ---

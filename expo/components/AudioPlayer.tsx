@@ -36,18 +36,22 @@ import {
   List,
   Info,
   X,
-  BarChart3
+  BarChart3,
+  RotateCcw
 } from 'lucide-react-native';
 import { useAudioPlayer } from '@/hooks/useAudioPlayer';
 import { useAuth } from '@/hooks/useAuth';
 import { useFavorites } from '@/hooks/useFavorites';
 import { useSettings } from '@/hooks/useSettings';
 import { useTheme } from '@/hooks/useTheme';
+import { usePlayer } from '@/lib/player/PlayerContext';
+import { clampResumePosition, isResumeUsable } from '@/lib/audio/playback-history';
 import { FrequencyVisualizer } from './FrequencyVisualizer';
 import { Share } from 'react-native';
 import { DEFAULT_PREMIUM_POLICY } from '@/lib/subscription-service';
 import { PremiumModal, PremiumTrigger } from './PremiumModal';
 import { AffirmationStreamCard } from './AffirmationStreamCard';
+import { AffirmationVideoStage } from './AffirmationVideoStage';
 import { Affirmation, AffirmationMode } from '@/types/affirmation';
 
 const { width, height } = Dimensions.get('window');
@@ -132,13 +136,76 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({
   const [isSessionActive, setIsSessionActive] = useState<boolean>(false);
   const [sessionProgress, setSessionProgress] = useState<number>(0);
 
+  // Resume / history states
+  const [resumeOffer, setResumeOffer] = useState<{ seconds: number } | null>(null);
+  const pendingRef = useRef<{ hz: number; name: string; category?: string; seconds: number } | null>(null);
+  const resumeCheckedRef = useRef<string>('');
+  const persistedResumeRef = useRef<string>('');
+
   const { isPlaying, currentFrequency, playFrequency, stopFrequency, setVolume: setAudioVolume } = useAudioPlayer();
+  const { resumeFor, saveResume, recordPlay, history } = usePlayer();
   const { isPremium, capabilities, trackUsage } = useAuth();
   const { toggleFavorite: toggleFavoriteStore, isFavorite: isFavoriteInStore } = useFavorites();
   const { settings, updateSetting } = useSettings();
   const { colors, gradients, isDark } = useTheme();
   const insets = useSafeAreaInsets();
   const styles = useMemo(() => createStyles(colors, gradients, isDark), [colors, gradients, isDark]);
+
+  /**
+   * Persists a "left off" point for the current track. Only meaningful for
+   * single-frequency playback — session mode is already driven by its own
+   * progress state and is not resumable across visits.
+   */
+  const persistResume = useCallback(() => {
+    if (isSessionMode || !frequency) return;
+    const total = duration * 60;
+    const elapsed = Math.max(0, total - timeLeft);
+    if (elapsed < 5) return;
+    saveResume({
+      hz: frequency.hz,
+      name: frequency.name,
+      positionSeconds: elapsed,
+      totalSeconds: total,
+    });
+  }, [isSessionMode, frequency, duration, timeLeft, saveResume]);
+
+  /**
+   * Commits the pending listening time into play history. Guarded so a glance at
+   * the player (no real listening) does not pollute the history.
+   */
+  const flushHistory = useCallback(() => {
+    const pending = pendingRef.current;
+    if (!pending || pending.seconds < 5) {
+      pendingRef.current = null;
+      return;
+    }
+    recordPlay({
+      hz: pending.hz,
+      name: pending.name,
+      category: pending.category,
+      listenedSeconds: pending.seconds,
+    });
+    pendingRef.current = null;
+  }, [recordPlay]);
+
+  /**
+   * Accumulates real listening time for the current track. Called on every tick
+   * and flushed into play history when the listener leaves the track (pauses,
+   * switches track, or dismisses the player) so a single visit counts once.
+   */
+  const trackListeningTick = useCallback(() => {
+    const target = isSessionMode && sessionFrequencies.length > 0
+      ? sessionFrequencies[currentFrequencyIndex]
+      : frequency;
+    if (!target) return;
+    const pending = pendingRef.current;
+    if (pending && pending.hz === target.hz && pending.name === target.name) {
+      pending.seconds += 1;
+    } else {
+      if (pending) flushHistory();
+      pendingRef.current = { hz: target.hz, name: target.name, category: target.category, seconds: 1 };
+    }
+  }, [isSessionMode, sessionFrequencies, currentFrequencyIndex, frequency, flushHistory]);
 
   // Quick duration presets for easy selection
   const durationPresets = isPremium ?
@@ -348,6 +415,10 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({
 
     tickRaf.current = setInterval(() => {
       const st = tickStateRef.current;
+      // Track real listening time (excluding previews) for the play history.
+      if (st.isPlaying && !st.isPreviewActive) {
+        trackListeningTick();
+      }
       if (st.isSessionMode && st.isSessionActive) {
         setSessionTimeLeft(prev => {
           if (prev <= 0) return 0;
@@ -417,7 +488,7 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({
         tickRaf.current = null;
       }
     };
-  }, [isPlaying, isTimerActive, isSessionActive, isSessionMode, onSessionComplete, sessionId, trackUsage]);
+  }, [isPlaying, isTimerActive, isSessionActive, isSessionMode, onSessionComplete, sessionId, trackUsage, trackListeningTick, frequency]);
 
   useEffect(() => {
     if (!isPreviewActive) {
@@ -431,6 +502,58 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({
       setTimeLeft(maxFreeDuration * 60);
     }
   }, [isPremium, duration, maxFreeDuration, isPreviewActive]);
+
+  // Offer to resume where the listener left off. Checked once per track so the
+  // prompt does not reappear after it is dismissed.
+  useEffect(() => {
+    if (!visible || isSessionMode || !frequency) return;
+    const key = `${frequency.hz}:${frequency.name}`;
+    if (resumeCheckedRef.current === key) return;
+    resumeCheckedRef.current = key;
+
+    const stored = resumeFor(frequency.hz, frequency.name);
+    if (!isResumeUsable(stored) || !stored) return;
+
+    // Restore the track length the listener was working with, then seek to the
+    // saved position within it.
+    const restoredMinutes = stored.totalSeconds
+      ? Math.max(1, Math.round(stored.totalSeconds / 60))
+      : duration;
+    const total = restoredMinutes * 60;
+    const position = clampResumePosition(stored.positionSeconds, total);
+    if (restoredMinutes !== duration) setDuration(restoredMinutes);
+    setResumeOffer({ seconds: position });
+    setTimeLeft(Math.max(0, total - position));
+  }, [visible, isSessionMode, frequency, duration, resumeFor]);
+
+  // Persist the left-off point periodically while listening (single-frequency mode).
+  useEffect(() => {
+    if (!visible || isSessionMode || !frequency || !isPlaying) return;
+    const total = duration * 60;
+    const elapsed = total - timeLeft;
+    if (elapsed < 5) return;
+    const bucket = Math.floor(elapsed / 15);
+    const key = `${frequency.hz}:${frequency.name}:${bucket}`;
+    if (persistedResumeRef.current === key) return;
+    persistedResumeRef.current = key;
+    saveResume({ hz: frequency.hz, name: frequency.name, positionSeconds: elapsed, totalSeconds: total });
+  }, [visible, isSessionMode, frequency, isPlaying, timeLeft, duration, saveResume]);
+
+  // Record the visit into play history when a track runs to completion.
+  useEffect(() => {
+    if (isSessionMode || isTimerActive || timeLeft !== 0 || !frequency) return;
+    flushHistory();
+  }, [isSessionMode, isTimerActive, timeLeft, frequency, flushHistory]);
+
+  // Commit history and the left-off point when the player is dismissed.
+  const prevVisibleRef = useRef<boolean>(false);
+  useEffect(() => {
+    if (prevVisibleRef.current && !visible) {
+      persistResume();
+      flushHistory();
+    }
+    prevVisibleRef.current = visible;
+  }, [visible, persistResume, flushHistory]);
 
   const formatTime = (seconds: number): string => {
     const mins = Math.floor(seconds / 60);
@@ -680,8 +803,25 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({
                   </TouchableOpacity>
                 </View>
 
-                {/* Main Visualizer Card */}
+                {/* Main Visualizer Card — swaps to the immersive affirmation
+                    video stage while the affirmation stream is in a visual mode. */}
                 <GlassCard style={styles.mainCard} intensity={60}>
+                  {(affirmationMode === 'visual' || affirmationMode === 'both') ? (
+                    <View style={styles.videoStageContainer}>
+                      <AffirmationVideoStage
+                        affirmation={activeAffirmation}
+                        isPlaying={isCurrentlyPlaying}
+                        hz={displayFrequency?.hz || 0}
+                        isPremium={isPremium}
+                        onUnlock={() => openPremiumFeature('premium_content')}
+                      />
+                      {isPreviewActive && (
+                        <View style={[styles.previewBadge, styles.videoPreviewBadge]}>
+                          <Text style={styles.previewBadgeText}>3-MINUTE PREVIEW</Text>
+                        </View>
+                      )}
+                    </View>
+                  ) : (
                   <TouchableOpacity
                     style={styles.visualizerContainer}
                     onPress={cycleVisualizerMode}
@@ -705,23 +845,11 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({
                           <Text style={styles.previewBadgeText}>3-MINUTE PREVIEW</Text>
                         </View>
                       )}
-                      {(affirmationMode === 'visual' || affirmationMode === 'both') && activeAffirmation ? (
-                        <View style={styles.affirmationOverlayBox}>
-                          <Text style={styles.affirmationOverlayText} numberOfLines={3}>
-                            "{activeAffirmation.text}"
-                          </Text>
-                          <Text style={styles.affirmationOverlaySub}>
-                            {displayFrequency?.hz || 0} Hz • {activeAffirmation.title || 'Affirmation'}
-                          </Text>
-                        </View>
-                      ) : (
-                        <>
-                          <Text style={styles.frequencyHz}>{displayFrequency?.hz || 0} Hz</Text>
-                          <Text style={styles.frequencyName}>{displayFrequency?.name || 'No Frequency'}</Text>
-                        </>
-                      )}
+                      <Text style={styles.frequencyHz}>{displayFrequency?.hz || 0} Hz</Text>
+                      <Text style={styles.frequencyName}>{displayFrequency?.name || 'No Frequency'}</Text>
                     </View>
                   </TouchableOpacity>
+                  )}
 
                   {/* Waveform Indicator */}
                   <View style={styles.waveformContainer} pointerEvents="none">
@@ -797,6 +925,25 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({
                       }
                     </Text>
                   </View>
+
+                  {resumeOffer && (
+                    <View style={styles.resumeRow}>
+                      <RotateCcw color={colors.primary} size={14} />
+                      <Text style={styles.resumeText}>
+                        Resumed from {formatTime(resumeOffer.seconds)}
+                      </Text>
+                      <TouchableOpacity
+                        onPress={() => {
+                          setResumeOffer(null);
+                          setTimeLeft(duration * 60);
+                        }}
+                        accessibilityRole="button"
+                        accessibilityLabel="Start from the beginning instead"
+                      >
+                        <Text style={styles.resumeResetText}>Start over</Text>
+                      </TouchableOpacity>
+                    </View>
+                  )}
 
                   <View style={styles.progressContainer} {...progressPanResponder.panHandlers}>
                     <View style={styles.progressTrack}>
@@ -1146,6 +1293,35 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({
                 <Text style={styles.panelTitle}>Listening insights</Text>
                 <Text style={styles.panelBody}>Your session insights are available while you listen. Keep building a consistent practice to see more meaningful trends here.</Text>
                 <View style={styles.statsCard}><Activity color={colors.accent} size={22} /><Text style={styles.statsText}>Current session: {formatTime(displayTimeLeft)} remaining</Text></View>
+
+                <Text style={[styles.panelEyebrow, styles.historyHeading]}>RECENTLY PLAYED</Text>
+                {history.length === 0 ? (
+                  <Text style={styles.panelBody}>Your play history will appear here after your first session.</Text>
+                ) : (
+                  history.slice(0, 8).map((entry) => (
+                    <TouchableOpacity
+                      key={entry.id}
+                      style={styles.historyRow}
+                      onPress={() => {
+                        closePlayerPanel();
+                        playFrequency({ hz: entry.hz, name: entry.name, category: entry.category }, entry.name);
+                        if (!isSessionMode) {
+                          setIsTimerActive(true);
+                        }
+                      }}
+                    >
+                      <View style={styles.historyIcon}>
+                        <RotateCcw color={colors.primary} size={15} />
+                      </View>
+                      <View style={styles.historyCopy}>
+                        <Text style={styles.menuTitle} numberOfLines={1}>{entry.name}</Text>
+                        <Text style={styles.menuSubtitle}>
+                          {entry.hz} Hz · {Math.max(1, Math.round(entry.totalListenedSeconds / 60))} min listened · {entry.playCount}×
+                        </Text>
+                      </View>
+                    </TouchableOpacity>
+                  ))
+                )}
                 <TouchableOpacity style={styles.panelButton} onPress={closePlayerPanel}><Text style={styles.panelButtonText}>Done</Text></TouchableOpacity>
               </>
             )}
@@ -1223,6 +1399,16 @@ const createStyles = (colors: any, gradients: any, isDark: boolean) => StyleShee
     justifyContent: 'center',
     alignItems: 'center',
     position: 'relative',
+  },
+  videoStageContainer: {
+    height: 260,
+    position: 'relative',
+  },
+  videoPreviewBadge: {
+    position: 'absolute',
+    top: 12,
+    right: 12,
+    marginBottom: 0,
   },
   visualizerSurface: {
     ...StyleSheet.absoluteFill,
@@ -1330,6 +1516,44 @@ const createStyles = (colors: any, gradients: any, isDark: boolean) => StyleShee
   },
   progressSection: {
     marginBottom: 18,
+  },
+  resumeRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginBottom: 10,
+  },
+  resumeText: {
+    color: colors.textSecondary,
+    fontSize: 12,
+    flex: 1,
+  },
+  resumeResetText: {
+    color: colors.primary,
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  historyHeading: {
+    marginTop: 8,
+  },
+  historyRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    paddingVertical: 12,
+    borderTopWidth: 1,
+    borderTopColor: colors.divider,
+  },
+  historyIcon: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.glass,
+  },
+  historyCopy: {
+    flex: 1,
   },
   timeDisplay: {
     flexDirection: 'row',
@@ -1751,36 +1975,5 @@ const createStyles = (colors: any, gradients: any, isDark: boolean) => StyleShee
   },
   playIcon: {
     marginLeft: 4,
-  },
-  affirmationOverlayBox: {
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    marginHorizontal: 16,
-    borderRadius: 16,
-    backgroundColor: isDark ? 'rgba(10, 14, 26, 0.65)' : 'rgba(255, 255, 255, 0.75)',
-    borderWidth: 1,
-    borderColor: colors.glassBorderBright,
-    alignItems: 'center',
-    justifyContent: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 6,
-  },
-  affirmationOverlayText: {
-    fontSize: 15,
-    fontWeight: '700',
-    color: colors.textPrimary,
-    textAlign: 'center',
-    lineHeight: 21,
-    marginBottom: 4,
-  },
-  affirmationOverlaySub: {
-    fontSize: 10,
-    color: colors.primary,
-    fontWeight: '700',
-    textTransform: 'uppercase',
-    letterSpacing: 0.8,
   },
 });

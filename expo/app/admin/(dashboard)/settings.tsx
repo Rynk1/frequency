@@ -32,10 +32,6 @@ export default function SettingsManagement() {
     allowRegistration: true,
     requireEmailVerification: true,
     enablePayments: true,
-    premiumMonthlyPrice: PREMIUM_PLANS.monthly.price.toFixed(2),
-    premiumYearlyPrice: PREMIUM_PLANS.yearly.price.toFixed(2),
-    currency: PREMIUM_PLANS.monthly.currency,
-    trialDays: String(PREMIUM_TRIAL_DAYS),
     defaultFreePremium: false,
     allowGuestAccess: true,
     maxSessionDuration: '60',
@@ -162,46 +158,38 @@ export default function SettingsManagement() {
           />
         </View>
 
-        <View style={styles.inputGroup}>
-          <Text style={styles.inputLabel}>Monthly Price</Text>
-          <View style={styles.inputRow}>
-            <TextInput
-              style={styles.input}
-              value={settings.premiumMonthlyPrice}
-              onChangeText={(text) => setSettings({ ...settings, premiumMonthlyPrice: text })}
-              placeholder={PREMIUM_PLANS.monthly.price.toFixed(2)}
-              placeholderTextColor="#6B7280"
-              keyboardType="numeric"
-            />
-            <Text style={styles.inputSuffix}>{settings.currency}</Text>
+        <View style={styles.settingItem}>
+          <View style={styles.settingInfo}>
+            <Text style={styles.settingLabel}>Monthly Price</Text>
+            <Text style={styles.settingDescription}>
+              Set in Google Play Console · surfaced live by the store
+            </Text>
           </View>
+          <Text style={styles.settingValue}>
+            {PREMIUM_PLANS.monthly.price.toFixed(2)} {PREMIUM_PLANS.monthly.currency}
+          </Text>
         </View>
 
-        <View style={styles.inputGroup}>
-          <Text style={styles.inputLabel}>Yearly Price</Text>
-          <View style={styles.inputRow}>
-            <TextInput
-              style={styles.input}
-              value={settings.premiumYearlyPrice}
-              onChangeText={(text) => setSettings({ ...settings, premiumYearlyPrice: text })}
-              placeholder={PREMIUM_PLANS.yearly.price.toFixed(2)}
-              placeholderTextColor="#6B7280"
-              keyboardType="numeric"
-            />
-            <Text style={styles.inputSuffix}>{settings.currency}</Text>
+        <View style={styles.settingItem}>
+          <View style={styles.settingInfo}>
+            <Text style={styles.settingLabel}>Yearly Price</Text>
+            <Text style={styles.settingDescription}>
+              Set in Google Play Console · surfaced live by the store
+            </Text>
           </View>
+          <Text style={styles.settingValue}>
+            {PREMIUM_PLANS.yearly.price.toFixed(2)} {PREMIUM_PLANS.yearly.currency}
+          </Text>
         </View>
 
-        <View style={styles.inputGroup}>
-          <Text style={styles.inputLabel}>Trial Period (days)</Text>
-          <TextInput
-            style={styles.input}
-            value={settings.trialDays}
-            onChangeText={(text) => setSettings({ ...settings, trialDays: text })}
-            placeholder="7"
-            placeholderTextColor="#6B7280"
-            keyboardType="numeric"
-          />
+        <View style={styles.settingItem}>
+          <View style={styles.settingInfo}>
+            <Text style={styles.settingLabel}>Trial Period</Text>
+            <Text style={styles.settingDescription}>
+              Configured in Google Play Console · shown as {PREMIUM_TRIAL_DAYS} days in-app
+            </Text>
+          </View>
+          <Text style={styles.settingValue}>{PREMIUM_TRIAL_DAYS} days</Text>
         </View>
       </View>
 
@@ -402,6 +390,11 @@ const styles = StyleSheet.create({
   settingDescription: {
     color: '#9CA3AF',
     fontSize: 12,
+  },
+  settingValue: {
+    color: '#10B981',
+    fontSize: 16,
+    fontWeight: '600',
   },
   inputGroup: {
     marginBottom: 20,

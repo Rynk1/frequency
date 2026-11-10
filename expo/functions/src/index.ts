@@ -26,6 +26,34 @@ export const SUPPORTED_ROLES = [
 export type SupportedRole = typeof SUPPORTED_ROLES[number];
 
 /**
+ * Helper: Normalise a stored date (ISO string, Firestore Timestamp, epoch ms or
+ * epoch seconds) to epoch milliseconds. Returns null when unparseable.
+ */
+function toEpochMs(value: any): number | null {
+  if (!value) return null;
+  if (typeof value === 'number') return value < 1e12 ? value * 1000 : value;
+  if (typeof value === 'string') {
+    const ms = Date.parse(value);
+    return Number.isNaN(ms) ? null : ms;
+  }
+  if (typeof value.toDate === 'function') return value.toDate().getTime();
+  if (typeof value.seconds === 'number') return value.seconds * 1000;
+  return null;
+}
+
+/**
+ * Helper: Whether a stored subscription's paid period has already ended.
+ *
+ * The entitlement document can lag behind the store (a webhook may be missed),
+ * so premium is re-derived from the recorded expiry rather than trusted blindly.
+ * A subscription with no recorded expiry is treated as active.
+ */
+export function isSubscriptionLapsed(subscription: any, nowMs: number = Date.now()): boolean {
+  const expirationMs = toEpochMs(subscription?.expirationAt ?? subscription?.subscriptionEndsAt);
+  return expirationMs !== null && expirationMs <= nowMs;
+}
+
+/**
  * Helper: Write immutable server audit log
  */
 async function writeAuditLog(entry: {
@@ -314,6 +342,17 @@ export const handleSubscriptionWebhook = onRequest({ cors: true }, async (req, r
       const isCancelled = rcEvent.type === 'CANCELLATION';
       const isPremium = !isExpired && (rcEvent.type === 'INITIAL_PURCHASE' || rcEvent.type === 'RENEWAL' || rcEvent.type === 'UNCANCELLATION' || rcEvent.type === 'TRIAL_STARTED' || isCancelled);
 
+      // Store-provided period boundaries. RevenueCat sends millisecond epoch
+      // timestamps; keep them as ISO strings so the client can render the same
+      // renewal/expiry dates the user sees in Google Play.
+      const toIso = (ms?: number | null): string | undefined =>
+        typeof ms === 'number' && ms > 0 ? new Date(ms).toISOString() : undefined;
+      const expirationAt = toIso(rcEvent.expiration_at_ms);
+      const purchasedAt = toIso(rcEvent.purchased_at_ms);
+      const subscriptionType: 'monthly' | 'yearly' = productId.includes('yearly') ? 'yearly' : 'monthly';
+      // `willRenew` is false for a cancellation but also for any terminal state.
+      const willRenew = isPremium && !isCancelled;
+
       const subStatus = isExpired
         ? (rcEvent.type === 'REFUND' ? 'refunded' : rcEvent.type === 'REVOCATION' ? 'revoked' : 'expired')
         : isCancelled
@@ -363,8 +402,11 @@ export const handleSubscriptionWebhook = onRequest({ cors: true }, async (req, r
             subscriptionStatus: subStatus,
             productId,
             entitlementId,
-            subscriptionType: productId.includes('yearly') ? 'yearly' : 'monthly',
-            willRenew: !isCancelled && isPremium,
+            subscriptionType,
+            willRenew,
+            cancelAtPeriodEnd: isCancelled,
+            expirationAt: expirationAt || null,
+            purchasedAt: purchasedAt || null,
             lastVerifiedAt: nowServer,
             lastEventId: eventId,
             lastEventTimestamp: sourceTimestamp,
@@ -383,9 +425,16 @@ export const handleSubscriptionWebhook = onRequest({ cors: true }, async (req, r
           };
           transaction.set(entitlementRef, entitlementData, { merge: true });
 
+          // Mirror the store-authoritative details onto the user document so the
+          // paywall, settings card and result screen all render the same plan,
+          // renewal date and auto-renew state the user sees in Google Play.
           transaction.set(userRef, {
             subscriptionStatus: isPremium ? (rcEvent.type === 'TRIAL_STARTED' ? 'trial' : 'premium') : 'free',
             isPremium,
+            subscriptionType,
+            subscriptionEndsAt: expirationAt ? new Date(expirationAt) : null,
+            trialEndsAt: rcEvent.type === 'TRIAL_STARTED' && expirationAt ? new Date(expirationAt) : null,
+            cancelAtPeriodEnd: isCancelled,
             updatedAt: nowServer,
           }, { merge: true });
 
@@ -462,14 +511,32 @@ export const reconcileSubscription = onRequest({ cors: true }, async (req, res) 
       return;
     }
 
-    res.status(200).json({
-      success: true,
-      subscription: subData,
-      entitlement: {
-        ...entData,
-        verifiedAt: new Date().toISOString(),
-      },
-    });
+    // The stored entitlement can lag behind the store: a subscription may have
+    // lapsed since the last webhook. Re-derive premium from the recorded expiry
+    // so a user is never granted access they are no longer paying for.
+    const lapsed = isSubscriptionLapsed(subData);
+    const isPremium = Boolean(entData.isPremium) && !lapsed;
+    const entitlement = {
+      ...entData,
+      isPremium,
+      status: isPremium ? entData.status : 'expired',
+      capabilities: computeCapabilities(isPremium),
+      verifiedAt: new Date().toISOString(),
+    };
+
+    if (isPremium !== Boolean(entData.isPremium)) {
+      // Persist the corrected state so the app and Firestore agree.
+      try {
+        await db.collection('entitlements').doc(uid).set(
+          { isPremium, status: entitlement.status, capabilities: entitlement.capabilities, verifiedAt: admin.firestore.FieldValue.serverTimestamp() },
+          { merge: true }
+        );
+      } catch (e: any) {
+        console.warn('Reconciliation entitlement write warning:', e?.message || e);
+      }
+    }
+
+    res.status(200).json({ success: true, subscription: subData, entitlement });
   } catch (err: any) {
     console.error('reconcileSubscription error:', err?.message || err);
     const status = err.message?.startsWith('Unauthorized') ? 401 : 500;

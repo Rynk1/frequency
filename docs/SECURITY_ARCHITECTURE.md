@@ -32,8 +32,8 @@
                             │
                             ▼
                     Google Play /
-                    RevenueCat /
-                    Stripe
+                    App Store /
+                    RevenueCat
 ```
 
 ---
@@ -69,7 +69,7 @@
 - **A3 — Unauthenticated Attacker**: Direct HTTP requests to server functions.
   - *Mitigation*: Bearer token authentication in Cloud Functions, strict CORS, input sanitization.
 - **A4 — Webhook Attacker**: Forging payment webhooks to gain free premium.
-  - *Mitigation*: Webhook authorization header / cryptographic signature verification (e.g. RevenueCat authorization token or Stripe signature). Rejection with 401 Unauthorized if invalid.
+  - *Mitigation*: Webhook authorization header / cryptographic signature verification (RevenueCat authorization token). Rejection with 401 Unauthorized if invalid.
 - **A5 — Compromised Admin**: Administrative credentials compromised.
   - *Mitigation*: Immutable `auditLogs`, prohibition of removing the last super-admin, explicit role schemas.
 - **A6 — Payment Abuse Attacker**: Manipulating customer IDs or replaying purchase events.

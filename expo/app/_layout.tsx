@@ -14,6 +14,8 @@ import { LearningContentProvider } from '@/hooks/useLearningContent';
 import { DataModeProvider } from '@/hooks/useDataMode';
 import { SettingsProvider } from '@/hooks/useSettings';
 import { ThemeProvider, useTheme } from '@/hooks/useTheme';
+import { PlayerProvider } from '@/lib/player/PlayerContext';
+import { PlayerHost } from '@/lib/player/PlayerHost';
 import { useFonts } from 'expo-font';
 import {
   DMSerifDisplay_400Regular,
@@ -126,10 +128,13 @@ export default function RootLayout() {
                 <BackendDataProvider>
                   <LearningContentProvider>
                     <SessionManagerProvider>
-                      <GestureHandlerRootView style={styles.container}>
-                        <ThemedStatusBar />
-                        <RootLayoutNav />
-                      </GestureHandlerRootView>
+                      <PlayerProvider>
+                        <GestureHandlerRootView style={styles.container}>
+                          <ThemedStatusBar />
+                          <RootLayoutNav />
+                          <PlayerHost />
+                        </GestureHandlerRootView>
+                      </PlayerProvider>
                     </SessionManagerProvider>
                   </LearningContentProvider>
                 </BackendDataProvider>

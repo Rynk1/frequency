@@ -27,6 +27,8 @@ import {
 } from 'lucide-react-native';
 import { useAuth } from '@/hooks/useAuth';
 import { getSubscriptionStatus, type SubscriptionStatus } from '@/lib/subscription-service';
+import { PREMIUM_TRIAL_DAYS } from '@/lib/pricing';
+import { PREMIUM_FREQUENCY_COUNT } from '@/lib/usage/PremiumPolicy';
 import { COLORS, GRADIENTS, FONTS, TEXT_PRESETS } from '@/constants/theme';
 
 type ResultKind = 'success' | 'cancelled' | 'pending' | 'error';
@@ -153,7 +155,7 @@ export default function SubscriptionResultScreen() {
           iconBorder: isTrialActive ? 'rgba(167,139,250,0.4)' : 'rgba(212,175,55,0.4)',
           title: isTrialActive ? 'Trial Activated' : 'Premium Unlocked',
           subtitle: isTrialActive
-            ? `Your 7-day free trial has started. ${trialDaysLeft} day${trialDaysLeft === 1 ? '' : 's'} remaining.`
+            ? `Your ${PREMIUM_TRIAL_DAYS}-day free trial has started. ${trialDaysLeft} day${trialDaysLeft === 1 ? '' : 's'} remaining.`
             : 'Thank you for upgrading. Every premium frequency is now yours.',
           glowColors: isTrialActive
             ? (['rgba(108,99,255,0.22)', 'rgba(124,58,237,0.10)'] as const)
@@ -311,7 +313,7 @@ export default function SubscriptionResultScreen() {
                 <Text style={styles.sectionTitle}>What you unlocked</Text>
                 <GlassCard style={styles.benefitsCard}>
                   {[
-                    { icon: Crown, text: '100+ premium frequencies' },
+                    { icon: Crown, text: `All ${PREMIUM_FREQUENCY_COUNT} premium frequencies` },
                     { icon: Sparkles, text: 'Unlimited session duration' },
                     { icon: Shield, text: 'Offline downloads' },
                     { icon: CreditCard, text: 'Priority support' },

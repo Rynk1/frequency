@@ -1,5 +1,5 @@
 import { EventEmitter } from 'events';
-import { setAdminClaim, deleteAccount, handleSubscriptionWebhook, reconcileSubscription, executeSupportAction } from '../src/index';
+import { setAdminClaim, deleteAccount, handleSubscriptionWebhook, reconcileSubscription, executeSupportAction, isSubscriptionLapsed } from '../src/index';
 
 async function runFunctionsRegressionTests() {
   console.log('=== FIREBASE FUNCTIONS REGRESSION TEST ===\n');
@@ -219,6 +219,24 @@ async function runFunctionsRegressionTests() {
       passed++;
     } else {
       console.error('[FAIL] executeSupportAction (Unauthorized check)');
+      failed++;
+    }
+  }
+
+  // 9b. isSubscriptionLapsed - server re-derives premium from recorded expiry
+  {
+    const now = Date.parse('2026-01-01T00:00:00.000Z');
+    const past = '2025-12-01T00:00:00.000Z';
+    const future = '2026-02-01T00:00:00.000Z';
+    const lapsedPast = isSubscriptionLapsed({ expirationAt: past }, now) === true;
+    const activeFuture = isSubscriptionLapsed({ expirationAt: future }, now) === false;
+    const noExpiry = isSubscriptionLapsed({}, now) === false;
+    const firestoreTimestamp = isSubscriptionLapsed({ expirationAt: { seconds: Math.floor(now / 1000) - 60 } }, now) === true;
+    if (lapsedPast && activeFuture && noExpiry && firestoreTimestamp) {
+      console.log('[PASS] isSubscriptionLapsed (expiry-aware premium re-derivation)');
+      passed++;
+    } else {
+      console.error('[FAIL] isSubscriptionLapsed:', { lapsedPast, activeFuture, noExpiry, firestoreTimestamp });
       failed++;
     }
   }

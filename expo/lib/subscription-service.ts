@@ -3,6 +3,11 @@ import { auth, db } from './firebase';
 import { getIdToken } from 'firebase/auth';
 import { doc, getDoc } from 'firebase/firestore';
 import { computeCapabilities } from './entitlements/entitlement-service';
+import { getTrialDaysLeft } from './pricing';
+import { normalizeSubscriptionDetails, type SubscriptionDetails } from './subscription-details';
+
+export { normalizeSubscriptionDetails };
+export type { SubscriptionDetails };
 
 const API_BASE = process.env.EXPO_PUBLIC_API_BASE_URL || '';
 
@@ -83,6 +88,7 @@ export async function reconcileSubscription(): Promise<{
   isPremium: boolean;
   subscriptionStatus: 'free' | 'premium' | 'trial';
   entitlement?: any;
+  details?: SubscriptionDetails;
 }> {
   const currentUser = auth.currentUser;
   if (!currentUser) {
@@ -91,12 +97,15 @@ export async function reconcileSubscription(): Promise<{
 
   if (API_BASE) {
     try {
-      const data = await apiCall<{ success: boolean; entitlement?: any }>('/reconcileSubscription', { method: 'POST' });
+      const data = await apiCall<{ success: boolean; entitlement?: any; subscription?: any }>('/reconcileSubscription', { method: 'POST' });
       if (data?.entitlement) {
+        const isPremium = Boolean(data.entitlement.isPremium);
+        const isTrial = data.entitlement.status === 'trial';
         return {
-          isPremium: Boolean(data.entitlement.isPremium),
-          subscriptionStatus: data.entitlement.isPremium ? 'premium' : 'free',
+          isPremium,
+          subscriptionStatus: isPremium ? (isTrial ? 'trial' : 'premium') : 'free',
           entitlement: data.entitlement,
+          details: normalizeSubscriptionDetails(data.subscription),
         };
       }
     } catch (e) {
@@ -110,10 +119,24 @@ export async function reconcileSubscription(): Promise<{
     const snap = await getDoc(entRef);
     if (snap.exists()) {
       const data = snap.data();
+      const isPremium = Boolean(data.isPremium);
+      const isTrial = data.status === 'trial';
+
+      // Pull the subscription document too so the plan type, renewal date and
+      // auto-renew state match what the user sees in Google Play.
+      let details: SubscriptionDetails | undefined;
+      try {
+        const subSnap = await getDoc(doc(db, 'subscriptions', currentUser.uid));
+        if (subSnap.exists()) details = normalizeSubscriptionDetails(subSnap.data());
+      } catch (subErr) {
+        console.warn('Firestore subscription lookup failed:', subErr);
+      }
+
       return {
-        isPremium: Boolean(data.isPremium),
-        subscriptionStatus: data.isPremium ? 'premium' : 'free',
+        isPremium,
+        subscriptionStatus: isPremium ? (isTrial ? 'trial' : 'premium') : 'free',
         entitlement: data,
+        details,
       };
     }
   } catch (err) {
@@ -158,13 +181,18 @@ export function getManageSubscriptionUrl(): string {
 
 export async function getSubscriptionStatus(): Promise<SubscriptionStatus> {
   const reconciled = await reconcileSubscription();
+  const details = reconciled.details;
+  const isTrial = reconciled.subscriptionStatus === 'trial';
   return {
     isPremium: reconciled.isPremium,
-    isTrialActive: false,
-    trialDaysLeft: 0,
+    isTrialActive: isTrial,
+    trialDaysLeft: getTrialDaysLeft(details?.trialEndsAt),
     subscriptionStatus: reconciled.subscriptionStatus,
-    willRenew: reconciled.isPremium,
-    cancelAtPeriodEnd: false,
+    subscriptionType: details?.subscriptionType,
+    subscriptionEndsAt: details?.subscriptionEndsAt,
+    trialEndsAt: details?.trialEndsAt,
+    willRenew: details?.willRenew ?? reconciled.isPremium,
+    cancelAtPeriodEnd: details?.cancelAtPeriodEnd ?? false,
     source: 'google_play',
     lastVerifiedAt: new Date().toISOString(),
   };

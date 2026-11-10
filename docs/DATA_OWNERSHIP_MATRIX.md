@@ -12,7 +12,7 @@ This document defines the canonical authority, read/write permissions, and provi
 | **Profile & Preferences** | Firestore (`users/{uid}`) | Own (`uid`) | Approved fields only | Yes (`super_admin`) | None |
 | **Subscription State** | Provider / RevenueCat | Derived | No | Command endpoint only | Primary Authority |
 | **Entitlement Capabilities** | Harmony Entitlement Engine | Own (`uid`) | No | Controlled support action | None |
-| **Payment Events Ledger** | RevenueCat / Stripe / App Stores | No | No | No | Immutable Event Source |
+| **Payment Events Ledger** | RevenueCat / App Stores | No | No | No | Immutable Event Source |
 | **Audit Logs** | Harmony Server SDK | Restricted (`isAdmin`) | No | No | Server Append-Only |
 | **Usage & Session Events** | Harmony Server / User | Own (`uid`) | Controlled event creation | No | Client Source |
 | **Analytics Aggregates** | Pipeline / BigQuery / Firestore | Restricted (`isAdmin`) | No | No | Derived Projections |

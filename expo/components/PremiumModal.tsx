@@ -53,8 +53,9 @@ import {
   formatPrice,
   getPlanBillingNote,
   getYearlyMonthlyPrice,
-  getYearlySavingsPercent,
+  getSavingsPercentForOfferings,
 } from '@/lib/pricing';
+import { PREMIUM_FREQUENCY_COUNT } from '@/lib/usage/PremiumPolicy';
 import { COLORS, GRADIENTS, FONTS, TEXT_PRESETS } from '@/constants/theme';
 
 export type PremiumTrigger =
@@ -148,11 +149,11 @@ export const PremiumModal: React.FC<PremiumModalProps> = ({
       : getYearlyMonthlyPrice();
   const yearlyMonthlyLabel = storeOfferings?.yearly?.priceString
     ? formatPrice(yearlyMonthlyValue, storeOfferings.yearly.currencyCode)
-    : `$${yearlyMonthlyValue.toFixed(2)}`;
+    : formatPrice(yearlyMonthlyValue, PREMIUM_PLANS.yearly.currency);
   const yearlyBillingNote = storeOfferings?.yearly?.priceString
     ? `Billed annually at ${storeOfferings.yearly.priceString}`
     : getPlanBillingNote('yearly');
-  const savings = getYearlySavingsPercent();
+  const savings = getSavingsPercentForOfferings(storeOfferings);
 
   const initiatePurchase = useCallback(async (plan: Plan, trialEnabled: boolean) => {
     setError(null);
@@ -282,7 +283,7 @@ export const PremiumModal: React.FC<PremiumModalProps> = ({
   }, [refreshSubscriptionStatus, selectedPlan, onUpgrade, onClose]);
 
   const premiumFeatures: { id: string; icon: any; text: string; highlight?: boolean }[] = [
-    { id: 'premium-frequencies', icon: Music, text: 'Access to 100+ Premium Frequencies', highlight: true },
+    { id: 'premium-frequencies', icon: Music, text: `Access to all ${PREMIUM_FREQUENCY_COUNT} Premium Frequencies`, highlight: true },
     { id: 'unlimited-duration', icon: InfinityIcon, text: 'Unlimited Session Duration' },
     { id: 'binaural-beats', icon: Heart, text: 'Advanced Binaural Beats' },
     { id: 'custom-mixing', icon: Sparkles, text: 'Custom Frequency Mixing' },

@@ -34,9 +34,10 @@ The core payment architecture demonstrates enterprise-grade transactional resili
   - `EXPIRATION`, `REVOCATION`, `REFUND`: Immediately transitions status to `refunded`, `revoked`, or `expired`, disabling `capabilities` across all feature flags (`premiumFrequencies`, `binaural`, `offlineDownloads`, etc.).
 
 ### 1.3 Client & Mobile Platform Integration Alignment
-- **Web vs. Native In-App Purchases (IAP):**
-  - Web checkout utilizes Stripe Checkout / Billing Portal via `createCheckoutSession` and `createBillingPortalSession`.
-  - **Mobile Production Gap:** On native iOS and Android builds, web redirects (`WebBrowser.openBrowserAsync`) must be replaced or augmented with native RevenueCat SDK initialization (`react-native-purchases`). Native mobile users expect native Apple Pay and Google Play In-App Purchase dialogs.
+- **Native In-App Purchases (IAP):**
+  - Mobile checkout is fully native: the client drives Google Play / App Store billing through the RevenueCat SDK (`react-native-purchases`). There is no web/Stripe checkout path — `createCheckoutSession` / `createBillingPortalSession` were removed when the app moved to store-native billing.
+  - Subscription management (cancellation, payment-method updates, plan changes) is delegated to the store's own subscriptions screen (`getManageSubscriptionUrl()` opens Google Play / App Store). The app never hosts a billing portal.
+  - Native mobile users see the native Google Play / App Store purchase dialogs and the store's own prices.
 - **Offline Entitlement Grace Period:**
   - `EntitlementEngine` enforces a 72-hour offline grace period (`offlineGracePeriodHours: 72`).
   - Cached entitlements remain valid offline for up to 72 hours from `lastVerifiedAt`. Beyond 72 hours, capabilities automatically degrade to `free` until a server re-verification occurs (`reconcileSubscription`).

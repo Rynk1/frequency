@@ -17,9 +17,10 @@ import { useGlobalSearchParams } from 'expo-router';
 import { GlassCard as SharedGlassCard } from '@/components/GlassCard';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Zap, Brain, Sparkles, Eye, Grid, List, Info, Play, Search, X, Crown, SlidersHorizontal } from 'lucide-react-native';
-import { AudioPlayer } from '@/components/AudioPlayer';
 import { FrequencyInfoModal } from '@/components/FrequencyInfoModal';
 import { PremiumGate } from '@/components/PremiumGate';
+import { usePlayer } from '@/lib/player/PlayerContext';
+import { useAudioPlayer } from '@/hooks/useAudioPlayer';
 import { useFrequencies } from '@/hooks/useDataHelpers';
 import { useDataInitialization } from '@/hooks/useDataInitialization';
 import { usePremiumUsage } from '@/hooks/usePremiumUsage';
@@ -48,13 +49,14 @@ export default function CategoriesScreen() {
   const styles = useMemo(() => createStyles(colors, isDark), [colors, isDark]);
   const [activeTab, setActiveTab] = useState<TabType>('overview');
   const [selectedCategory, setSelectedCategory] = useState<CategoryType>('all');
-  const [selectedFrequency, setSelectedFrequency] = useState<any>(null);
   const [infoModalVisible, setInfoModalVisible] = useState(false);
   const [infoFrequency, setInfoFrequency] = useState<any>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const searchInputRef = useRef<TextInput>(null);
   const shimmerAnim = useRef(new Animated.Value(0)).current;
   const tabIndicatorAnim = useRef(new Animated.Value(0)).current;
+  const { open: openPlayer } = usePlayer();
+  const { isPlaying, currentFrequency } = useAudioPlayer();
 
   useEffect(() => {
     Animated.loop(
@@ -85,7 +87,7 @@ export default function CategoriesScreen() {
     if (target) {
       setActiveTab('library');
       setSelectedCategory('all');
-      setSelectedFrequency(target);
+      openPlayer({ frequency: target });
     }
   }, [params.frequencyHz, scientific, brainwave, solfeggio, chakra]);
 
@@ -381,10 +383,11 @@ export default function CategoriesScreen() {
             freqs.map((freq) => {
               const cc = CATEGORY_COLORS[freq.colorKey] || CATEGORY_COLORS.scientific;
               const isGated = isFrequencyGated(freq);
+              const isActiveTrack = isPlaying && currentFrequency === freq.hz;
               return (
                 <GlassCard
                   key={`${freq.categoryId}-${freq.hz}-${freq.name}`}
-                  style={styles.freqCard}
+                  style={isActiveTrack ? [styles.freqCard, styles.freqCardActive] : styles.freqCard}
                   depth="normal"
                 >
                   <View style={[styles.freqCardTopBorder, { backgroundColor: cc.primary, opacity: 0.5 }]} />
@@ -440,7 +443,7 @@ export default function CategoriesScreen() {
                           styles.freqPlayBtn,
                           { backgroundColor: isGated && !isPremium ? colors.gold : cc.primary }
                         ]}
-                        onPress={() => setSelectedFrequency(freq)}
+                        onPress={() => openPlayer({ frequency: freq })}
                       >
                         <Play color="#fff" size={14} fill="#fff" />
                       </TouchableOpacity>
@@ -520,14 +523,6 @@ export default function CategoriesScreen() {
           {activeTab === 'overview' ? renderOverview() : renderLibrary()}
         </View>
       </View>
-
-      {selectedFrequency && (
-        <AudioPlayer
-          frequency={selectedFrequency}
-          visible={!!selectedFrequency}
-          onClose={() => setSelectedFrequency(null)}
-        />
-      )}
 
       {infoFrequency && (
         <FrequencyInfoModal
@@ -918,6 +913,10 @@ const createStyles = (colors: any, isDark: boolean) => StyleSheet.create({
     marginBottom: 12,
     overflow: 'hidden',
     position: 'relative',
+  },
+  freqCardActive: {
+    borderWidth: 1,
+    borderColor: colors.primary,
   },
   freqCardTopBorder: {
     position: 'absolute',

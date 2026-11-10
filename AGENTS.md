@@ -39,6 +39,16 @@ Repository-specific knowledge for the Harmony Frequency mobile app.
   Play price at runtime (`getStoreOfferings`) and falls back to these constants.
   Keep `docs/production-release.md`, `docs/PRODUCT_TO_CONSUMER_FIT_REPORT.md`,
   the Google Play listings and RevenueCat products in sync with `pricing.ts`.
+- **Trial countdown:** use `getTrialDaysLeft(trialEndsAt)` from `lib/pricing.ts`
+  for every "N days left" label. It clamps a running trial to a minimum of 1 day
+  so a user on their last day never sees "0 days left", and 0 once it has ended.
+  Do not recompute this inline (the raw `Math.ceil(...)` form produced "0 days").
+- **Deep links:** `app/+native-intent.tsx` must preserve `?subscription=` return
+  params (and `session_id`) — Google Play returns the user to the app through this
+  link, and stripping the query leaves them on a blank root screen after payment.
+- `app/index.tsx` reads `subscription`/`session_id` from the root URL and routes to
+  `app/subscription-result.tsx`; the result screen only *verifies* via
+  `reconcileSubscription` and never mutates entitlement itself.
 - Entitlement `source` is `'google_play' | 'revenuecat'`.
 - The `handleSubscriptionWebhook` cloud function must verify
   `WEBHOOK_SECRET` / `REVENUECAT_WEBHOOK_SECRET` and **fails closed** (500) when the
