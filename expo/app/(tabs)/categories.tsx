@@ -12,6 +12,8 @@ import {
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useGlobalSearchParams } from 'expo-router';
+import { ResponsiveGrid } from '@/components/ResponsiveGrid';
+import { useResponsive } from '@/lib/ui/responsive';
 import { GlassCard as SharedGlassCard } from '@/components/GlassCard';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Zap, Brain, Sparkles, Eye, Grid, List, Info, Play, Search, X, Crown, SlidersHorizontal } from 'lucide-react-native';
@@ -45,6 +47,7 @@ export default function CategoriesScreen() {
   const insets = useSafeAreaInsets();
   const { colors, gradients, isDark } = useTheme();
   const styles = useMemo(() => createStyles(colors, isDark), [colors, isDark]);
+  const { contentWidth, isTablet } = useResponsive();
   const [activeTab, setActiveTab] = useState<TabType>('overview');
   const [selectedCategory, setSelectedCategory] = useState<CategoryType>('all');
   const [infoModalVisible, setInfoModalVisible] = useState(false);
@@ -216,7 +219,10 @@ export default function CategoriesScreen() {
           </GlassCard>
         </View>
 
-        <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
+        <ScrollView
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={[styles.scrollContent, { maxWidth: contentWidth, width: '100%', alignSelf: 'center' }]}
+        >
           {filtered.length === 0 ? (
             <View style={styles.emptyState}>
               <Search color={colors.textMuted} size={36} />
@@ -224,12 +230,15 @@ export default function CategoriesScreen() {
               <Text style={[styles.emptyStateSubtext, { color: colors.textMuted }]}>Try a different search term</Text>
             </View>
           ) : (
-            filtered.map((cat) => {
-              const IconComp = cat.icon;
-              const cc = CATEGORY_COLORS[cat.colorKey];
-              return (
-                <TouchableOpacity key={cat.id} activeOpacity={0.85} onPress={() => handleCategorySelect(cat.id)}>
-                  <GlassCard style={styles.catCard} depth="normal">
+            <ResponsiveGrid
+              items={filtered}
+              keyExtractor={(cat: any) => cat.id}
+              renderItem={(cat: any) => {
+                const IconComp = cat.icon;
+                const cc = CATEGORY_COLORS[cat.colorKey];
+                return (
+                  <TouchableOpacity activeOpacity={0.85} onPress={() => handleCategorySelect(cat.id)}>
+                    <GlassCard style={styles.catCard} depth="normal">
                     <View style={[styles.catCardTopBorder, { backgroundColor: cc.primary, opacity: 0.5 }]} />
 
                     <View style={styles.catCardHeader}>
@@ -277,10 +286,11 @@ export default function CategoriesScreen() {
                       <IconComp color={cc.primary} size={14} />
                       <Text style={[styles.catSelectBtnText, { color: cc.primary }]}>Explore {cat.name}</Text>
                     </TouchableOpacity>
-                  </GlassCard>
-                </TouchableOpacity>
-              );
-            })
+                    </GlassCard>
+                  </TouchableOpacity>
+                );
+              }}
+            />
           )}
         </ScrollView>
       </View>
@@ -493,7 +503,7 @@ export default function CategoriesScreen() {
 
         {/* Tab Bar — Overview | Library */}
         <View style={styles.tabBarWrapper}>
-          <View style={styles.tabBar}>
+          <View style={[styles.tabBar, isTablet && styles.tabBarTablet]}>
             <TouchableOpacity
               style={[styles.tab, activeTab === 'overview' && styles.tabActive]}
               onPress={() => switchTab('overview')}
@@ -619,6 +629,7 @@ const createStyles = (colors: any, isDark: boolean) => StyleSheet.create({
     paddingHorizontal: 22,
     marginBottom: 4,
   },
+  tabBarTablet: { maxWidth: 420, width: '100%', alignSelf: 'center' },
   tabBar: {
     flexDirection: 'row',
     borderRadius: 16,

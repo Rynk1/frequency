@@ -12,6 +12,7 @@ import {
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { GlassCard as SharedGlassCard } from '@/components/GlassCard';
+import { useResponsive } from '@/lib/ui/responsive';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useSessionManager } from '@/hooks/useSessionManager';
 import { useAuth } from '@/hooks/useAuth';
@@ -95,6 +96,7 @@ const GlassCard = SharedGlassCard;
 export default function CreateSessionModal({ visible, onClose, onCreateSession }: CreateSessionModalProps) {
   const insets = useSafeAreaInsets();
   const { colors, gradients, isDark } = useTheme();
+  const { contentWidth } = useResponsive();
   const { user, capabilities } = useAuth();
   const { frequencies, curatedPrograms } = useBackendData();
   const { createReminder, requestNotificationPermission } = useSessionManager();
@@ -343,7 +345,7 @@ export default function CreateSessionModal({ visible, onClose, onCreateSession }
             </TouchableOpacity>
           </View>
 
-          <ScrollView showsVerticalScrollIndicator={false} style={styles.scrollView} contentContainerStyle={styles.scrollContent}>
+          <ScrollView showsVerticalScrollIndicator={false} style={styles.scrollView} contentContainerStyle={[styles.scrollContent, { maxWidth: contentWidth, width: '100%', alignSelf: 'center' }]}>
 
             {step === 1 && (
               <>

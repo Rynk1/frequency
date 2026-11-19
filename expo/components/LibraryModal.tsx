@@ -28,6 +28,7 @@ import { useUsageAnalytics } from '@/hooks/useUsageAnalytics';
 import { summarizeUsage } from '@/lib/analytics';
 import { PremiumGate } from './PremiumGate';
 import { GlassCard } from './GlassCard';
+import { useResponsive } from '@/lib/ui/responsive';
 import { router } from 'expo-router';
 
 type LibrarySection = 'favorites' | 'history' | 'listening' | 'bookmarks';
@@ -48,6 +49,7 @@ const sections: { id: LibrarySection; label: string }[] = [
 export const LibraryModal: React.FC<LibraryModalProps> = ({ visible, initialSection, onClose }) => {
   const { colors, gradients, isDark } = useTheme();
   const styles = createStyles(colors, isDark);
+  const { contentWidth } = useResponsive();
   const { user, userProfile, isPremium, isTrialActive } = useAuth();
   const { favorites } = useFavorites();
   const { progress } = useLearningContent();
@@ -82,7 +84,7 @@ export const LibraryModal: React.FC<LibraryModalProps> = ({ visible, initialSect
       <Modal visible={visible} animationType="slide" presentationStyle="pageSheet" onRequestClose={onClose}>
         <View style={styles.container}>
           <LinearGradient colors={gradients.bg} style={StyleSheet.absoluteFill} pointerEvents="none" />
-          <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+          <ScrollView contentContainerStyle={[styles.content, { maxWidth: contentWidth, width: '100%', alignSelf: 'center' }]} showsVerticalScrollIndicator={false}>
             <View style={styles.header}>
               <View>
                 <Text style={styles.eyebrow}>PERSONAL LIBRARY</Text>

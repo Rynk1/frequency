@@ -47,6 +47,7 @@ import { useTheme } from '@/hooks/useTheme';
 import { usePlayer } from '@/lib/player/PlayerContext';
 import { clampResumePosition, isResumeUsable } from '@/lib/audio/playback-history';
 import { globalAudioEngine } from '@/lib/audio/FrequencyAudioEngine';
+import { useResponsive } from '@/lib/ui/responsive';
 import { FrequencyVisualizer } from './FrequencyVisualizer';
 import { Share } from 'react-native';
 import { DEFAULT_PREMIUM_POLICY } from '@/lib/subscription-service';
@@ -92,6 +93,7 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({
   isSessionMode = false,
 }) => {
   const { width, height } = useWindowDimensions();
+  const { isTablet, contentWidth } = useResponsive();
   const [duration, setDuration] = useState<number>(15); // minutes
   const [timeLeft, setTimeLeft] = useState<number>(duration * 60); // seconds
   const [isTimerActive, setIsTimerActive] = useState<boolean>(false);
@@ -809,6 +811,9 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({
         <Animated.View
           style={[
             styles.container,
+            // On a tablet a full-bleed phone sheet wastes the display and makes
+            // controls sit far apart; present it as a centred panel instead.
+            isTablet && styles.containerTablet,
             {
               transform: [
                 { translateY: slideAnim },
@@ -823,7 +828,7 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({
           >
               <ScrollView
                 style={styles.scrollView}
-                contentContainerStyle={[styles.content, { paddingTop: insets.top + 8, paddingBottom: insets.bottom + 16 }]}
+                contentContainerStyle={[styles.content, { paddingTop: insets.top + 8, paddingBottom: insets.bottom + 16, maxWidth: contentWidth, width: '100%', alignSelf: 'center' }]}
                 showsVerticalScrollIndicator={false}
               >
                 {/* Header */}
@@ -1396,6 +1401,12 @@ const createStyles = (colors: any, gradients: any, isDark: boolean, width: numbe
     height: height,
     borderRadius: 0,
     overflow: 'hidden',
+  },
+  containerTablet: {
+    width: '100%',
+    maxWidth: 620,
+    alignSelf: 'center',
+    borderRadius: 28,
   },
   gradient: {
     flex: 1,

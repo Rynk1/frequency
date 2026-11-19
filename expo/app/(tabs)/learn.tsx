@@ -45,6 +45,7 @@ import {
   SCIENTIFIC_FREQUENCIES,
 } from '@/constants/frequencies';
 import { useTheme } from '@/hooks/useTheme';
+import { useResponsive } from '@/lib/ui/responsive';
 import { useGlobalSearchParams } from 'expo-router';
 
 interface Article {
@@ -276,6 +277,7 @@ export default function LearnScreen() {
   const params = useGlobalSearchParams<{ articleId?: string }>();
   const insets = useSafeAreaInsets();
   const { colors, gradients, isDark } = useTheme();
+  const { contentWidth } = useResponsive();
   const { articles: rawArticles } = useLearningArticles();
 
   const articles = useMemo(() => {
@@ -393,7 +395,7 @@ export default function LearnScreen() {
       <ScrollView
         style={styles.scroll}
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={[styles.scrollContent, { paddingTop: insets.top }]}
+        contentContainerStyle={[styles.scrollContent, { paddingTop: insets.top, maxWidth: contentWidth, width: '100%', alignSelf: 'center' }]}
         keyboardShouldPersistTaps="handled"
       >
         {/* Header */}

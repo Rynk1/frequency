@@ -14,6 +14,7 @@ import { useUsageAnalytics } from '@/hooks/useUsageAnalytics';
 import { AnalyticsPeriod, summarizeUsage, UsageEvent } from '@/lib/analytics';
 import { useTheme } from '@/hooks/useTheme';
 import { GlassCard } from './GlassCard';
+import { useResponsive } from '@/lib/ui/responsive';
 import { PremiumGate } from './PremiumGate';
 
 interface UsageAnalyticsModalProps {
@@ -30,6 +31,7 @@ const PERIODS: { id: AnalyticsPeriod; label: string }[] = [
 export const UsageAnalyticsModal: React.FC<UsageAnalyticsModalProps> = ({ visible, onClose }) => {
   const { colors, gradients, isDark } = useTheme();
   const styles = createStyles(colors, isDark);
+  const { contentWidth } = useResponsive();
   const { user, isPremium, isTrialActive } = useAuth();
   const [period, setPeriod] = useState<AnalyticsPeriod>('day');
   const [showPremiumGate, setShowPremiumGate] = useState(false);
@@ -54,7 +56,7 @@ export const UsageAnalyticsModal: React.FC<UsageAnalyticsModalProps> = ({ visibl
       <Modal visible={visible} animationType="slide" presentationStyle="pageSheet" onRequestClose={onClose}>
         <View style={styles.container}>
           <LinearGradient colors={gradients.bg} style={StyleSheet.absoluteFill} pointerEvents="none" />
-          <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+          <ScrollView contentContainerStyle={[styles.content, { maxWidth: contentWidth, width: '100%', alignSelf: 'center' }]} showsVerticalScrollIndicator={false}>
             <View style={styles.header}>
               <View>
                 <Text style={styles.eyebrow}>Personal resonance</Text>
