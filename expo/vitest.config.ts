@@ -5,6 +5,10 @@ export default defineConfig({
     environment: 'node',
     globals: true,
   },
+  // React Native modules read the global __DEV__ flag at import time.
+  define: {
+    __DEV__: 'true',
+  },
   resolve: {
     alias: {
       'react-native': 'react-native-web',

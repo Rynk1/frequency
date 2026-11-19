@@ -19,7 +19,7 @@ const TAB_BAR_HEIGHT = Platform.OS === 'ios' ? 88 : 72;
  */
 export const NowPlayingBar: React.FC = () => {
   const { isMinimized, currentTrack, expand, stopAndClose } = usePlayer();
-  const { isPlaying, currentName, currentFrequency, stopFrequency } = useAudioPlayer();
+  const { isPlaying, isPaused, currentName, currentFrequency, pauseFrequency, resumeFrequency } = useAudioPlayer();
   const { colors, isDark } = useTheme();
   const insets = useSafeAreaInsets();
 
@@ -53,17 +53,17 @@ export const NowPlayingBar: React.FC = () => {
         <View style={styles.copy}>
           <Text style={styles.title} numberOfLines={1}>{label}</Text>
           <Text style={styles.subtitle} numberOfLines={1}>
-            {isPlaying ? 'Playing' : 'Paused'} · {Math.round(hz)} Hz
+            {isPlaying && !isPaused ? 'Playing' : 'Paused'} · {Math.round(hz)} Hz
           </Text>
         </View>
 
         <TouchableOpacity
           style={styles.control}
-          onPress={() => { if (isPlaying) stopFrequency(); else expand(); }}
+          onPress={() => { if (isPlaying && !isPaused) pauseFrequency(); else resumeFrequency(); }}
           accessibilityRole="button"
-          accessibilityLabel={isPlaying ? 'Pause' : 'Resume in player'}
+          accessibilityLabel={isPlaying && !isPaused ? 'Pause' : 'Resume'}
         >
-          {isPlaying ? (
+          {isPlaying && !isPaused ? (
             <Pause color={colors.textPrimary} size={20} fill={colors.textPrimary} />
           ) : (
             <Play color={colors.textPrimary} size={20} fill={colors.textPrimary} />

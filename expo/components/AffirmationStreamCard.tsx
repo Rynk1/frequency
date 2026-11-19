@@ -15,7 +15,6 @@ import {
   VolumeX,
   Sparkles,
   RefreshCw,
-  XCircle,
   Sliders,
   Mic,
   Plus,
@@ -238,18 +237,6 @@ export const AffirmationStreamCard: React.FC<AffirmationStreamCardProps> = ({
             Affirmation Stream
           </Text>
         </View>
-
-        {mode !== 'off' && (
-          <TouchableOpacity
-            style={styles.disableButton}
-            onPress={() => onModeChange('off')}
-            accessibilityRole="button"
-            accessibilityLabel="Turn off affirmations"
-          >
-            <XCircle color={colors.textMuted} size={16} />
-            <Text style={[styles.disableText, { color: colors.textMuted }]}>Off</Text>
-          </TouchableOpacity>
-        )}
       </View>
 
       {/* Mode Segmented Selector */}
@@ -601,17 +588,6 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '700',
     letterSpacing: 0.3,
-  },
-  disableButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-  },
-  disableText: {
-    fontSize: 12,
-    fontWeight: '500',
   },
   sourceTypeRow: {
     flexDirection: 'row',

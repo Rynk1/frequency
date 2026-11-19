@@ -9,7 +9,13 @@ import { FrequencyAudioSpec } from '../AudioTypes';
 import { SignalGenerator } from '../SignalGenerator';
 
 export class NativeAudioRenderer {
-  private sound: { stopAsync: () => Promise<unknown>; unloadAsync: () => Promise<unknown>; setVolumeAsync: (volume: number) => Promise<unknown> } | null = null;
+  private sound: {
+    stopAsync: () => Promise<unknown>;
+    playAsync: () => Promise<unknown>;
+    pauseAsync: () => Promise<unknown>;
+    unloadAsync: () => Promise<unknown>;
+    setVolumeAsync: (volume: number) => Promise<unknown>;
+  } | null = null;
   private isLoaded: boolean = false;
   private cacheMap: Map<string, string> = new Map();
   private staysActiveInBackground: boolean = false;
@@ -92,6 +98,28 @@ export class NativeAudioRenderer {
         await this.sound.setVolumeAsync(safeVolume);
       } catch (err) {
         console.warn('Error setting volume:', err);
+      }
+    }
+  }
+
+  /** Holds the loaded sound at its current position. */
+  async pause(): Promise<void> {
+    if (this.sound && this.isLoaded) {
+      try {
+        await this.sound.pauseAsync();
+      } catch (err) {
+        console.warn('Error pausing audio:', err);
+      }
+    }
+  }
+
+  /** Resumes a sound held by `pause()` without reloading the tone file. */
+  async resume(): Promise<void> {
+    if (this.sound && this.isLoaded) {
+      try {
+        await this.sound.playAsync();
+      } catch (err) {
+        console.warn('Error resuming audio:', err);
       }
     }
   }

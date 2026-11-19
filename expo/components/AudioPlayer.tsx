@@ -23,8 +23,7 @@ import {
   Volume2,
   VolumeX,
   ChevronDown,
-  Repeat,
-  Shuffle,
+  Maximize2,
   Heart,
   Share2,
   MoreVertical,
@@ -48,7 +47,9 @@ import { usePlayer } from '@/lib/player/PlayerContext';
 import { clampResumePosition, isResumeUsable } from '@/lib/audio/playback-history';
 import { globalAudioEngine } from '@/lib/audio/FrequencyAudioEngine';
 import { useResponsive } from '@/lib/ui/responsive';
-import { FrequencyVisualizer } from './FrequencyVisualizer';
+import { useReducedMotion } from '@/hooks/useReducedMotion';
+import { PlayerVisualizer, VISUALIZER_LABELS, VisualizerStyle, nextVisualizerStyle } from './PlayerVisualizer';
+import { ImmersiveStage } from './ImmersiveStage';
 import { Share } from 'react-native';
 import { DEFAULT_PREMIUM_POLICY } from '@/lib/subscription-service';
 import { PremiumModal, PremiumTrigger } from './PremiumModal';
@@ -59,9 +60,10 @@ import { Affirmation, AffirmationMode } from '@/types/affirmation';
 
 
 // Pre-computed deterministic waveform bar heights — avoids Math.random() in render.
-const WAVEFORM_BAR_HEIGHTS = Array.from({ length: 40 }, (_, i) =>
-  10 + ((i * 73) % 30)
-);
+// Visualiser stage height. Tall enough for the wave crests to breathe without
+// pushing the transport controls below the fold on a small phone.
+const VISUALIZER_HEIGHT = 190;
+
 
 interface Frequency {
   hz: number;
@@ -94,6 +96,10 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({
 }) => {
   const { width, height } = useWindowDimensions();
   const { isTablet, contentWidth } = useResponsive();
+  const reducedMotion = useReducedMotion();
+  // The visualiser is drawn as SVG, so it needs an exact pixel width rather
+  // than flex sizing; mirror the content cap so it never overflows a tablet.
+  const visualizerWidth = Math.min(width, contentWidth) - 4;
   const [duration, setDuration] = useState<number>(15); // minutes
   const [timeLeft, setTimeLeft] = useState<number>(duration * 60); // seconds
   const [isTimerActive, setIsTimerActive] = useState<boolean>(false);
@@ -101,14 +107,12 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({
   const [playerVolumeOverride, setPlayerVolumeOverride] = useState<number | null>(null);
   const [slideAnim] = useState(new Animated.Value(height));
   const [isMuted, setIsMuted] = useState<boolean>(false);
-  const [isRepeat, setIsRepeat] = useState<boolean>(false);
-  const [isShuffle, setIsShuffle] = useState<boolean>(false);
   const [isFavorite, setIsFavorite] = useState<boolean>(false);
-  const [visualizerMode, setVisualizerMode] = useState<'waves' | 'bars' | 'circle'>('waves');
+  const [visualizerStyle, setVisualizerStyle] = useState<VisualizerStyle>('wave');
+  const [isImmersive, setIsImmersive] = useState<boolean>(false);
   const [showInfo, setShowInfo] = useState<boolean>(false);
   const [showSettings, setShowSettings] = useState<boolean>(false);
   const [showPlaylist, setShowPlaylist] = useState<boolean>(false);
-  const [showDurationPicker, setShowDurationPicker] = useState<boolean>(false);
   const [showTimerSettings, setShowTimerSettings] = useState<boolean>(false);
   const [showMoreMenu, setShowMoreMenu] = useState<boolean>(false);
   const [showStats, setShowStats] = useState<boolean>(false);
@@ -124,7 +128,6 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({
   // Animation values
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const scaleAnim = useRef(new Animated.Value(0.9)).current;
-  const rotateAnim = useRef(new Animated.Value(0)).current;
   const pulseAnim = useRef(new Animated.Value(1)).current;
   const progressAnim = useRef(new Animated.Value(0)).current;
   const volumeSlideAnim = useRef(new Animated.Value(0)).current;
@@ -146,7 +149,7 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({
   const resumeCheckedRef = useRef<string>('');
   const persistedResumeRef = useRef<string>('');
 
-  const { isPlaying, currentFrequency, playFrequency, stopFrequency, setVolume: setAudioVolume } = useAudioPlayer();
+  const { isPlaying, isPaused, currentFrequency, playFrequency, stopFrequency, pauseFrequency, resumeFrequency, setVolume: setAudioVolume } = useAudioPlayer();
   const { resumeFor, saveResume, recordPlay, history } = usePlayer();
   const { isPremium, capabilities, trackUsage } = useAuth();
   const { attemptStartSession } = usePremiumUsage();
@@ -295,17 +298,25 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({
   ).current;
 
   // Progress slider pan responder
+  // The scrubber is a *remaining-time* control, not an audio seek: a tone has no
+  // timeline to jump within. It therefore needs its own measured width, since
+  // the track is centred inside a max-width column on tablets.
+  const scrubWidthRef = useRef(0);
+  const seekToTouch = useCallback(
+    (locationX: number) => {
+      if (isSessionMode || isPreviewActive || scrubWidthRef.current <= 0) return;
+      const ratio = Math.max(0, Math.min(1, locationX / scrubWidthRef.current));
+      setTimeLeft(Math.round((1 - ratio) * duration * 60));
+    },
+    [isSessionMode, isPreviewActive, duration]
+  );
+
   const progressPanResponder = useRef(
     PanResponder.create({
       onStartShouldSetPanResponder: () => true,
       onMoveShouldSetPanResponder: () => true,
-      onPanResponderMove: (_, gestureState) => {
-        if (!isSessionMode && !isPreviewActive) {
-          const progress = Math.max(0, Math.min(1, (gestureState.moveX - 40) / (width - 80)));
-          const newTimeLeft = Math.round((1 - progress) * duration * 60);
-          setTimeLeft(newTimeLeft);
-        }
-      },
+      onPanResponderGrant: (evt) => seekToTouch(evt.nativeEvent.locationX),
+      onPanResponderMove: (evt) => seekToTouch(evt.nativeEvent.locationX),
     })
   ).current;
 
@@ -374,30 +385,15 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({
     }
   }, [isPlaying]);
 
-  useEffect(() => {
-    if (isPlaying) {
-      Animated.loop(
-        Animated.timing(rotateAnim, {
-          toValue: 1,
-          duration: 10000,
-          easing: Easing.linear,
-          useNativeDriver: true,
-        })
-      ).start();
-    } else {
-      rotateAnim.setValue(0);
-    }
-  }, [isPlaying]);
-
   // Single unified tick
   const tickStateRef = useRef({
-    isTimerActive, isSessionActive, isSessionMode, isPlaying,
+    isTimerActive, isSessionActive, isSessionMode, isPlaying, isPaused,
     timeLeft, sessionTimeLeft, fadeOutEnabled, autoRepeat, isPremium,
     duration, currentFrequencyIndex, sessionFrequencies, effectiveVolume,
     isPreviewActive, autoStopEnabled: settings.autoStop,
   });
   tickStateRef.current = {
-    isTimerActive, isSessionActive, isSessionMode, isPlaying,
+    isTimerActive, isSessionActive, isSessionMode, isPlaying, isPaused,
     timeLeft, sessionTimeLeft, fadeOutEnabled, autoRepeat, isPremium,
     duration, currentFrequencyIndex, sessionFrequencies, effectiveVolume,
     isPreviewActive, autoStopEnabled: settings.autoStop,
@@ -420,13 +416,13 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({
   // Unified single-second tick effect
   useEffect(() => {
     const s = tickStateRef.current;
-    const shouldTick = s.isPlaying && ((s.isSessionMode && s.isSessionActive && s.sessionTimeLeft > 0) || (!s.isSessionMode && s.isTimerActive && s.timeLeft > 0));
+    const shouldTick = s.isPlaying && !s.isPaused && ((s.isSessionMode && s.isSessionActive && s.sessionTimeLeft > 0) || (!s.isSessionMode && s.isTimerActive && s.timeLeft > 0));
     if (!shouldTick) return;
 
     tickRaf.current = setInterval(() => {
       const st = tickStateRef.current;
       // Track real listening time (excluding previews) for the play history.
-      if (st.isPlaying && !st.isPreviewActive) {
+      if (st.isPlaying && !st.isPaused && !st.isPreviewActive) {
         trackListeningTick();
       }
       if (st.isSessionMode && st.isSessionActive) {
@@ -456,13 +452,31 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({
           if (newTime <= 0) {
             setIsSessionActive(false);
             setSessionProgress(100);
-            if (st.autoStopEnabled) stopFrequency();
             const totalMinutes = st.sessionFrequencies.reduce((sum, f) => sum + f.duration, 0);
             if (sessionId && onSessionComplete) {
               onSessionComplete(sessionId, totalMinutes * 60).catch(() => {});
             } else {
               trackUsage(totalMinutes, st.sessionFrequencies[st.currentFrequencyIndex]?.name || 'session').catch(() => {});
             }
+
+            if (st.autoRepeat) {
+              // Restart the same session from the top without re-asking the user.
+              setCurrentFrequencyIndex(0);
+              setSessionProgress(0);
+              setTimeout(() => {
+                const first = st.sessionFrequencies[0];
+                if (!first) return;
+                const firstCat = String(first?.category || '').toLowerCase();
+                const firstLocked =
+                  (first?.isPremium || firstCat === 'chakra' || firstCat === 'binaural') &&
+                  !capabilities?.premiumFrequencies;
+                playFrequency(first, first.name, firstLocked ? 'preview' : 'full');
+                setIsSessionActive(true);
+              }, 400);
+              return totalDuration;
+            }
+
+            if (st.autoStopEnabled) stopFrequency();
             return 0;
           }
           return newTime;
@@ -476,6 +490,15 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({
           }
           if (prev <= 1) {
             setIsTimerActive(false);
+            if (st.autoRepeat && !st.isPreviewActive && frequency) {
+              // Loop the same tone: keep playing and simply reset the countdown.
+              if (!st.autoStopEnabled) {
+                setAudioVolume(st.effectiveVolume);
+              }
+              setTimeLeft(st.duration * 60);
+              setIsTimerActive(true);
+              return st.duration * 60;
+            }
             if (st.autoStopEnabled) stopFrequency();
             if (st.isPreviewActive) {
               // Preview complete! Present post-preview conversion modal
@@ -498,7 +521,7 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({
         tickRaf.current = null;
       }
     };
-  }, [isPlaying, isTimerActive, isSessionActive, isSessionMode, onSessionComplete, sessionId, trackUsage, trackListeningTick, frequency]);
+  }, [isPlaying, isPaused, isTimerActive, isSessionActive, isSessionMode, onSessionComplete, sessionId, trackUsage, trackListeningTick, frequency]);
 
   useEffect(() => {
     if (!isPreviewActive) {
@@ -576,6 +599,11 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({
    * session length. The gate runs before any audio starts so an exhausted
    * allowance cannot be bypassed by pressing play repeatedly.
    */
+  const isTrackLoaded = isSessionMode
+    ? isPlaying && isSessionActive
+    : isPlaying && currentFrequency === frequency?.hz;
+  const isCurrentlyPlaying = isTrackLoaded && !isPaused;
+
   const handlePlayPause = useCallback(async () => {
     // Layer 2 Authorization Check
     const targetFreq = isSessionMode ? sessionFrequencies[currentFrequencyIndex] : frequency;
@@ -583,6 +611,13 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({
     const isFreqLocked = targetFreq?.isPremium || targetCategory === 'chakra' || targetCategory === 'binaural';
     const isLockedForUser = isFreqLocked && !capabilities?.premiumFrequencies;
     const playbackMode: 'full' | 'preview' = (isLockedForUser || isPreviewActive) ? 'preview' : 'full';
+
+    // A paused track is still loaded, so the button must resume it rather than
+    // restart the authorisation, preview and timer setup below.
+    if (isTrackLoaded && isPaused) {
+      await resumeFrequency();
+      return;
+    }
 
     const isStarting = isSessionMode
       ? !(isPlaying && isSessionActive)
@@ -610,8 +645,7 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({
 
     if (isSessionMode) {
       if (isPlaying && isSessionActive) {
-        stopFrequency();
-        setIsSessionActive(false);
+        await pauseFrequency();
       } else {
         const currentFreq = sessionFrequencies[currentFrequencyIndex];
         if (currentFreq && sessionTimeLeft > 0) {
@@ -634,8 +668,7 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({
       }
     } else {
       if (isPlaying && currentFrequency === frequency?.hz) {
-        stopFrequency();
-        setIsTimerActive(false);
+        await pauseFrequency();
       } else {
         if (frequency) {
           if (isLockedForUser) {
@@ -650,7 +683,7 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({
         }
       }
     }
-  }, [isSessionMode, isPlaying, isSessionActive, sessionFrequencies, currentFrequencyIndex, frequency, sessionTimeLeft, timeLeft, playFrequency, stopFrequency, currentFrequency, capabilities, isPreviewActive, attemptStartSession, isPremium, maxFreeDuration]);
+  }, [isSessionMode, isPlaying, isPaused, isTrackLoaded, isSessionActive, sessionFrequencies, currentFrequencyIndex, frequency, sessionTimeLeft, timeLeft, playFrequency, stopFrequency, pauseFrequency, resumeFrequency, currentFrequency, capabilities, isPreviewActive, attemptStartSession, isPremium, maxFreeDuration]);
 
   const handleSkipNext = useCallback(() => {
     if (isSessionMode && currentFrequencyIndex < sessionFrequencies.length - 1) {
@@ -697,20 +730,8 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({
     setIsMuted(prev => !prev);
   }, []);
 
-  const toggleRepeat = useCallback(() => {
-    setIsRepeat(prev => !prev);
-  }, []);
-
-  const toggleShuffle = useCallback(() => {
-    setIsShuffle(prev => !prev);
-  }, []);
-
-  const cycleVisualizerMode = useCallback(() => {
-    setVisualizerMode(prev => {
-      if (prev === 'waves') return 'bars';
-      if (prev === 'bars') return 'circle';
-      return 'waves';
-    });
+  const cycleVisualizerStyle = useCallback(() => {
+    setVisualizerStyle(nextVisualizerStyle);
   }, []);
 
   const openPremiumFeature = useCallback((trigger: PremiumTrigger) => {
@@ -724,18 +745,13 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({
     setShowInfo(false);
     setShowSettings(false);
     setShowPlaylist(false);
-    setShowDurationPicker(false);
     setShowTimerSettings(false);
     setShowStats(false);
   }, []);
 
-  const showPanel = showMoreMenu || showInfo || showSettings || showPlaylist || showDurationPicker || showTimerSettings || showStats;
+  const showPanel = showMoreMenu || showInfo || showSettings || showPlaylist || showTimerSettings || showStats;
 
   const progress = isSessionMode ? sessionProgress : ((duration * 60 - timeLeft) / (duration * 60)) * 100;
-  const isCurrentlyPlaying = isSessionMode ?
-    (isPlaying && isSessionActive) :
-    (isPlaying && currentFrequency === frequency?.hz);
-
   const displayFrequency = isSessionMode && sessionFrequencies.length > 0 ?
     sessionFrequencies[currentFrequencyIndex] : frequency;
 
@@ -769,29 +785,20 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({
     return Wrapped;
   }, [styles]);
 
-  const renderVisualizer = () => {
-    const spin = rotateAnim.interpolate({
-      inputRange: [0, 1],
-      outputRange: ['0deg', '360deg'],
-    });
-
-    return (
-      <Animated.View
-        style={[
-          styles.visualizerWrapper,
-          visualizerMode === 'circle' && {
-            transform: [{ rotate: spin }],
-          },
-        ]}
-      >
-        <FrequencyVisualizer
-          frequency={currentFrequency || displayFrequency?.hz || 0}
-          isPlaying={isCurrentlyPlaying}
-          color={isCurrentlyPlaying ? colors.accent : colors.primary}
-        />
-      </Animated.View>
-    );
-  };
+  const renderVisualizer = () => (
+    <View style={styles.visualizerWrapper}>
+      <PlayerVisualizer
+        style={visualizerStyle}
+        hz={currentFrequency || displayFrequency?.hz || 0}
+        isPlaying={isCurrentlyPlaying}
+        width={visualizerWidth}
+        height={VISUALIZER_HEIGHT}
+        color={colors.primary}
+        accent={isCurrentlyPlaying ? colors.accent : colors.primary}
+        reducedMotion={reducedMotion}
+      />
+    </View>
+  );
 
   return (
     <Modal
@@ -875,8 +882,10 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({
                   ) : (
                   <TouchableOpacity
                     style={styles.visualizerContainer}
-                    onPress={cycleVisualizerMode}
+                    onPress={() => setIsImmersive(true)}
                     activeOpacity={0.9}
+                    accessibilityRole="button"
+                    accessibilityLabel="Open full screen visual"
                   >
                     <LinearGradient
                       colors={[colors.primary + '26', colors.glowSoft, colors.bgTertiary + 'CC'] as const}
@@ -901,38 +910,16 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({
                     </View>
                   </TouchableOpacity>
                   )}
-
-                  {/* Waveform Indicator */}
-                  <View style={styles.waveformContainer} pointerEvents="none">
-                    {WAVEFORM_BAR_HEIGHTS.map((h, i) => (
-                      <View
-                        key={i}
-                        style={[
-                          styles.waveformBar,
-                          { height: isCurrentlyPlaying ? h : 5, backgroundColor: isCurrentlyPlaying ? colors.primary : colors.textMuted },
-                        ]}
-                      />
-                    ))}
-                  </View>
                 </GlassCard>
 
-                {/* Track Info */}
+                {/* Track Info — the visualiser already shows the name and Hz,
+                    so this row carries only the context it cannot show. */}
                 <View style={styles.trackInfo}>
                   <View style={styles.trackDetails}>
-                    <Text style={styles.trackTitle}>{displayFrequency?.name || 'No Frequency'}</Text>
                     <Text style={styles.trackSubtitle}>
-                      {isSessionMode ? (
-                        <>
-                          <Text>Session: {sessionName} • Track {currentFrequencyIndex + 1}/{sessionFrequencies.length}</Text>
-                          {sessionFrequencies[currentFrequencyIndex] && (
-                            <Text style={styles.frequencyDuration}>
-                              {' • '}{sessionFrequencies[currentFrequencyIndex].duration}min allocated
-                            </Text>
-                          )}
-                        </>
-                      ) : (
-                        `${displayFrequency?.category || 'Healing'} • ${displayFrequency?.hz || 0} Hz`
-                      )}
+                      {isSessionMode
+                        ? `Track ${currentFrequencyIndex + 1} of ${sessionFrequencies.length}`
+                        : displayFrequency?.category || 'Healing'}
                     </Text>
                   </View>
                   <View style={styles.trackActions}>
@@ -996,7 +983,18 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({
                     </View>
                   )}
 
-                  <View style={styles.progressContainer} {...progressPanResponder.panHandlers}>
+                  <View
+                    style={styles.progressContainer}
+                    {...progressPanResponder.panHandlers}
+                    onLayout={(e) => {
+                      scrubWidthRef.current = e.nativeEvent.layout.width;
+                    }}
+                    accessibilityRole="adjustable"
+                    accessibilityLabel="Session length"
+                    accessibilityValue={{
+                      text: `${formatTime(displayTimeLeft)} remaining`,
+                    }}
+                  >
                     <View style={styles.progressTrack}>
                       <LinearGradient
                         colors={[colors.primary, colors.primaryDark] as const}
@@ -1079,20 +1077,30 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({
                 <View style={styles.mainControls}>
                   <TouchableOpacity
                     style={styles.secondaryControl}
-                    onPress={toggleRepeat}
+                    onPress={() => setIsImmersive(true)}
                     accessibilityRole="button"
-                    accessibilityLabel="Toggle repeat"
+                    accessibilityLabel="Open full screen"
+                    accessibilityHint="Hides all controls and shows only the visual"
                   >
-                    <Repeat color={isRepeat ? colors.primary : colors.textMuted} size={20} />
+                    <Maximize2 color={colors.textPrimary} size={20} />
                   </TouchableOpacity>
 
-                  <TouchableOpacity
-                    style={styles.controlButton}
-                    onPress={handleSkipPrevious}
-                    disabled={!isSessionMode || currentFrequencyIndex === 0}
-                  >
-                    <SkipBack color={isSessionMode && currentFrequencyIndex > 0 ? colors.textPrimary : colors.textMuted} size={24} />
-                  </TouchableOpacity>
+                  {/* Track skip only exists inside a multi-track session; in
+                      single-tone mode these buttons had nothing to act on. */}
+                  {isSessionMode && (
+                    <TouchableOpacity
+                      style={styles.controlButton}
+                      onPress={handleSkipPrevious}
+                      disabled={currentFrequencyIndex === 0}
+                      accessibilityRole="button"
+                      accessibilityLabel="Previous track"
+                    >
+                      <SkipBack
+                        color={currentFrequencyIndex > 0 ? colors.textPrimary : colors.textMuted}
+                        size={24}
+                      />
+                    </TouchableOpacity>
+                  )}
 
                   <TouchableOpacity
                     style={styles.playButton}
@@ -1114,13 +1122,24 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({
                     </LinearGradient>
                   </TouchableOpacity>
 
-                  <TouchableOpacity
-                    style={styles.controlButton}
-                    onPress={handleSkipNext}
-                    disabled={!isSessionMode || currentFrequencyIndex === sessionFrequencies.length - 1}
-                  >
-                    <SkipForward color={isSessionMode && currentFrequencyIndex < sessionFrequencies.length - 1 ? colors.textPrimary : colors.textMuted} size={24} />
-                  </TouchableOpacity>
+                  {isSessionMode && (
+                    <TouchableOpacity
+                      style={styles.controlButton}
+                      onPress={handleSkipNext}
+                      disabled={currentFrequencyIndex === sessionFrequencies.length - 1}
+                      accessibilityRole="button"
+                      accessibilityLabel="Next track"
+                    >
+                      <SkipForward
+                        color={
+                          currentFrequencyIndex < sessionFrequencies.length - 1
+                            ? colors.textPrimary
+                            : colors.textMuted
+                        }
+                        size={24}
+                      />
+                    </TouchableOpacity>
+                  )}
 
                   <TouchableOpacity
                     style={[styles.secondaryControl, showVolumeSlider && styles.secondaryControlActive]}
@@ -1156,19 +1175,6 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({
                     <Text style={styles.durationTitle}>
                       {isSessionMode ? 'Session Duration (Smart Allocated)' : 'Session Duration'}
                     </Text>
-                    <TouchableOpacity
-                      style={styles.customDurationButton}
-                      onPress={() => {
-                        if (!isPremium) {
-                          openPremiumFeature('duration_limit');
-                          return;
-                        }
-                        setShowDurationPicker(true);
-                      }}
-                    >
-                      <Timer color={colors.primary} size={16} />
-                      <Text style={styles.customDurationText}>Custom</Text>
-                    </TouchableOpacity>
                   </View>
 
                   <ScrollView
@@ -1233,6 +1239,19 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({
 
               </ScrollView>
             </LinearGradient>
+
+          <ImmersiveStage
+            visible={isImmersive}
+            onClose={() => setIsImmersive(false)}
+            onTogglePlay={handlePlayPause}
+            isPlaying={isCurrentlyPlaying}
+            hz={displayFrequency?.hz || 0}
+            title={displayFrequency?.name || 'No Frequency'}
+            subtitle={isSessionMode ? `${sessionName} · Track ${currentFrequencyIndex + 1}/${sessionFrequencies.length}` : displayFrequency?.category}
+            visualizerStyle={visualizerStyle}
+            onCycleStyle={cycleVisualizerStyle}
+            colors={colors}
+          />
         </Animated.View>
       </Animated.View>
 
@@ -1255,7 +1274,7 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({
                 </TouchableOpacity>
                 <TouchableOpacity style={styles.menuRow} onPress={() => { setShowMoreMenu(false); setShowSettings(true); }}>
                   <Settings color={colors.accent} size={20} />
-                  <View style={styles.menuCopy}><Text style={styles.menuTitle}>Playback settings</Text><Text style={styles.menuSubtitle}>Fade-out, repeat, intensity, and visualizer</Text></View>
+                  <View style={styles.menuCopy}><Text style={styles.menuTitle}>Playback settings</Text><Text style={styles.menuSubtitle}>Repeat and visual style</Text></View>
                 </TouchableOpacity>
                 {isSessionMode && (
                   <TouchableOpacity style={styles.menuRow} onPress={() => { setShowMoreMenu(false); setShowPlaylist(true); }}>
@@ -1265,7 +1284,7 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({
                 )}
                 <TouchableOpacity style={styles.menuRow} onPress={() => { setShowMoreMenu(false); setShowTimerSettings(true); }}>
                   <Timer color={colors.accent} size={20} />
-                  <View style={styles.menuCopy}><Text style={styles.menuTitle}>Timer and fade</Text><Text style={styles.menuSubtitle}>Configure how this listening session ends</Text></View>
+                  <View style={styles.menuCopy}><Text style={styles.menuTitle}>Timer and fade</Text><Text style={styles.menuSubtitle}>Session length and fade-out</Text></View>
                 </TouchableOpacity>
                 <TouchableOpacity style={styles.menuRow} onPress={() => {
                   if (!capabilities?.advancedAnalytics) {
@@ -1289,7 +1308,7 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({
                 <Text style={styles.panelBody}>{displayFrequency?.description || 'A focused frequency for mindful listening and a calmer audio environment.'}</Text>
                 <View style={styles.detailGrid}>
                   <View><Text style={styles.detailLabel}>CATEGORY</Text><Text style={styles.detailValue}>{displayFrequency?.category || 'Healing'}</Text></View>
-                  <View><Text style={styles.detailLabel}>CURRENT MODE</Text><Text style={styles.detailValue}>{visualizerMode}</Text></View>
+                  <View><Text style={styles.detailLabel}>VISUAL STYLE</Text><Text style={styles.detailValue}>{VISUALIZER_LABELS[visualizerStyle]}</Text></View>
                 </View>
                 <TouchableOpacity style={styles.panelButton} onPress={closePlayerPanel}><Text style={styles.panelButtonText}>Done</Text></TouchableOpacity>
               </>
@@ -1298,9 +1317,9 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({
             {showSettings && (
               <>
                 <Text style={styles.panelTitle}>Playback settings</Text>
-                <TouchableOpacity style={styles.settingRow} onPress={() => setFadeOutEnabled(value => !value)}><Text style={styles.menuTitle}>Fade out at end</Text><Text style={styles.settingValue}>{fadeOutEnabled ? 'On' : 'Off'}</Text></TouchableOpacity>
-                <TouchableOpacity style={styles.settingRow} onPress={() => setAutoRepeat(value => !value)}><Text style={styles.menuTitle}>Repeat session</Text><Text style={styles.settingValue}>{autoRepeat ? 'On' : 'Off'}</Text></TouchableOpacity>
-                <TouchableOpacity style={styles.settingRow} onPress={cycleVisualizerMode}><Text style={styles.menuTitle}>Visualizer style</Text><Text style={styles.settingValue}>{visualizerMode}</Text></TouchableOpacity>
+                <TouchableOpacity style={styles.settingRow} onPress={() => setAutoRepeat(value => !value)}><Text style={styles.menuTitle}>Repeat when finished</Text><Text style={styles.settingValue}>{autoRepeat ? 'On' : 'Off'}</Text></TouchableOpacity>
+                <TouchableOpacity style={styles.settingRow} onPress={cycleVisualizerStyle}><Text style={styles.menuTitle}>Visual style</Text><Text style={styles.settingValue}>{VISUALIZER_LABELS[visualizerStyle]}</Text></TouchableOpacity>
+                <Text style={styles.panelBody}>Fade-out and session length live under “Timer and fade”.</Text>
                 <TouchableOpacity style={styles.panelButton} onPress={closePlayerPanel}><Text style={styles.panelButtonText}>Done</Text></TouchableOpacity>
               </>
             )}
@@ -1310,21 +1329,7 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({
                 <Text style={styles.panelTitle}>Timer and fade</Text>
                 <Text style={styles.panelBody}>Your current session is set to {isSessionMode ? formatTime(sessionTimeLeft) : formatTime(duration * 60)}. Free listening is available for up to {maxFreeDuration} minutes.</Text>
                 <TouchableOpacity style={styles.settingRow} onPress={() => setFadeOutEnabled(value => !value)}><Text style={styles.menuTitle}>Fade out in final 10 seconds</Text><Text style={styles.settingValue}>{fadeOutEnabled ? 'On' : 'Off'}</Text></TouchableOpacity>
-                <TouchableOpacity style={styles.panelButton} onPress={() => { closePlayerPanel(); if (!isPremium) openPremiumFeature('duration_limit'); else setShowDurationPicker(true); }}><Text style={styles.panelButtonText}>{isPremium ? 'Choose duration' : 'Unlock extended timer'}</Text></TouchableOpacity>
-              </>
-            )}
-
-            {showDurationPicker && (
-              <>
-                <Text style={styles.panelTitle}>Choose session length</Text>
-                <Text style={styles.panelBody}>Set the timer for this frequency. Premium gives you longer uninterrupted sessions.</Text>
-                <View style={styles.durationPickerGrid}>
-                  {durationPresets.map((preset) => (
-                    <TouchableOpacity key={preset} style={[styles.durationPickerOption, duration === preset && styles.durationPickerSelected]} onPress={() => { setDuration(preset); setTimeLeft(preset * 60); closePlayerPanel(); }}>
-                      <Text style={styles.durationPickerText}>{preset} min</Text>
-                    </TouchableOpacity>
-                  ))}
-                </View>
+                {!isPremium && (<TouchableOpacity style={styles.panelButton} onPress={() => { closePlayerPanel(); openPremiumFeature('duration_limit'); }}><Text style={styles.panelButtonText}>Unlock extended timer</Text></TouchableOpacity>)}
               </>
             )}
 
@@ -1514,19 +1519,6 @@ const createStyles = (colors: any, gradients: any, isDark: boolean, width: numbe
     color: colors.textSecondary,
     fontWeight: '500',
   },
-  waveformContainer: {
-    flexDirection: 'row',
-    height: 40,
-    alignItems: 'center',
-    justifyContent: 'space-evenly',
-    paddingHorizontal: 20,
-    paddingVertical: 10,
-  },
-  waveformBar: {
-    width: 2,
-    borderRadius: 1,
-    marginHorizontal: 1,
-  },
   trackInfo: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -1537,20 +1529,9 @@ const createStyles = (colors: any, gradients: any, isDark: boolean, width: numbe
   trackDetails: {
     flex: 1,
   },
-  trackTitle: {
-    fontSize: 17,
-    fontWeight: '700',
-    color: colors.textPrimary,
-    marginBottom: 3,
-  },
   trackSubtitle: {
     fontSize: 14,
     color: colors.textSecondary,
-  },
-  frequencyDuration: {
-    fontSize: 12,
-    color: colors.primary,
-    fontWeight: '500',
   },
   trackActions: {
     flexDirection: 'row',
@@ -1771,23 +1752,6 @@ const createStyles = (colors: any, gradients: any, isDark: boolean, width: numbe
     fontWeight: '600',
     color: colors.textPrimary,
   },
-  customDurationButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    backgroundColor: colors.primary + '12',
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: colors.primary + '40',
-    minHeight: 44,
-  },
-  customDurationText: {
-    color: colors.primary,
-    fontSize: 14,
-    fontWeight: '500',
-    marginLeft: 6,
-  },
   durationPresets: {
     marginBottom: 15,
   },
@@ -2004,31 +1968,6 @@ const createStyles = (colors: any, gradients: any, isDark: boolean, width: numbe
   statsText: {
     color: colors.textPrimary,
     fontSize: 14,
-  },
-  durationPickerGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 10,
-    marginBottom: 10,
-  },
-  durationPickerOption: {
-    width: '30%',
-    minHeight: 48,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: colors.glassBorder,
-    backgroundColor: colors.glass,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  durationPickerSelected: {
-    borderColor: colors.accent,
-    backgroundColor: colors.accentSoft,
-  },
-  durationPickerText: {
-    color: colors.textPrimary,
-    fontSize: 14,
-    fontWeight: '600',
   },
   playIcon: {
     marginLeft: 4,
