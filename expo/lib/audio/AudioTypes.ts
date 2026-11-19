@@ -25,6 +25,8 @@ export type FrequencyAudioSpec = PureToneSpec | BinauralBeatSpec;
 
 export interface AudioPlaybackState {
   isPlaying: boolean;
+  /** True while a loaded track is held at zero gain rather than torn down. */
+  isPaused: boolean;
   spec: FrequencyAudioSpec | null;
   name: string;
   volume: number; // 0.0 to 1.0

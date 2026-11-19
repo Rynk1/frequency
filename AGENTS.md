@@ -72,3 +72,24 @@ Repository-specific knowledge for the Harmony Frequency mobile app.
 - The `handleSubscriptionWebhook` cloud function must verify
   `WEBHOOK_SECRET` / `REVENUECAT_WEBHOOK_SECRET` and **fails closed** (500) when the
   secret is not configured — never grant premium on an unauthenticated event.
+
+## Audio player semantics
+
+- **Pause and stop are different operations.** `pause()` holds the loaded track:
+  the web renderer ramps gain to zero and keeps the oscillators alive, the native
+  renderer calls `pauseAsync()` on the loaded sound. `stop()` tears everything
+  down. Never wire a "Pause" affordance to `stopFrequency()` — that was the
+  original bug and it loses the listener's session.
+- **Anything time-based must gate on `isPaused`.** The session countdown and the
+  listening-time accumulator both live in the tick effect in
+  `components/AudioPlayer.tsx`. Its dependency list must include `isPaused`, or a
+  paused session keeps draining while silent.
+- **Dismissing the mini-bar stops audio.** `stopAndClose` in
+  `lib/player/PlayerContext.tsx` calls `globalAudioEngine.stop()`. The engine is a
+  process-wide singleton, so mutating only React state leaves the tone playing
+  with no control surface.
+- **"Repeat when finished" must be read at completion.** The toggle in the player
+  menu is only meaningful if the session-complete and timer-complete branches
+  check it before stopping.
+- Background audio is a user preference (`settings.backgroundAudio`) applied per
+  `play()` through `setAudioModeAsync`; it does not take effect mid-track.

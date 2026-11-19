@@ -31,7 +31,6 @@ import {
   ChevronRight,
   Loader2,
   Headphones,
-  Download,
   Infinity as InfinityIcon,
   RotateCcw,
 } from 'lucide-react-native';

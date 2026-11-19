@@ -8,6 +8,7 @@ import React, {
   useState,
 } from 'react';
 import { useAuth } from '@/hooks/useAuth';
+import { globalAudioEngine } from '@/lib/audio/FrequencyAudioEngine';
 import {
   PlaybackHistoryEntry,
   clearPlaybackPersistence,
@@ -116,7 +117,10 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const minimize = useCallback(() => setIsOpen(false), []);
   const expand = useCallback(() => setIsOpen(true), []);
 
+  // Dismissing the bar must silence the tone too. Otherwise the X removed the
+  // only control surface while audio kept playing in the background.
   const stopAndClose = useCallback(() => {
+    globalAudioEngine.stop().catch(() => {});
     setIsOpen(false);
     setTrack({});
   }, []);

@@ -5,6 +5,8 @@ export class WebAudioRenderer {
   private oscLeft: OscillatorNode | null = null;
   private oscRight: OscillatorNode | null = null;
   private gainNode: GainNode | null = null;
+  private lastVolume: number = 0.2;
+  private paused: boolean = false;
 
   private createAudioContext(): AudioContext | null {
     if (typeof window === 'undefined') return null;
@@ -33,6 +35,8 @@ export class WebAudioRenderer {
 
     const ctx = this.audioContext;
     const gain = ctx.createGain();
+    this.lastVolume = volume;
+    this.paused = false;
     const safeVolume = Math.max(0, Math.min(1, volume)) * 0.2; // Cap at 0.2 for safety
     gain.gain.setValueAtTime(safeVolume, ctx.currentTime);
 
@@ -90,8 +94,24 @@ export class WebAudioRenderer {
     this.gainNode = gain;
   }
 
+  pause(): void {
+    if (this.gainNode && this.audioContext && !this.paused) {
+      this.gainNode.gain.setValueAtTime(0, this.audioContext.currentTime);
+      this.paused = true;
+    }
+  }
+
+  resume(): void {
+    if (this.gainNode && this.audioContext && this.paused) {
+      const safeVolume = Math.max(0, Math.min(1, this.lastVolume)) * 0.2;
+      this.gainNode.gain.linearRampToValueAtTime(safeVolume, this.audioContext.currentTime + 0.05);
+      this.paused = false;
+    }
+  }
+
   setVolume(volume: number): void {
-    if (this.gainNode && this.audioContext) {
+    this.lastVolume = volume;
+    if (this.gainNode && this.audioContext && !this.paused) {
       const safeVolume = Math.max(0, Math.min(1, volume)) * 0.2;
       this.gainNode.gain.linearRampToValueAtTime(
         safeVolume,
@@ -101,6 +121,7 @@ export class WebAudioRenderer {
   }
 
   async stop(): Promise<void> {
+    this.paused = false;
     if (this.oscLeft) {
       try {
         this.oscLeft.stop();

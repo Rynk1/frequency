@@ -13,6 +13,7 @@ export class FrequencyAudioEngine {
 
   private state: AudioPlaybackState = {
     isPlaying: false,
+    isPaused: false,
     spec: null,
     name: '',
     volume: 0.5,
@@ -90,6 +91,7 @@ export class FrequencyAudioEngine {
 
       this.updateState({
         isPlaying: true,
+        isPaused: false,
         spec,
         name,
         error: null,
@@ -120,6 +122,39 @@ export class FrequencyAudioEngine {
     }
   }
 
+  /**
+   * Holds the current tone without tearing it down, so resuming is instant and
+   * the session timer keeps its place. Falls back to a no-op when nothing is
+   * loaded.
+   */
+  public async pause(): Promise<void> {
+    if (!this.state.isPlaying || this.state.isPaused) return;
+    try {
+      if (Platform.OS === 'web' && this.webRenderer) {
+        this.webRenderer.pause();
+      } else if (this.nativeRenderer) {
+        await this.nativeRenderer.pause();
+      }
+      this.updateState({ isPaused: true });
+    } catch (err: any) {
+      this.updateState({ error: err?.message || 'Failed to pause audio' });
+    }
+  }
+
+  public async resume(): Promise<void> {
+    if (!this.state.isPlaying || !this.state.isPaused) return;
+    try {
+      if (Platform.OS === 'web' && this.webRenderer) {
+        this.webRenderer.resume();
+      } else if (this.nativeRenderer) {
+        await this.nativeRenderer.resume();
+      }
+      this.updateState({ isPaused: false });
+    } catch (err: any) {
+      this.updateState({ error: err?.message || 'Failed to resume audio' });
+    }
+  }
+
   public async stop(): Promise<void> {
     try {
       if (Platform.OS === 'web' && this.webRenderer) {
@@ -130,6 +165,7 @@ export class FrequencyAudioEngine {
     } finally {
       this.updateState({
         isPlaying: false,
+        isPaused: false,
         spec: null,
         name: '',
         error: null,

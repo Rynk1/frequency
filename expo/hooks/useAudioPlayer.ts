@@ -23,6 +23,14 @@ export const useAudioPlayer = () => {
     await globalAudioEngine.stop();
   }, []);
 
+  const pauseFrequency = useCallback(async () => {
+    await globalAudioEngine.pause();
+  }, []);
+
+  const resumeFrequency = useCallback(async () => {
+    await globalAudioEngine.resume();
+  }, []);
+
   const playAudioSpec = useCallback(async (spec: FrequencyAudioSpec, name: string = '', mode: 'full' | 'preview' = 'full') => {
     await globalAudioEngine.play(spec, name, entitlementState, mode);
   }, [entitlementState]);
@@ -65,6 +73,7 @@ export const useAudioPlayer = () => {
 
   return {
     isPlaying: engineState.isPlaying,
+    isPaused: engineState.isPaused,
     currentFrequency: currentHz,
     currentName: engineState.name,
     currentSpec: engineState.spec,
@@ -72,6 +81,8 @@ export const useAudioPlayer = () => {
     playFrequency,
     playAudioSpec,
     stopFrequency,
+    pauseFrequency,
+    resumeFrequency,
     setVolume,
   };
 };
