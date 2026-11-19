@@ -24,9 +24,28 @@ Repository-specific knowledge for the Harmony Frequency mobile app.
 - Several app files use **CRLF** line endings (e.g. `components/PremiumModal.tsx`,
   `app/subscription-result.tsx`, `app/index.tsx`, `app/admin/(dashboard)/settings.tsx`).
   Preserve CRLF when editing these, or the diff balloons with whitespace noise.
+  Note that Python's `Path.read_text()` silently converts CRLF to LF, so a
+  `read_text()`/`write_text()` round-trip rewrites the whole file. Edit with
+  `read_bytes()`/`write_bytes()`, or check `git diff --stat` afterwards: a file
+  showing every line changed means the endings were mangled.
 - When `expo/functions/src/index.ts` changes, rebuild (`npm run build`) so the
   committed `lib/` stays in sync — a stale `lib/` previously contained a Stripe
   signature bypass that was already fixed in source.
+
+## Premium claims
+
+- **Every advertised benefit must map to an enforced code path.**
+  `expo/lib/premium-benefits.ts` is the single source of paywall copy, and each
+  entry records the code that enforces it. `PremiumModal`, `PremiumGate` and
+  `app/subscription-result.tsx` all render from it, so copy cannot drift
+  between surfaces. `__tests__/premium-benefits.test.ts` fails if an unbuilt
+  claim is re-advertised.
+- Offline downloads, custom frequency mixing and priority support were once
+  advertised with nothing behind them. Do not re-add a benefit without real
+  gating; the paywall is a purchase contract.
+- The `offlineDownloads` / `customMixing` capability flags are still granted
+  to premium users but nothing reads them. Remove or implement before
+  relying on them.
 
 ## Payment / subscription architecture
 
