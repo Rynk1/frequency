@@ -7,7 +7,6 @@ import {
   TouchableOpacity,
   Switch,
   TextInput,
-  Alert,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -23,6 +22,7 @@ import {
   RefreshCw,
 } from 'lucide-react-native';
 import { PREMIUM_PLANS, PREMIUM_TRIAL_DAYS } from '@/lib/pricing';
+import { showAlert } from '../../../lib/ui/alert';
 
 const SETTINGS_KEY = 'adminAppSettings';
 
@@ -62,9 +62,9 @@ export default function SettingsManagement() {
     setIsSaving(true);
     try {
       await AsyncStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
-      Alert.alert('Success', 'Settings saved successfully');
+      showAlert('Success', 'Settings saved successfully');
     } catch (e) {
-      Alert.alert('Error', 'Failed to save settings');
+      showAlert('Error', 'Failed to save settings');
     } finally {
       setIsSaving(false);
     }
@@ -75,9 +75,9 @@ export default function SettingsManagement() {
     try {
       await AsyncStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
       await new Promise(resolve => setTimeout(resolve, 800));
-      Alert.alert('Success', 'Settings synced with app successfully');
+      showAlert('Success', 'Settings synced with app successfully');
     } catch (e) {
-      Alert.alert('Error', 'Failed to sync settings');
+      showAlert('Error', 'Failed to sync settings');
     } finally {
       setIsSyncing(false);
     }

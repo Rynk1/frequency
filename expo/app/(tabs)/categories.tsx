@@ -9,9 +9,7 @@ import {
   TextInput,
   Keyboard,
   Animated,
-  Dimensions,
 } from 'react-native';
-const { width: SCREEN_WIDTH } = Dimensions.get('window');
 import { LinearGradient } from 'expo-linear-gradient';
 import { useGlobalSearchParams } from 'expo-router';
 import { GlassCard as SharedGlassCard } from '@/components/GlassCard';

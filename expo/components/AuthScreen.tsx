@@ -5,7 +5,6 @@ import {
   TextInput,
   TouchableOpacity,
   StyleSheet,
-  Alert,
   KeyboardAvoidingView,
   Platform,
   ScrollView,
@@ -15,6 +14,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Eye, EyeOff, Mail, Lock, User } from 'lucide-react-native';
 import { useAuth } from '@/hooks/useAuth';
 import { FONTS, COLORS } from '@/constants/theme';
+import { showAlert } from '../lib/ui/alert';
 
 interface AuthScreenProps {
   mode: 'signin' | 'signup';
@@ -30,12 +30,12 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ mode, onToggleMode }) =>
 
   const handleSubmit = async () => {
     if (!email.trim() || !password.trim()) {
-      Alert.alert('Error', 'Please fill in all required fields');
+      showAlert('Error', 'Please fill in all required fields');
       return;
     }
 
     if (mode === 'signup' && !displayName.trim()) {
-      Alert.alert('Error', 'Please enter your name');
+      showAlert('Error', 'Please enter your name');
       return;
     }
 
@@ -46,7 +46,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ mode, onToggleMode }) =>
         await signUp(email, password, displayName);
       }
     } catch (error: any) {
-      Alert.alert('Error', error.message || 'Authentication failed');
+      showAlert('Error', error.message || 'Authentication failed');
     }
   };
 

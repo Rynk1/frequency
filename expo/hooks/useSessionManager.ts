@@ -17,6 +17,8 @@ import { db } from '@/lib/firebase';
 import { useAuth } from './useAuth';
 import { useDataMode } from './useDataMode';
 import { getDailyChallenge, getLocalDateString } from '@/lib/recommendation';
+import { resolveReminderWeekdays } from '@/lib/notifications/schedule';
+import { useSettings } from './useSettings';
 
 interface Frequency {
   hz: number;
@@ -196,6 +198,7 @@ const getUserCollections = (userId: string) => {
 
 export const [SessionManagerProvider, useSessionManager] = createContextHook(() => {
   const { user } = useAuth();
+  const { settings } = useSettings();
   const userId = user?.uid || '';
   const { shouldUseFirestore, isCloudStrict, setCloudError } = useDataMode();
 
@@ -537,27 +540,47 @@ export const [SessionManagerProvider, useSessionManager] = createContextHook(() 
     sessionName: string,
     hour: number,
     minute: number,
-    _days: string[]
+    days: string[]
   ): Promise<string | null> => {
     const Notifications = getNotifications();
     if (!Notifications) return null;
     try {
       const granted = await requestNotificationPermission();
       if (!granted) return null;
-      const id = await Notifications.scheduleNotificationAsync({
-        content: {
-          title: '🎵 Session Reminder',
-          body: `Time for your "${sessionName}" healing session`,
-          data: { sessionName, type: 'session-reminder' },
-          sound: true,
-        },
-        trigger: {
+
+      const content = {
+        title: '🎵 Session Reminder',
+        body: `Time for your "${sessionName}" healing session`,
+        data: { sessionName, type: 'session-reminder' },
+        sound: true,
+      };
+
+      const selected = resolveReminderWeekdays(days);
+
+      const schedule = async (trigger: any) =>
+        Notifications.scheduleNotificationAsync({ content, trigger });
+
+      if (selected.length === 7) {
+        return schedule({
           type: Notifications.SchedulableTriggerInputTypes.DAILY,
           hour,
           minute,
-        },
-      });
-      return id;
+          channelId: 'session-reminders',
+        });
+      }
+
+      const ids = await Promise.all(
+        selected.map((weekday) =>
+          schedule({
+            type: Notifications.SchedulableTriggerInputTypes.WEEKLY,
+            weekday,
+            hour,
+            minute,
+            channelId: 'session-reminders',
+          }),
+        ),
+      );
+      return ids.join(',');
     } catch (e) {
       console.warn('Notification scheduling skipped in Expo Go:', e);
       return null;
@@ -568,7 +591,12 @@ export const [SessionManagerProvider, useSessionManager] = createContextHook(() 
     const Notifications = getNotifications();
     if (!notificationId || !Notifications) return;
     try {
-      await Notifications.cancelScheduledNotificationAsync(notificationId);
+      // A weekly reminder creates one notification per selected weekday, so the
+      // stored id is a comma-separated list.
+      const ids = notificationId.split(',').map((id) => id.trim()).filter(Boolean);
+      await Promise.all(
+        ids.map((id) => Notifications.cancelScheduledNotificationAsync(id)),
+      );
     } catch (e) {
       console.warn('Notification cancellation skipped in Expo Go:', e);
     }
@@ -588,7 +616,11 @@ export const [SessionManagerProvider, useSessionManager] = createContextHook(() 
     if (period === 'AM' && hour === 12) hour = 0;
     const minute = parseInt(minuteStr, 10);
 
-    const notifId = await scheduleReminderNotification(sessionName, hour, minute, days);
+    // Respect the global reminder setting: with notifications off we still store
+    // the reminder so the schedule is visible, but never schedule an OS alert.
+    const notifId = settings.notifications
+      ? await scheduleReminderNotification(sessionName, hour, minute, days)
+      : null;
 
     const reminder: Reminder = {
       id: `reminder-${Date.now()}`,
@@ -608,7 +640,7 @@ export const [SessionManagerProvider, useSessionManager] = createContextHook(() 
     await saveData(STORAGE_KEYS.REMINDERS, updatedReminders);
     await syncRemindersToFirestore(updatedReminders);
     return reminder;
-  }, [reminders, scheduleReminderNotification]);
+  }, [reminders, scheduleReminderNotification, settings.notifications]);
 
   const updateReminder = useCallback(async (reminderId: string, updates: Partial<Reminder>) => {
     const updatedReminders = reminders.map(r =>

@@ -5,7 +5,7 @@ import {
   StyleSheet,
   TouchableOpacity,
   Modal,
-  Dimensions,
+  useWindowDimensions,
   Animated,
   Platform,
   ScrollView,
@@ -46,15 +46,16 @@ import { useSettings } from '@/hooks/useSettings';
 import { useTheme } from '@/hooks/useTheme';
 import { usePlayer } from '@/lib/player/PlayerContext';
 import { clampResumePosition, isResumeUsable } from '@/lib/audio/playback-history';
+import { globalAudioEngine } from '@/lib/audio/FrequencyAudioEngine';
 import { FrequencyVisualizer } from './FrequencyVisualizer';
 import { Share } from 'react-native';
 import { DEFAULT_PREMIUM_POLICY } from '@/lib/subscription-service';
 import { PremiumModal, PremiumTrigger } from './PremiumModal';
+import { usePremiumUsage } from '@/hooks/usePremiumUsage';
 import { AffirmationStreamCard } from './AffirmationStreamCard';
 import { AffirmationVideoStage } from './AffirmationVideoStage';
 import { Affirmation, AffirmationMode } from '@/types/affirmation';
 
-const { width, height } = Dimensions.get('window');
 
 // Pre-computed deterministic waveform bar heights — avoids Math.random() in render.
 const WAVEFORM_BAR_HEIGHTS = Array.from({ length: 40 }, (_, i) =>
@@ -90,6 +91,7 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({
   onSessionComplete,
   isSessionMode = false,
 }) => {
+  const { width, height } = useWindowDimensions();
   const [duration, setDuration] = useState<number>(15); // minutes
   const [timeLeft, setTimeLeft] = useState<number>(duration * 60); // seconds
   const [isTimerActive, setIsTimerActive] = useState<boolean>(false);
@@ -145,11 +147,12 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({
   const { isPlaying, currentFrequency, playFrequency, stopFrequency, setVolume: setAudioVolume } = useAudioPlayer();
   const { resumeFor, saveResume, recordPlay, history } = usePlayer();
   const { isPremium, capabilities, trackUsage } = useAuth();
+  const { attemptStartSession } = usePremiumUsage();
   const { toggleFavorite: toggleFavoriteStore, isFavorite: isFavoriteInStore } = useFavorites();
   const { settings, updateSetting } = useSettings();
   const { colors, gradients, isDark } = useTheme();
   const insets = useSafeAreaInsets();
-  const styles = useMemo(() => createStyles(colors, gradients, isDark), [colors, gradients, isDark]);
+  const styles = useMemo(() => createStyles(colors, gradients, isDark, width, height), [colors, gradients, isDark, width, height]);
 
   /**
    * Persists a "left off" point for the current track. Only meaningful for
@@ -259,6 +262,11 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({
       setPlayerVolumeOverride(null);
     }
   }, [visible, settings.volume]);
+
+  // Apply the background-audio preference to the native audio session.
+  useEffect(() => {
+    globalAudioEngine.setBackgroundPlayback(settings.backgroundAudio);
+  }, [settings.backgroundAudio]);
 
   const effectiveVolume = playerVolumeOverride !== null ? playerVolumeOverride : volume;
 
@@ -384,13 +392,13 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({
     isTimerActive, isSessionActive, isSessionMode, isPlaying,
     timeLeft, sessionTimeLeft, fadeOutEnabled, autoRepeat, isPremium,
     duration, currentFrequencyIndex, sessionFrequencies, effectiveVolume,
-    isPreviewActive,
+    isPreviewActive, autoStopEnabled: settings.autoStop,
   });
   tickStateRef.current = {
     isTimerActive, isSessionActive, isSessionMode, isPlaying,
     timeLeft, sessionTimeLeft, fadeOutEnabled, autoRepeat, isPremium,
     duration, currentFrequencyIndex, sessionFrequencies, effectiveVolume,
-    isPreviewActive,
+    isPreviewActive, autoStopEnabled: settings.autoStop,
   };
   const tickRaf = useRef<ReturnType<typeof setInterval> | null>(null);
 
@@ -445,8 +453,8 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({
 
           if (newTime <= 0) {
             setIsSessionActive(false);
-            stopFrequency();
             setSessionProgress(100);
+            if (st.autoStopEnabled) stopFrequency();
             const totalMinutes = st.sessionFrequencies.reduce((sum, f) => sum + f.duration, 0);
             if (sessionId && onSessionComplete) {
               onSessionComplete(sessionId, totalMinutes * 60).catch(() => {});
@@ -466,7 +474,7 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({
           }
           if (prev <= 1) {
             setIsTimerActive(false);
-            stopFrequency();
+            if (st.autoStopEnabled) stopFrequency();
             if (st.isPreviewActive) {
               // Preview complete! Present post-preview conversion modal
               setIsPreviewActive(false);
@@ -561,13 +569,42 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({
     return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
   };
 
-  const handlePlayPause = useCallback(() => {
+  /**
+   * Free listeners get a bounded number of sessions per day and a maximum
+   * session length. The gate runs before any audio starts so an exhausted
+   * allowance cannot be bypassed by pressing play repeatedly.
+   */
+  const handlePlayPause = useCallback(async () => {
     // Layer 2 Authorization Check
     const targetFreq = isSessionMode ? sessionFrequencies[currentFrequencyIndex] : frequency;
     const targetCategory = String(targetFreq?.category || '').toLowerCase();
     const isFreqLocked = targetFreq?.isPremium || targetCategory === 'chakra' || targetCategory === 'binaural';
     const isLockedForUser = isFreqLocked && !capabilities?.premiumFrequencies;
     const playbackMode: 'full' | 'preview' = (isLockedForUser || isPreviewActive) ? 'preview' : 'full';
+
+    const isStarting = isSessionMode
+      ? !(isPlaying && isSessionActive)
+      : !(isPlaying && currentFrequency === frequency?.hz);
+
+    if (isStarting) {
+      const requestedMinutes = isSessionMode
+        ? Math.ceil(sessionTimeLeft / 60)
+        : duration;
+      const auth = await attemptStartSession(
+        String(targetFreq?.name || 'session'),
+        requestedMinutes,
+      );
+      if (!auth.allowed) {
+        if (auth.reason === 'session_limit') {
+          setPremiumModalTrigger('session_limit');
+          setShowPremiumModal(true);
+        } else if (auth.reason === 'duration_limit') {
+          setPremiumModalTrigger('duration_limit');
+          setShowPremiumModal(true);
+        }
+        return;
+      }
+    }
 
     if (isSessionMode) {
       if (isPlaying && isSessionActive) {
@@ -576,6 +613,15 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({
       } else {
         const currentFreq = sessionFrequencies[currentFrequencyIndex];
         if (currentFreq && sessionTimeLeft > 0) {
+          // Cap the free allowance so session mode cannot play premium-length
+          // audio indefinitely — the preview countdown only governs single-track
+          // playback, so the cap is applied to the session clock itself.
+          if (!isPremium) {
+            const capSeconds = maxFreeDuration * 60;
+            if (sessionTimeLeft > capSeconds) {
+              setSessionTimeLeft(capSeconds);
+            }
+          }
           if (isLockedForUser) {
             setIsPreviewActive(true);
             setTimeLeft(DEFAULT_PREMIUM_POLICY.premiumPreviewDuration);
@@ -602,7 +648,7 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({
         }
       }
     }
-  }, [isSessionMode, isPlaying, isSessionActive, sessionFrequencies, currentFrequencyIndex, frequency, sessionTimeLeft, timeLeft, playFrequency, stopFrequency, currentFrequency, capabilities, isPreviewActive]);
+  }, [isSessionMode, isPlaying, isSessionActive, sessionFrequencies, currentFrequencyIndex, frequency, sessionTimeLeft, timeLeft, playFrequency, stopFrequency, currentFrequency, capabilities, isPreviewActive, attemptStartSession, isPremium, maxFreeDuration]);
 
   const handleSkipNext = useCallback(() => {
     if (isSessionMode && currentFrequencyIndex < sessionFrequencies.length - 1) {
@@ -1338,7 +1384,7 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({
   );
 };
 
-const createStyles = (colors: any, gradients: any, isDark: boolean) => StyleSheet.create({
+const createStyles = (colors: any, gradients: any, isDark: boolean, width: number, height: number) => StyleSheet.create({
   overlay: {
     flex: 1,
     backgroundColor: isDark ? 'rgba(0, 0, 0, 0.9)' : 'rgba(26, 29, 46, 0.18)',

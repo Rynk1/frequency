@@ -1,4 +1,4 @@
-import React, { useRef, useEffect } from 'react';
+import React, { useRef, useEffect, useState } from 'react';
 import {
   View,
   Text,
@@ -8,8 +8,6 @@ import {
   Switch,
   Animated,
   PanResponder,
-  Dimensions,
-  Alert,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -32,6 +30,7 @@ import {
   Sparkles,
   TrendingUp,
   Bookmark,
+  Trash2,
   Sun,
   Moon,
 } from 'lucide-react-native';
@@ -44,10 +43,13 @@ import { PremiumModal } from '@/components/PremiumModal';
 import { LibraryModal } from '@/components/LibraryModal';
 import { DataModeIndicator } from '@/components/DataModeIndicator';
 import { router } from 'expo-router';
+import * as Linking from 'expo-linking';
 import { FONTS } from '@/constants/theme';
+import { LEGAL_URLS } from '@/lib/legal';
+import { deleteAccount } from '@/lib/subscription-service';
+import { requestNotificationPermission } from '@/lib/notifications/permissions';
+import { showAlert } from '../../lib/ui/alert';
 
-const { width } = Dimensions.get('window');
-const SLIDER_WIDTH = width - 44 - 32 - 22;
 
 const GlassCard = SharedGlassCard;
 
@@ -66,56 +68,70 @@ const GlowSlider: React.FC<GlowSliderProps> = ({
   trackColor = 'rgba(0,0,0,0.06)',
   borderColor = 'rgba(0,0,0,0.08)',
 }) => {
-  const positionX = useRef(new Animated.Value(value * SLIDER_WIDTH)).current;
-  const posRef = useRef(value * SLIDER_WIDTH);
+  // The track width is measured at runtime so the slider stays correct across
+  // rotation, tablets and split-screen instead of using a module-load constant.
+  const [trackWidth, setTrackWidth] = useState(0);
+  const widthRef = useRef(0);
+  widthRef.current = trackWidth;
+
+  const positionX = useRef(new Animated.Value(0)).current;
+  const posRef = useRef(0);
   const scaleAnim = useRef(new Animated.Value(1)).current;
 
   useEffect(() => {
-    const newPos = Math.max(0, Math.min(SLIDER_WIDTH, value * SLIDER_WIDTH));
+    if (trackWidth <= 0) return;
+    const newPos = Math.max(0, Math.min(trackWidth, value * trackWidth));
     posRef.current = newPos;
     Animated.timing(positionX, {
       toValue: newPos,
       duration: 120,
       useNativeDriver: false,
     }).start();
-  }, [value, positionX]);
+  }, [value, positionX, trackWidth]);
 
   const panResponder = PanResponder.create({
     onStartShouldSetPanResponder: () => true,
     onMoveShouldSetPanResponder: () => true,
     onPanResponderGrant: (evt) => {
+      const w = widthRef.current;
+      if (w <= 0) return;
       Animated.spring(scaleAnim, { toValue: 1.3, useNativeDriver: true }).start();
-      const newX = Math.max(0, Math.min(SLIDER_WIDTH, evt.nativeEvent.locationX));
+      const newX = Math.max(0, Math.min(w, evt.nativeEvent.locationX));
       posRef.current = newX;
       positionX.setValue(newX);
-      onValueChange(newX / SLIDER_WIDTH);
+      onValueChange(newX / w);
     },
     onPanResponderMove: (_, g) => {
-      const newPos = Math.max(0, Math.min(SLIDER_WIDTH, posRef.current + g.dx));
+      const w = widthRef.current;
+      if (w <= 0) return;
+      const newPos = Math.max(0, Math.min(w, posRef.current + g.dx));
       positionX.setValue(newPos);
-      onValueChange(newPos / SLIDER_WIDTH);
+      onValueChange(newPos / w);
     },
     onPanResponderRelease: (_, g) => {
-      const newPos = Math.max(0, Math.min(SLIDER_WIDTH, posRef.current + g.dx));
-      posRef.current = newPos;
+      const w = widthRef.current;
+      if (w > 0) posRef.current = Math.max(0, Math.min(w, posRef.current + g.dx));
       Animated.spring(scaleAnim, { toValue: 1, useNativeDriver: true }).start();
     },
   });
 
   const thumbLeft = positionX.interpolate({
-    inputRange: [0, SLIDER_WIDTH],
-    outputRange: [0, SLIDER_WIDTH],
+    inputRange: [0, Math.max(1, trackWidth)],
+    outputRange: [0, Math.max(1, trackWidth)],
     extrapolate: 'clamp',
   });
 
   const fillWidth = positionX.interpolate({
-    inputRange: [0, SLIDER_WIDTH],
-    outputRange: [0, SLIDER_WIDTH],
+    inputRange: [0, Math.max(1, trackWidth)],
+    outputRange: [0, Math.max(1, trackWidth)],
     extrapolate: 'clamp',
   });
 
   return (
-    <View style={sliderStyles.container}>
+    <View
+      style={sliderStyles.container}
+      onLayout={(e) => setTrackWidth(e.nativeEvent.layout.width)}
+    >
       <View style={[sliderStyles.track, { backgroundColor: trackColor, borderColor }]}>
         <Animated.View style={[sliderStyles.fill, { width: fillWidth, backgroundColor: accentColor }]} />
       </View>
@@ -157,6 +173,55 @@ export default function SettingsScreen() {
 
   const handleSignOut = async () => {
     try { await signOut(); } catch (e) { console.error(e); }
+  };
+
+  /**
+   * Turning reminders on must actually obtain OS permission — otherwise the
+   * switch reads "on" while every reminder silently fails to schedule.
+   */
+  const handleToggleNotifications = async (enabled: boolean) => {
+    if (!enabled) {
+      updateSetting('notifications', false);
+      return;
+    }
+    const granted = await requestNotificationPermission();
+    if (!granted) {
+      showAlert(
+        'Notifications Blocked',
+        'Allow notifications for Harmony Frequency in your device settings to receive daily reminders.',
+      );
+      updateSetting('notifications', false);
+      return;
+    }
+    updateSetting('notifications', true);
+  };
+
+  /**
+   * Google Play requires an in-app deletion path for accounts. The destructive
+   * confirmation is explicit about permanence because the action is irreversible.
+   */
+  const handleDeleteAccount = () => {
+    showAlert(
+      'Delete Account',
+      'This permanently deletes your account, saved sessions, favourites and listening history. Active subscriptions must be cancelled separately in Google Play. This cannot be undone.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete Forever',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await deleteAccount();
+            } catch (error: any) {
+              showAlert(
+                'Deletion Failed',
+                error?.message || 'We could not delete your account. Please try again or email support.',
+              );
+            }
+          },
+        },
+      ],
+    );
   };
 
   const getSubscriptionStatus = () => {
@@ -406,10 +471,10 @@ export default function SettingsScreen() {
                 <Text style={[styles.islandRowSub, { color: colors.textMuted }]}>Get reminded to start your session</Text>
               </View>
               <Switch
-                value={settings.autoStop}
-                onValueChange={(v) => updateSetting('autoStop', v)}
+                value={settings.notifications}
+                onValueChange={handleToggleNotifications}
                 trackColor={{ false: colors.glass, true: 'rgba(251,191,36,0.5)' }}
-                thumbColor={settings.autoStop ? '#FBBF24' : colors.textMuted}
+                thumbColor={settings.notifications ? '#FBBF24' : colors.textMuted}
               />
             </View>
             <View style={[styles.islandSep, { backgroundColor: colors.divider }]} />
@@ -422,10 +487,10 @@ export default function SettingsScreen() {
                 <Text style={[styles.islandRowSub, { color: colors.textMuted }]}>Notify when streak is at risk</Text>
               </View>
               <Switch
-                value={settings.backgroundAudio}
-                onValueChange={(v) => updateSetting('backgroundAudio', v)}
+                value={settings.streakAlerts}
+                onValueChange={(v) => updateSetting('streakAlerts', v)}
                 trackColor={{ false: colors.glass, true: 'rgba(167,139,250,0.5)' }}
-                thumbColor={settings.backgroundAudio ? colors.accent : colors.textMuted}
+                thumbColor={settings.streakAlerts ? colors.accent : colors.textMuted}
               />
             </View>
           </GlassCard>
@@ -574,17 +639,64 @@ export default function SettingsScreen() {
             <View style={[styles.islandSep, { backgroundColor: colors.divider }]} />
             <TouchableOpacity
               style={styles.islandRow}
-              onPress={() => Alert.alert(
-                'Privacy Policy',
-                'Harmony Frequency values your privacy. We store your session data, preferences, and usage statistics securely in Firebase. We do not share your data with third parties. Audio sessions are generated locally on your device. You can delete your account and all associated data at any time by signing out and contacting support.'
-              )}
+              onPress={() => Linking.openURL(LEGAL_URLS.privacyPolicy)}
+              accessibilityRole="link"
+              accessibilityLabel="Open privacy policy in browser"
             >
               <View style={[styles.islandIcon, islandIconBg(colors.textSecondary)]}>
                 <Info color={colors.textSecondary} size={18} />
               </View>
               <View style={styles.islandText}>
                 <Text style={[styles.islandRowTitle, { color: colors.textPrimary }]}>Privacy Policy</Text>
-                <Text style={[styles.islandRowSub, { color: colors.textMuted }]}>Review our privacy terms</Text>
+                <Text style={[styles.islandRowSub, { color: colors.textMuted }]}>How we handle your data</Text>
+              </View>
+              <ChevronRight color={colors.textMuted} size={16} />
+            </TouchableOpacity>
+            <View style={[styles.islandSep, { backgroundColor: colors.divider }]} />
+            <TouchableOpacity
+              style={styles.islandRow}
+              onPress={() => Linking.openURL(LEGAL_URLS.termsOfService)}
+              accessibilityRole="link"
+              accessibilityLabel="Open terms of service in browser"
+            >
+              <View style={[styles.islandIcon, islandIconBg(colors.textSecondary)]}>
+                <Info color={colors.textSecondary} size={18} />
+              </View>
+              <View style={styles.islandText}>
+                <Text style={[styles.islandRowTitle, { color: colors.textPrimary }]}>Terms of Service</Text>
+                <Text style={[styles.islandRowSub, { color: colors.textMuted }]}>Subscription and usage terms</Text>
+              </View>
+              <ChevronRight color={colors.textMuted} size={16} />
+            </TouchableOpacity>
+            <View style={[styles.islandSep, { backgroundColor: colors.divider }]} />
+            <TouchableOpacity
+              style={styles.islandRow}
+              onPress={() => Linking.openURL(`mailto:${LEGAL_URLS.supportEmail}`)}
+              accessibilityRole="link"
+              accessibilityLabel="Email support"
+            >
+              <View style={[styles.islandIcon, islandIconBg(colors.textSecondary)]}>
+                <Info color={colors.textSecondary} size={18} />
+              </View>
+              <View style={styles.islandText}>
+                <Text style={[styles.islandRowTitle, { color: colors.textPrimary }]}>Contact Support</Text>
+                <Text style={[styles.islandRowSub, { color: colors.textMuted }]}>{LEGAL_URLS.supportEmail}</Text>
+              </View>
+              <ChevronRight color={colors.textMuted} size={16} />
+            </TouchableOpacity>
+            <View style={[styles.islandSep, { backgroundColor: colors.divider }]} />
+            <TouchableOpacity
+              style={styles.islandRow}
+              onPress={handleDeleteAccount}
+              accessibilityRole="button"
+              accessibilityLabel="Delete account permanently"
+            >
+              <View style={[styles.islandIcon, islandIconBg('#EF4444')]}>
+                <Trash2 color="#EF4444" size={18} />
+              </View>
+              <View style={styles.islandText}>
+                <Text style={[styles.islandRowTitle, { color: '#EF4444' }]}>Delete Account</Text>
+                <Text style={[styles.islandRowSub, { color: colors.textMuted }]}>Permanently remove your account and data</Text>
               </View>
               <ChevronRight color={colors.textMuted} size={16} />
             </TouchableOpacity>

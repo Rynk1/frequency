@@ -13,6 +13,7 @@ import { AuthProvider } from '@/hooks/useAuth';
 import { LearningContentProvider } from '@/hooks/useLearningContent';
 import { DataModeProvider } from '@/hooks/useDataMode';
 import { SettingsProvider } from '@/hooks/useSettings';
+import { ensureNotificationChannel } from '@/lib/notifications/permissions';
 import { ThemeProvider, useTheme } from '@/hooks/useTheme';
 import { PlayerProvider } from '@/lib/player/PlayerContext';
 import { PlayerHost } from '@/lib/player/PlayerHost';
@@ -87,16 +88,12 @@ export default function RootLayout() {
     SatoshiItalic: require('@/assets/fonts/Satoshi-VariableItalic.ttf'),
   });
 
-  // Request notification permissions on mount for native platforms
+  // Register the Android channel on mount. Without an explicit channel,
+  // Android 8+ drops scheduled notifications. Permission is deliberately not
+  // requested here: a cold prompt on first launch is routinely denied, so it is
+  // requested in context when the user enables reminders or creates one.
   useEffect(() => {
-    if (Platform.OS !== 'web' && !isExpoGo) {
-      const Notifications = require('expo-notifications');
-      Notifications.getPermissionsAsync().then(({ status }: { status: string }) => {
-        if (status !== 'granted') {
-          Notifications.requestPermissionsAsync().catch(() => {});
-        }
-      }).catch(() => {});
-    }
+    ensureNotificationChannel().catch(() => {});
   }, []);
 
   // Hide splash once fonts are loaded (or errored)

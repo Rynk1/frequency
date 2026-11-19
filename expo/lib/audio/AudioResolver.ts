@@ -1,4 +1,5 @@
 import { FrequencyAudioSpec } from './AudioTypes';
+import { ensureAudible } from './audibility';
 
 export class AudioResolver {
   /**
@@ -6,6 +7,10 @@ export class AudioResolver {
    * Ensures binaural records have valid carrier and beat parameters, avoiding silent misrepresentation.
    */
   static resolve(item: any): FrequencyAudioSpec {
+    return ensureAudible(AudioResolver.resolveRaw(item));
+  }
+
+  private static resolveRaw(item: any): FrequencyAudioSpec {
     if (typeof item === 'number') {
       return {
         modality: 'pure_tone',

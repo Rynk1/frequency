@@ -8,7 +8,6 @@ import {
   TextInput,
   Modal,
   FlatList,
-  Alert,
   Switch,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -25,6 +24,7 @@ import {
   Radio,
 } from 'lucide-react-native';
 import { useBackendData } from '@/hooks/useBackendData';
+import { showAlert } from '../../../lib/ui/alert';
 
 interface SessionForm {
   name: string;
@@ -93,7 +93,7 @@ export default function SessionsManagement() {
 
   const handleSave = () => {
     if (!formData.name.trim() || !formData.description.trim()) {
-      Alert.alert('Error', 'Please fill in all required fields');
+      showAlert('Error', 'Please fill in all required fields');
       return;
     }
 
@@ -102,27 +102,27 @@ export default function SessionsManagement() {
       updateCuratedProgram(editingSession.id, formData)
         .then(() => {
           setModalVisible(false);
-          Alert.alert('Success', 'Session updated successfully');
+          showAlert('Success', 'Session updated successfully');
         })
         .catch((error) => {
-          Alert.alert('Error', error instanceof Error ? error.message : 'Failed to update session');
+          showAlert('Error', error instanceof Error ? error.message : 'Failed to update session');
         })
         .finally(() => setIsSaving(false));
     } else {
       addCuratedProgram(formData)
         .then(() => {
           setModalVisible(false);
-          Alert.alert('Success', 'Session created successfully');
+          showAlert('Success', 'Session created successfully');
         })
         .catch((error) => {
-          Alert.alert('Error', error instanceof Error ? error.message : 'Failed to create session');
+          showAlert('Error', error instanceof Error ? error.message : 'Failed to create session');
         })
         .finally(() => setIsSaving(false));
     }
   };
 
   const handleDelete = (id: string) => {
-    Alert.alert(
+    showAlert(
       'Confirm Delete',
       'Are you sure you want to delete this session?',
       [
@@ -133,10 +133,10 @@ export default function SessionsManagement() {
           onPress: () => {
             deleteCuratedProgram(id)
               .then(() => {
-                Alert.alert('Success', 'Session deleted successfully');
+                showAlert('Success', 'Session deleted successfully');
               })
               .catch((error) => {
-                Alert.alert('Error', error instanceof Error ? error.message : 'Failed to delete session');
+                showAlert('Error', error instanceof Error ? error.message : 'Failed to delete session');
               });
           },
         },

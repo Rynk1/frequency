@@ -12,6 +12,12 @@ export class NativeAudioRenderer {
   private sound: { stopAsync: () => Promise<unknown>; unloadAsync: () => Promise<unknown>; setVolumeAsync: (volume: number) => Promise<unknown> } | null = null;
   private isLoaded: boolean = false;
   private cacheMap: Map<string, string> = new Map();
+  private staysActiveInBackground: boolean = false;
+
+  /** Applies the user's "background audio" preference to the audio session. */
+  setBackgroundPlayback(enabled: boolean): void {
+    this.staysActiveInBackground = enabled;
+  }
 
   private getAudioModule(): typeof import('expo-av') {
     return require('expo-av');
@@ -58,7 +64,7 @@ export class NativeAudioRenderer {
 
     await Audio.setAudioModeAsync({
       allowsRecordingIOS: false,
-      staysActiveInBackground: false,
+      staysActiveInBackground: this.staysActiveInBackground,
       playsInSilentModeIOS: true,
       interruptionModeIOS: InterruptionModeIOS.DoNotMix,
       shouldDuckAndroid: true,

@@ -9,9 +9,9 @@ import { redirectSystemPath } from '../app/+native-intent';
  */
 describe('redirectSystemPath', () => {
   it('preserves subscription return deep links so the result screen is reachable', () => {
-    expect(redirectSystemPath({ path: 'myapp://?subscription=success', initial: false }))
+    expect(redirectSystemPath({ path: 'harmonyfrequency://?subscription=success', initial: false }))
       .toBe('/?subscription=success');
-    expect(redirectSystemPath({ path: 'myapp://?subscription=cancelled&session_id=abc', initial: true }))
+    expect(redirectSystemPath({ path: 'harmonyfrequency://?subscription=cancelled&session_id=abc', initial: true }))
       .toBe('/?subscription=cancelled&session_id=abc');
     // Universal-link shape must also survive.
     expect(redirectSystemPath({ path: 'https://harmonyfrequency.app/?subscription=success', initial: true }))
@@ -19,7 +19,7 @@ describe('redirectSystemPath', () => {
   });
 
   it('funnels unrelated deep links to the root (Journey landing)', () => {
-    expect(redirectSystemPath({ path: 'myapp://some/other/path', initial: false })).toBe('/');
+    expect(redirectSystemPath({ path: 'harmonyfrequency://some/other/path', initial: false })).toBe('/');
     expect(redirectSystemPath({ path: '/', initial: true })).toBe('/');
   });
 });

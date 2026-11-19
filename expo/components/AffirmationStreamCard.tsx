@@ -5,7 +5,6 @@ import {
   StyleSheet,
   TouchableOpacity,
   ScrollView,
-  Dimensions,
 } from 'react-native';
 import { GlassCard } from './GlassCard';
 import {
@@ -40,7 +39,6 @@ import { RecordAffirmationModal } from './RecordAffirmationModal';
 import { useTheme } from '../hooks/useTheme';
 import { useAuth } from '../hooks/useAuth';
 
-const { width } = Dimensions.get('window');
 
 interface AffirmationStreamCardProps {
   frequencyId?: string;

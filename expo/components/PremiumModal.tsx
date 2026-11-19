@@ -6,7 +6,6 @@ import {
   StyleSheet,
   ScrollView,
   Modal,
-  Alert,
   Animated,
   Easing,
   ActivityIndicator,
@@ -62,6 +61,7 @@ export type PremiumTrigger =
   | 'premium_content'
   | 'preview_complete'
   | 'duration_limit'
+  | 'session_limit'
   | 'offline_download'
   | 'advanced_analytics'
   | 'engagement_milestone';
@@ -589,6 +589,8 @@ export const PremiumModal: React.FC<PremiumModalProps> = ({
                     ? '3-Minute Preview Complete'
                     : trigger === 'duration_limit'
                     ? 'Extend Your Practice'
+                    : trigger === 'session_limit'
+                    ? "You've Used Today's Free Sessions"
                     : trigger === 'offline_download'
                     ? 'Take Practice Anywhere'
                     : 'Unlock Premium'}
@@ -598,6 +600,8 @@ export const PremiumModal: React.FC<PremiumModalProps> = ({
                     ? 'You experienced 3 minutes of this session. Unlock full length, offline downloads, and binaural beats.'
                     : trigger === 'duration_limit'
                     ? 'Free sessions are limited to 15 minutes. Upgrade for unlimited session length up to 4 hours.'
+                    : trigger === 'session_limit'
+                    ? 'Free listening includes 3 sessions per day. Upgrade for unlimited daily sessions and every premium frequency.'
                     : trigger === 'offline_download'
                     ? 'Download your favorite frequencies for seamless offline listening anywhere.'
                     : 'Transform your wellness journey with unlimited access to binaural and chakra collections.'}

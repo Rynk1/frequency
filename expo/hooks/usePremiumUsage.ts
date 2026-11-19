@@ -1,6 +1,14 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { useAuth } from './useAuth';
 import { DEFAULT_PREMIUM_POLICY } from '@/lib/subscription-service';
+import {
+  readSessionLedger,
+  writeSessionLedger,
+  normalizeLedger,
+  localDateKey,
+  remainingStarts,
+  type SessionLedger,
+} from '@/lib/usage/SessionLedger';
 
 interface PremiumUsageConfig {
   freeSessionsPerDay: number;
@@ -22,7 +30,7 @@ const DEFAULT_CONFIG: PremiumUsageConfig = {
 };
 
 export const usePremiumUsage = (config: Partial<PremiumUsageConfig> = {}) => {
-  const { userProfile, isPremium, isTrialActive, trackUsage } = useAuth();
+  const { userProfile, isPremium, isTrialActive } = useAuth();
   const [showPremiumGate, setShowPremiumGate] = useState(false);
   const [gateConfig, setGateConfig] = useState<{
     feature: string;
@@ -32,35 +40,45 @@ export const usePremiumUsage = (config: Partial<PremiumUsageConfig> = {}) => {
 
   const finalConfig = { ...DEFAULT_CONFIG, ...config };
 
+  // Free-tier usage is tracked locally per calendar day so the limit holds even
+  // when a session is abandoned before completion or the device is offline.
+  const [ledger, setLedger] = useState<SessionLedger>(() => normalizeLedger(null));
+
+  useEffect(() => {
+    let mounted = true;
+    readSessionLedger().then((stored) => {
+      if (mounted) setLedger(stored);
+    });
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
   const getTodaySessionCount = useCallback(() => {
-    if (!userProfile) return 0;
-
-    const today = new Date();
-    const lastSessionDate = userProfile.usageStats.lastSessionDate;
-
-    if (!lastSessionDate) return 0;
-
-    const isToday =
-      lastSessionDate.getDate() === today.getDate() &&
-      lastSessionDate.getMonth() === today.getMonth() &&
-      lastSessionDate.getFullYear() === today.getFullYear();
-
-    return isToday ? userProfile.usageStats.sessionsCompleted : 0;
-  }, [userProfile]);
+    if (isPremium || isTrialActive) return 0;
+    return normalizeLedger(ledger).starts;
+  }, [isPremium, isTrialActive, ledger]);
 
   const canStartSession = useCallback(() => {
     if (isPremium || isTrialActive) return true;
-
-    const todayCount = getTodaySessionCount();
-    return todayCount < finalConfig.freeSessionsPerDay;
+    return getTodaySessionCount() < finalConfig.freeSessionsPerDay;
   }, [isPremium, isTrialActive, getTodaySessionCount, finalConfig.freeSessionsPerDay]);
 
   const getRemainingFreeSessions = useCallback(() => {
     if (isPremium || isTrialActive) return Infinity;
+    return remainingStarts(normalizeLedger(ledger), finalConfig.freeSessionsPerDay);
+  }, [isPremium, isTrialActive, ledger, finalConfig.freeSessionsPerDay]);
 
-    const todayCount = getTodaySessionCount();
-    return Math.max(0, finalConfig.freeSessionsPerDay - todayCount);
-  }, [isPremium, isTrialActive, getTodaySessionCount, finalConfig.freeSessionsPerDay]);
+  const recordSessionStart = useCallback(async () => {
+    if (isPremium || isTrialActive) return;
+    const current = await readSessionLedger();
+    const next: SessionLedger = {
+      date: localDateKey(),
+      starts: current.starts + 1,
+    };
+    await writeSessionLedger(next);
+    setLedger(next);
+  }, [isPremium, isTrialActive]);
 
   const getMaxSessionDuration = useCallback(() => {
     if (isPremium || isTrialActive) return Infinity;
@@ -96,36 +114,51 @@ export const usePremiumUsage = (config: Partial<PremiumUsageConfig> = {}) => {
     );
   }, [finalConfig.freeSessionDuration, showPremiumGateForFeature]);
 
+  /**
+   * Authorises a session start and consumes one free session from the daily
+   * allowance. Callers must await this before starting playback and must
+   * present the appropriate gate when `allowed` is false — the hook only
+   * decides, so presentation stays with whichever screen owns the modal.
+   */
   const attemptStartSession = useCallback(async (
     frequency: string,
-    duration: number
-  ): Promise<{ allowed: boolean; reason?: string }> => {
+    durationMinutes: number
+  ): Promise<{ allowed: boolean; reason?: 'invalid_frequency' | 'session_limit' | 'duration_limit'; maxDurationMinutes?: number }> => {
     if (!frequency?.trim()) {
       return { allowed: false, reason: 'invalid_frequency' };
     }
 
-    // Check session limit
-    if (!canStartSession()) {
-      showSessionLimitGate();
-      return { allowed: false, reason: 'session_limit' };
-    }
+    if (!isPremium && !isTrialActive) {
+      const current = await readSessionLedger();
 
-    // Check duration limit
-    if (duration > getMaxSessionDuration()) {
-      showDurationLimitGate();
-      return { allowed: false, reason: 'duration_limit' };
-    }
+      if (current.starts >= finalConfig.freeSessionsPerDay) {
+        setLedger(current);
+        return {
+          allowed: false,
+          reason: 'session_limit',
+          maxDurationMinutes: finalConfig.freeSessionDuration,
+        };
+      }
 
-    // Track the session start
-    await trackUsage(0, frequency.trim()); // Duration will be updated when session ends
+      if (durationMinutes > finalConfig.freeSessionDuration) {
+        return {
+          allowed: false,
+          reason: 'duration_limit',
+          maxDurationMinutes: finalConfig.freeSessionDuration,
+        };
+      }
+
+      const next: SessionLedger = { date: localDateKey(), starts: current.starts + 1 };
+      await writeSessionLedger(next);
+      setLedger(next);
+    }
 
     return { allowed: true };
   }, [
-    canStartSession,
-    getMaxSessionDuration,
-    showSessionLimitGate,
-    showDurationLimitGate,
-    trackUsage,
+    isPremium,
+    isTrialActive,
+    finalConfig.freeSessionsPerDay,
+    finalConfig.freeSessionDuration,
   ]);
 
   const attemptFeatureAccess = useCallback((
@@ -183,6 +216,7 @@ export const usePremiumUsage = (config: Partial<PremiumUsageConfig> = {}) => {
     getRemainingFreeSessions,
     getMaxSessionDuration,
     getUsageStats,
+    recordSessionStart,
 
     // Actions
     attemptStartSession,

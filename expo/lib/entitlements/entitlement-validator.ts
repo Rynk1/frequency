@@ -36,11 +36,23 @@ export class EntitlementValidator {
       };
     }
 
-    // Capability evaluation using CapabilityRegistry
-    const targetFreq = spec.modality === 'pure_tone' ? spec.frequency : spec.carrierFrequency;
+    // Capability evaluation using CapabilityRegistry. For content promoted to a
+    // binaural beat for audibility, the declared rate decides the tier — never
+    // the carrier, which is a rendering detail.
+    const targetFreq =
+      spec.modality === 'pure_tone'
+        ? spec.frequency
+        : spec.declaredFrequency ?? spec.beatFrequency;
+    // A promoted sub-audible tone is delivered as a binaural beat, but it was
+    // authored as a pure tone; classify it the way it was authored so promotion
+    // for audibility never moves free content behind the paywall.
+    const targetModality =
+      spec.modality === 'binaural_beat' && spec.declaredFrequency !== undefined
+        ? 'pure_tone'
+        : spec.modality;
     const requiredCap = CapabilityRegistry.getRequiredCapability(
       targetFreq || 0,
-      spec.modality,
+      targetModality,
     );
 
     if (requiredCap && !entitlement.capabilities[requiredCap]) {

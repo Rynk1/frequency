@@ -197,3 +197,26 @@ export async function getSubscriptionStatus(): Promise<SubscriptionStatus> {
     lastVerifiedAt: new Date().toISOString(),
   };
 }
+
+/**
+ * Permanently deletes the signed-in account and its stored personal data.
+ *
+ * Google Play requires an in-app deletion path for any app that lets users
+ * create an account. The server function is authoritative; on success the
+ * local session is cleared so the user cannot remain signed in to a deleted
+ * account.
+ */
+export async function deleteAccount(): Promise<void> {
+  if (!API_BASE) {
+    throw new Error('Account deletion is unavailable because the API is not configured.');
+  }
+  await apiCall<{ success: boolean }>('/deleteAccount', { method: 'POST' });
+
+  try {
+    const { authService } = await import('./firebase-auth');
+    await authService.signOut();
+  } catch {
+    // The server already deleted the account; a lingering local session is
+    // harmless because the token is no longer valid.
+  }
+}

@@ -8,7 +8,6 @@ import {
   TextInput,
   Modal,
   Switch,
-  Alert,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -22,6 +21,7 @@ import {
 } from 'lucide-react-native';
 import { useBackendData } from '@/hooks/useBackendData';
 import { FrequencyCategory, ContentStatus, CanonicalFrequency } from '@/types/content';
+import { showAlert } from '../../../lib/ui/alert';
 
 interface FrequencyForm {
   id: string;
@@ -167,7 +167,7 @@ export default function FrequenciesManagement() {
 
   const handleSave = () => {
     if (!formData.name.trim() || !formData.description.trim()) {
-      Alert.alert('Error', 'Please fill in all required fields');
+      showAlert('Error', 'Please fill in all required fields');
       return;
     }
 
@@ -198,27 +198,27 @@ export default function FrequenciesManagement() {
       updateFrequency(editingFrequency.id, frequencyData)
         .then(() => {
           setModalVisible(false);
-          Alert.alert('Success', 'Frequency updated successfully');
+          showAlert('Success', 'Frequency updated successfully');
         })
         .catch((error) => {
-          Alert.alert('Error', error instanceof Error ? error.message : 'Failed to update frequency');
+          showAlert('Error', error instanceof Error ? error.message : 'Failed to update frequency');
         })
         .finally(() => setIsSaving(false));
     } else {
       addFrequency(frequencyData)
         .then(() => {
           setModalVisible(false);
-          Alert.alert('Success', 'Frequency created successfully');
+          showAlert('Success', 'Frequency created successfully');
         })
         .catch((error) => {
-          Alert.alert('Error', error instanceof Error ? error.message : 'Failed to create frequency');
+          showAlert('Error', error instanceof Error ? error.message : 'Failed to create frequency');
         })
         .finally(() => setIsSaving(false));
     }
   };
 
   const handleDelete = (id: string) => {
-    Alert.alert(
+    showAlert(
       'Confirm Delete',
       'Are you sure you want to delete this frequency?',
       [
@@ -229,10 +229,10 @@ export default function FrequenciesManagement() {
           onPress: () => {
             deleteFrequency(id)
               .then(() => {
-                Alert.alert('Success', 'Frequency deleted successfully');
+                showAlert('Success', 'Frequency deleted successfully');
               })
               .catch((error) => {
-                Alert.alert('Error', error instanceof Error ? error.message : 'Failed to delete frequency');
+                showAlert('Error', error instanceof Error ? error.message : 'Failed to delete frequency');
               });
           },
         },

@@ -6,7 +6,6 @@ import {
   StyleSheet,
   TouchableOpacity,
   Platform,
-  Alert,
   RefreshControl,
   ActivityIndicator,
 } from 'react-native';
@@ -36,6 +35,7 @@ import { router } from 'expo-router';
 import { useAdminData } from '@/hooks/useAdminData';
 import { useDataMode } from '@/hooks/useDataMode';
 import { useAdminAnalytics } from '@/hooks/useAdminAnalytics';
+import { showAlert } from '../../../lib/ui/alert';
 
 interface StatCardProps {
   title: string;
@@ -62,7 +62,7 @@ const StatCard: React.FC<StatCardProps> = ({
     style={styles.statCard}
     onPress={() => {
       if (disabledMessage) {
-        Alert.alert(title, disabledMessage);
+        showAlert(title, disabledMessage);
       } else if (onPress) {
         onPress();
       }
@@ -353,7 +353,7 @@ export default function AdminDashboard() {
       <View style={styles.quickActions}>
         <TouchableOpacity
           style={styles.seedButton}
-          onPress={() => Alert.alert(
+          onPress={() => showAlert(
             'Data Source & Architectural Authority',
             `Current Mode: ${modeLabel}\n\n` +
             `• Cloud Mode: Reads directly from Cloud Firestore authority. Fails visibly if unavailable.\n` +

@@ -3,7 +3,6 @@ import {
   View,
   Text,
   TouchableOpacity,
-  Alert,
   StyleSheet,
   ScrollView,
   TextInput,
@@ -14,6 +13,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Shield, CheckCircle, XCircle, AlertTriangle, ArrowRight, RefreshCw, Key } from 'lucide-react-native';
 import { auth } from '@/lib/firebase';
 import { authService } from '@/lib/firebase-auth';
+import { showAlert } from '../lib/ui/alert';
 
 type SetupStep = 'checking' | 'not-signed-in' | 'no-admin-claim' | 'ready-to-setup' | 'setting-up' | 'done' | 'error';
 
@@ -91,12 +91,12 @@ export default function SetupPage() {
     const url = backendUrl.trim().replace(/\/$/, '');
 
     if (!key) {
-      Alert.alert('Setup Key Required', 'Enter the ADMIN_SECRET_KEY configured on your backend server.');
+      showAlert('Setup Key Required', 'Enter the ADMIN_SECRET_KEY configured on your backend server.');
       return;
     }
 
     if (!url) {
-      Alert.alert('Backend URL Required', 'Enter the URL where your Hono backend is deployed (e.g. https://your-app.vercel.app).');
+      showAlert('Backend URL Required', 'Enter the URL where your Hono backend is deployed (e.g. https://your-app.vercel.app).');
       return;
     }
 
@@ -122,7 +122,7 @@ export default function SetupPage() {
       }
 
       setStep('done');
-      Alert.alert(
+      showAlert(
         'Admin Claim Set',
         `Your account (${currentUser.email}) now has admin privileges.\n\nIMPORTANT: You must sign out and sign back in for the claim to take effect.`,
         [

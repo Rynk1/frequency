@@ -7,7 +7,6 @@ import {
   TouchableOpacity,
   TextInput,
   Modal,
-  Alert,
   Switch,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -23,6 +22,7 @@ import {
 } from 'lucide-react-native';
 import { useBackendData } from '@/hooks/useBackendData';
 import { ArticleCategory, ContentStatus, CanonicalArticle } from '@/types/content';
+import { showAlert } from '../../../lib/ui/alert';
 
 interface ArticleForm {
   title: string;
@@ -124,7 +124,7 @@ export default function LearningManagement() {
 
   const handleSave = () => {
     if (!formData.title.trim() || !formData.content.trim()) {
-      Alert.alert('Error', 'Please fill in all required fields');
+      showAlert('Error', 'Please fill in all required fields');
       return;
     }
 
@@ -133,27 +133,27 @@ export default function LearningManagement() {
       updateArticle(editingArticle.id, formData)
         .then(() => {
           setModalVisible(false);
-          Alert.alert('Success', 'Article updated successfully');
+          showAlert('Success', 'Article updated successfully');
         })
         .catch((error) => {
-          Alert.alert('Error', error instanceof Error ? error.message : 'Failed to update article');
+          showAlert('Error', error instanceof Error ? error.message : 'Failed to update article');
         })
         .finally(() => setIsSaving(false));
     } else {
       addArticle(formData)
         .then(() => {
           setModalVisible(false);
-          Alert.alert('Success', 'Article created successfully');
+          showAlert('Success', 'Article created successfully');
         })
         .catch((error) => {
-          Alert.alert('Error', error instanceof Error ? error.message : 'Failed to create article');
+          showAlert('Error', error instanceof Error ? error.message : 'Failed to create article');
         })
         .finally(() => setIsSaving(false));
     }
   };
 
   const handleDelete = (id: string) => {
-    Alert.alert(
+    showAlert(
       'Confirm Delete',
       'Are you sure you want to delete this article?',
       [
@@ -164,10 +164,10 @@ export default function LearningManagement() {
           onPress: () => {
             deleteArticle(id)
               .then(() => {
-                Alert.alert('Success', 'Article deleted successfully');
+                showAlert('Success', 'Article deleted successfully');
               })
               .catch((error) => {
-                Alert.alert('Error', error instanceof Error ? error.message : 'Failed to delete article');
+                showAlert('Error', error instanceof Error ? error.message : 'Failed to delete article');
               });
           },
         },

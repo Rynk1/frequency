@@ -7,7 +7,6 @@ import {
   TouchableOpacity,
   ScrollView,
   Animated,
-  Dimensions,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { GlassCard as SharedGlassCard } from '@/components/GlassCard';
@@ -32,7 +31,6 @@ import {
 import { FONTS, type ThemeColors, type ThemeGradients } from '@/constants/theme';
 import { useTheme } from '@/hooks/useTheme';
 
-const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
 interface FrequencyInfoModalProps {
   visible: boolean;
