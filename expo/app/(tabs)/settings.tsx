@@ -37,6 +37,7 @@ import {
 import { useSettings } from '@/hooks/useSettings';
 import { useFavorites } from '@/hooks/useFavorites';
 import { useAuth } from '@/hooks/useAuth';
+import { useResponsive } from '@/lib/ui/responsive';
 import { useTheme } from '@/hooks/useTheme';
 import { useSessionManager } from '@/hooks/useSessionManager';
 import { PremiumModal } from '@/components/PremiumModal';
@@ -155,6 +156,7 @@ export default function SettingsScreen() {
   const { favorites } = useFavorites();
   const { user, userProfile, isPremium, isTrialActive, trialDaysLeft, isAdmin, signOut } = useAuth();
   const { mode, colors, gradients, isDark, toggleTheme } = useTheme();
+  const { contentWidth } = useResponsive();
   const insets = useSafeAreaInsets();
   const [showPremiumModal, setShowPremiumModal] = React.useState(false);
   const [showLibraryModal, setShowLibraryModal] = React.useState(false);
@@ -267,7 +269,10 @@ export default function SettingsScreen() {
           <Text style={[styles.headerTitle, { color: colors.textPrimary }]}>Settings</Text>
         </View>
 
-        <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
+        <ScrollView
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={[styles.scrollContent, { maxWidth: contentWidth, width: '100%', alignSelf: 'center' }]}
+        >
 
           {/* — MEMBERSHIP CARD — */}
           <GlassCard style={styles.membershipCard} depth="normal">

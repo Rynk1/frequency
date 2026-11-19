@@ -11,6 +11,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Crown, Lock, Sparkles, X, Check } from 'lucide-react-native';
 import { useAuth } from '@/hooks/useAuth';
 import { PremiumModal } from './PremiumModal';
+import { PREMIUM_BENEFIT_TEXTS } from '@/lib/premium-benefits';
 import { PREMIUM_TRIAL_DAYS } from '@/lib/pricing';
 import { COLORS, GRADIENTS, FONTS, TEXT_PRESETS } from '@/constants/theme';
 
@@ -38,13 +39,7 @@ export const PremiumGate: React.FC<PremiumGateProps> = ({
     onClose();
   };
 
-  const benefits: string[] = [
-    'Unlimited access to all frequencies',
-    'Advanced binaural beats',
-    'Custom session lengths up to 4 hours',
-    'Detailed progress tracking',
-    'Offline downloads',
-  ];
+  const benefits: string[] = PREMIUM_BENEFIT_TEXTS;
 
   return (
     <>

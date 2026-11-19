@@ -14,6 +14,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { GlassCard as SharedGlassCard } from '@/components/GlassCard';
+import { useResponsive } from '@/lib/ui/responsive';
 import {
   Crown,
   Check,
@@ -54,6 +55,8 @@ import {
   getYearlyMonthlyPrice,
   getSavingsPercentForOfferings,
 } from '@/lib/pricing';
+import { PREMIUM_BENEFITS } from '@/lib/premium-benefits';
+import { CANONICAL_PREMIUM_POLICY } from '@/lib/usage/PremiumPolicy';
 import { PREMIUM_FREQUENCY_COUNT } from '@/lib/usage/PremiumPolicy';
 import { COLORS, GRADIENTS, FONTS, TEXT_PRESETS } from '@/constants/theme';
 
@@ -62,7 +65,6 @@ export type PremiumTrigger =
   | 'preview_complete'
   | 'duration_limit'
   | 'session_limit'
-  | 'offline_download'
   | 'advanced_analytics'
   | 'engagement_milestone';
 
@@ -75,6 +77,9 @@ type PremiumModalProps = {
 };
 
 type ManagementAction = 'none' | 'cancel' | 'resume' | 'restore';
+
+const FREE_SESSION_MINUTES = Math.round(CANONICAL_PREMIUM_POLICY.freeSessionMaxDuration / 60);
+const FREE_SESSIONS_PER_DAY = CANONICAL_PREMIUM_POLICY.dailyFreeSessionsLimit;
 
 export const PremiumModal: React.FC<PremiumModalProps> = ({
   visible,
@@ -282,17 +287,22 @@ export const PremiumModal: React.FC<PremiumModalProps> = ({
     }
   }, [refreshSubscriptionStatus, selectedPlan, onUpgrade, onClose]);
 
-  const premiumFeatures: { id: string; icon: any; text: string; highlight?: boolean }[] = [
-    { id: 'premium-frequencies', icon: Music, text: `Access to all ${PREMIUM_FREQUENCY_COUNT} Premium Frequencies`, highlight: true },
-    { id: 'unlimited-duration', icon: InfinityIcon, text: 'Unlimited Session Duration' },
-    { id: 'binaural-beats', icon: Heart, text: 'Advanced Binaural Beats' },
-    { id: 'custom-mixing', icon: Sparkles, text: 'Custom Frequency Mixing' },
-    { id: 'analytics', icon: TrendingUp, text: 'Detailed Progress Analytics' },
-    { id: 'offline-downloads', icon: Download, text: 'Offline Downloads' },
-    { id: 'priority-support', icon: Headphones, text: 'Priority Customer Support' },
-  ];
+  const benefitIcons: Record<string, any> = {
+    'premium-frequencies': Music,
+    'unlimited-duration': InfinityIcon,
+    'binaural-beats': Heart,
+    'custom-affirmations': Sparkles,
+    'progress-analytics': TrendingUp,
+  };
+  const premiumFeatures = PREMIUM_BENEFITS.map((benefit, i) => ({
+    id: benefit.id,
+    icon: benefitIcons[benefit.id] ?? Sparkles,
+    text: benefit.text,
+    highlight: i === 0,
+  }));
 
   const GlassCard = SharedGlassCard;
+const { contentWidth } = useResponsive();
 
   // ── Active subscriber view ──
   if (isPremium || isTrialActive) {
@@ -311,7 +321,7 @@ export const PremiumModal: React.FC<PremiumModalProps> = ({
               </TouchableOpacity>
             </View>
 
-            <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+            <ScrollView contentContainerStyle={[styles.scrollContent, { maxWidth: contentWidth, width: '100%', alignSelf: 'center' }]} showsVerticalScrollIndicator={false}>
               <Animated.View style={{ opacity: fadeAnim, transform: [{ translateY: slideAnim }] }}>
                 {/* Hero status card */}
                 <View style={styles.statusHero}>
@@ -570,7 +580,7 @@ export const PremiumModal: React.FC<PremiumModalProps> = ({
             </TouchableOpacity>
           </View>
 
-          <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+          <ScrollView contentContainerStyle={[styles.scrollContent, { maxWidth: contentWidth, width: '100%', alignSelf: 'center' }]} showsVerticalScrollIndicator={false}>
             <Animated.View style={{ opacity: fadeAnim, transform: [{ translateY: slideAnim }] }}>
               {/* Hero */}
               <View style={styles.heroSection}>
@@ -591,19 +601,15 @@ export const PremiumModal: React.FC<PremiumModalProps> = ({
                     ? 'Extend Your Practice'
                     : trigger === 'session_limit'
                     ? "You've Used Today's Free Sessions"
-                    : trigger === 'offline_download'
-                    ? 'Take Practice Anywhere'
                     : 'Unlock Premium'}
                 </Text>
                 <Text style={styles.heroSubtitle}>
                   {trigger === 'preview_complete'
-                    ? 'You experienced 3 minutes of this session. Unlock full length, offline downloads, and binaural beats.'
+                    ? 'You experienced 3 minutes of this session. Unlock the full length, every binaural beat and all chakra frequencies.'
                     : trigger === 'duration_limit'
-                    ? 'Free sessions are limited to 15 minutes. Upgrade for unlimited session length up to 4 hours.'
+                    ? `Free sessions are limited to ${FREE_SESSION_MINUTES} minutes. Upgrade for unlimited session length.`
                     : trigger === 'session_limit'
-                    ? 'Free listening includes 3 sessions per day. Upgrade for unlimited daily sessions and every premium frequency.'
-                    : trigger === 'offline_download'
-                    ? 'Download your favorite frequencies for seamless offline listening anywhere.'
+                    ? `Free listening includes ${FREE_SESSIONS_PER_DAY} sessions per day. Upgrade for unlimited daily sessions and every premium frequency.`
                     : 'Transform your wellness journey with unlimited access to binaural and chakra collections.'}
                 </Text>
               </View>

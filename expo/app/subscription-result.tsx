@@ -24,6 +24,8 @@ import {
   Calendar,
   AlertCircle,
   Loader2,
+  Mic,
+  TrendingUp,
 } from 'lucide-react-native';
 import { useAuth } from '@/hooks/useAuth';
 import { getSubscriptionStatus, type SubscriptionStatus } from '@/lib/subscription-service';
@@ -315,8 +317,8 @@ export default function SubscriptionResultScreen() {
                   {[
                     { icon: Crown, text: `All ${PREMIUM_FREQUENCY_COUNT} premium frequencies` },
                     { icon: Sparkles, text: 'Unlimited session duration' },
-                    { icon: Shield, text: 'Offline downloads' },
-                    { icon: CreditCard, text: 'Priority support' },
+                    { icon: Mic, text: 'Your own recorded affirmations' },
+                    { icon: TrendingUp, text: 'Progress insights and streaks' },
                   ].map((row, i) => (
                     <View key={row.text}>
                       <View style={styles.benefitRow}>

@@ -58,6 +58,8 @@ import { useAuth } from '@/hooks/useAuth';
 import { getDailyAlignment, getLocalDateString } from '@/lib/recommendation';
 import { useTheme } from '@/hooks/useTheme';
 import { useSettings } from '@/hooks/useSettings';
+import { ResponsiveGrid } from '@/components/ResponsiveGrid';
+import { useResponsive } from '@/lib/ui/responsive';
 import { PremiumModal } from '@/components/PremiumModal';
 import { showAlert } from '../../lib/ui/alert';
 
@@ -209,6 +211,7 @@ const GlassCard = SharedGlassCard;
 export default function SessionsScreen() {
   const insets = useSafeAreaInsets();
   const { colors, gradients, isDark } = useTheme();
+  const { contentWidth, isTablet } = useResponsive();
   const { updateSetting } = useSettings();
   const styles = useMemo(() => createStyles(colors, gradients, isDark), [colors, gradients, isDark]);
   const [mainTab, setMainTab] = useState<'journey' | 'programs'>('journey');
@@ -487,7 +490,10 @@ export default function SessionsScreen() {
   const spinCCW = rotateCCW.interpolate({ inputRange: [0, 1], outputRange: ['0deg', '-360deg'] });
 
   const renderJourneyTab = () => (
-    <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
+    <ScrollView
+      showsVerticalScrollIndicator={false}
+      contentContainerStyle={[styles.scrollContent, { maxWidth: contentWidth, width: '100%', alignSelf: 'center' }]}
+    >
       {/* Living Resonance Orb Hero */}
       <View style={styles.orbSection}>
         {/* Layer 0: Ambient Breathing Aura & Glow */}
@@ -959,14 +965,19 @@ export default function SessionsScreen() {
   );
 
   const renderProgramsTab = () => (
-    <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
+    <ScrollView
+      showsVerticalScrollIndicator={false}
+      contentContainerStyle={[styles.scrollContent, { maxWidth: contentWidth, width: '100%', alignSelf: 'center' }]}
+    >
       <Text style={styles.programsSubtitle}>Curated healing programs designed by experts</Text>
-      {displayStarterSessions.map((session, index) => {
+      <ResponsiveGrid
+        items={displayStarterSessions}
+        keyExtractor={(session: any, index: number) => `${session.name}-${index}`}
+        renderItem={(session: any) => {
         const meta = CATEGORY_META[session.category] || CATEGORY_META.healing;
         const IconComp = meta.icon;
         return (
           <TouchableOpacity
-            key={index}
             activeOpacity={0.85}
             onPress={() => {
               setSelectedStarterSession(session);
@@ -1033,7 +1044,8 @@ export default function SessionsScreen() {
             </GlassCard>
           </TouchableOpacity>
         );
-      })}
+        }}
+      />
     </ScrollView>
   );
 
@@ -1080,7 +1092,7 @@ export default function SessionsScreen() {
         </View>
 
         {/* Main tabs */}
-        <View style={styles.mainTabBar}>
+        <View style={[styles.mainTabBar, isTablet && styles.mainTabBarTablet]}>
           <TouchableOpacity
             style={[styles.mainTab, mainTab === 'journey' && styles.mainTabActive]}
             onPress={() => setMainTab('journey')}
@@ -1494,6 +1506,7 @@ const createStyles = (colors: any, gradients: any, isDark: boolean) => StyleShee
     justifyContent: 'center',
     marginTop: 4,
   },
+  mainTabBarTablet: { maxWidth: 420, width: '100%', alignSelf: 'center' },
   mainTabBar: {
     flexDirection: 'row',
     marginHorizontal: 22,
