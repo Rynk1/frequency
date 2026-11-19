@@ -489,16 +489,13 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({
             setAudioVolume(st.effectiveVolume * (prev / 10));
           }
           if (prev <= 1) {
-            setIsTimerActive(false);
             if (st.autoRepeat && !st.isPreviewActive && frequency) {
-              // Loop the same tone: keep playing and simply reset the countdown.
-              if (!st.autoStopEnabled) {
-                setAudioVolume(st.effectiveVolume);
-              }
-              setTimeLeft(st.duration * 60);
-              setIsTimerActive(true);
+              // Loop the same tone: the engine is still playing, so only the
+              // countdown and any fade need resetting.
+              setAudioVolume(st.effectiveVolume);
               return st.duration * 60;
             }
+            setIsTimerActive(false);
             if (st.autoStopEnabled) stopFrequency();
             if (st.isPreviewActive) {
               // Preview complete! Present post-preview conversion modal
