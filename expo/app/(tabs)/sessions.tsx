@@ -7,10 +7,8 @@ import {
   ScrollView,
   TouchableOpacity,
   Modal,
-  Dimensions,
   Animated,
   Image,
-  Alert,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { GlassCard as SharedGlassCard } from '@/components/GlassCard';
@@ -61,8 +59,8 @@ import { getDailyAlignment, getLocalDateString } from '@/lib/recommendation';
 import { useTheme } from '@/hooks/useTheme';
 import { useSettings } from '@/hooks/useSettings';
 import { PremiumModal } from '@/components/PremiumModal';
+import { showAlert } from '../../lib/ui/alert';
 
-const { width } = Dimensions.get('window');
 
 interface Session {
   id: string;
@@ -382,7 +380,7 @@ export default function SessionsScreen() {
   };
 
   const handleDeleteSession = (session: Session) => {
-    Alert.alert(
+    showAlert(
       'Delete session?',
       `Remove "${session.name}" and its reminder from My Sessions?`,
       [

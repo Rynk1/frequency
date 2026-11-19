@@ -101,6 +101,14 @@ export class FrequencyAudioEngine {
     }
   }
 
+  /**
+   * Applies the "background audio" preference. Takes effect on the next
+   * `play()` because the audio session is configured per playback.
+   */
+  public setBackgroundPlayback(enabled: boolean): void {
+    this.nativeRenderer?.setBackgroundPlayback(enabled);
+  }
+
   public async setVolume(volume: number): Promise<void> {
     const validVolume = Math.max(0, Math.min(1, volume));
     this.updateState({ volume: validVolume });

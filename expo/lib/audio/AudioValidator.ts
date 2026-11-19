@@ -1,4 +1,5 @@
 import { FrequencyAudioSpec } from './AudioTypes';
+import { isSubAudible, MIN_AUDIBLE_HZ } from './audibility';
 
 export interface ValidationResult {
   isValid: boolean;
@@ -36,6 +37,12 @@ export class AudioValidator {
         return {
           isValid: false,
           error: `Pure tone frequency ${freq} Hz exceeds Nyquist limit (${nyquist} Hz)`,
+        };
+      }
+      if (isSubAudible(freq)) {
+        return {
+          isValid: false,
+          error: `Pure tone frequency ${freq} Hz is below the audible range (${MIN_AUDIBLE_HZ} Hz) and would be silent on phone speakers; render it as a binaural beat instead`,
         };
       }
       return { isValid: true };

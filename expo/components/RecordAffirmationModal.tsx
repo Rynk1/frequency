@@ -7,7 +7,6 @@ import {
   TextInput,
   Modal,
   ActivityIndicator,
-  Alert,
   ScrollView,
   Platform,
 } from 'react-native';
@@ -19,6 +18,7 @@ import { CustomAudioRecorder, RecordingResult } from '../lib/audio/CustomAudioRe
 import { globalCustomAudioOverlayEngine } from '../lib/audio/CustomAudioOverlayEngine';
 import { UserAffirmationService } from '../lib/affirmations/user-affirmation-service';
 import { AffirmationCategory, CATEGORY_LABELS } from '../types/affirmation';
+import { showAlert } from '../lib/ui/alert';
 
 interface RecordAffirmationModalProps {
   visible: boolean;
@@ -87,7 +87,7 @@ export const RecordAffirmationModal: React.FC<RecordAffirmationModalProps> = ({
           setRecordedAudio(result);
         }
       } catch (err: any) {
-        Alert.alert('Recording Failed', err?.message || 'Unable to complete audio recording.');
+        showAlert('Recording Failed', err?.message || 'Unable to complete audio recording.');
       }
     } else {
       // Start recording
@@ -102,7 +102,7 @@ export const RecordAffirmationModal: React.FC<RecordAffirmationModalProps> = ({
           startRecordingTimer();
         }
       } catch (err: any) {
-        Alert.alert('Microphone Access Required', err?.message || 'Microphone access is needed to record your affirmation.');
+        showAlert('Microphone Access Required', err?.message || 'Microphone access is needed to record your affirmation.');
       }
     }
   };
@@ -124,11 +124,11 @@ export const RecordAffirmationModal: React.FC<RecordAffirmationModalProps> = ({
 
   const handleSave = async () => {
     if (!text.trim()) {
-      Alert.alert('Affirmation Text Required', 'Please enter what you affirm in writing.');
+      showAlert('Affirmation Text Required', 'Please enter what you affirm in writing.');
       return;
     }
     if (!user?.uid) {
-      Alert.alert('Authentication Required', 'Please sign in to save your custom affirmation.');
+      showAlert('Authentication Required', 'Please sign in to save your custom affirmation.');
       return;
     }
 
@@ -148,7 +148,7 @@ export const RecordAffirmationModal: React.FC<RecordAffirmationModalProps> = ({
       if (onSaved) onSaved();
       onClose();
     } catch (err: any) {
-      Alert.alert('Save Error', err?.message || 'Failed to save custom affirmation.');
+      showAlert('Save Error', err?.message || 'Failed to save custom affirmation.');
     } finally {
       setIsSaving(false);
     }

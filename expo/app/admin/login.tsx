@@ -7,7 +7,6 @@ import {
   StyleSheet,
   KeyboardAvoidingView,
   Platform,
-  Alert,
   ActivityIndicator,
   ScrollView,
 } from 'react-native';
@@ -16,6 +15,7 @@ import { useAdminAuth } from '@/hooks/useAdminAuth';
 import { router } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Lock, Mail } from 'lucide-react-native';
+import { showAlert } from '../../lib/ui/alert';
 
 export default function AdminLogin() {
   const [email, setEmail] = useState('');
@@ -25,7 +25,7 @@ export default function AdminLogin() {
 
   const handleLogin = async () => {
     if (!email || !password) {
-      Alert.alert('Error', 'Please enter both email and password');
+      showAlert('Error', 'Please enter both email and password');
       return;
     }
 
@@ -41,7 +41,7 @@ export default function AdminLogin() {
         }, 1500);
       } else {
         console.log('❌ Login failed - not admin or invalid credentials');
-        Alert.alert(
+        showAlert(
           'Login Failed',
           'Invalid email, password, or you do not have admin privileges. Please use the setup page (/setup) to grant admin access first.'
         );
@@ -49,7 +49,7 @@ export default function AdminLogin() {
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'An error occurred during login';
       console.error('🔥 Login error:', error);
-      Alert.alert(
+      showAlert(
         'Error',
         `Login failed: ${errorMessage}. Please check your internet connection and try again.`
       );

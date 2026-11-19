@@ -13,6 +13,12 @@ export interface BinauralBeatSpec {
   carrierFrequency: number;
   beatFrequency: number;
   amplitude?: number; // 0.0 to 1.0 (default 0.2 safe max)
+  /**
+   * Set when a catalogue entry declared a sub-audible rate and was promoted to
+   * a binaural beat for audibility. Entitlement checks use this value so the
+   * carrier never changes which tier the content belongs to.
+   */
+  declaredFrequency?: number;
 }
 
 export type FrequencyAudioSpec = PureToneSpec | BinauralBeatSpec;

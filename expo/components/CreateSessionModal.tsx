@@ -9,7 +9,6 @@ import {
   TextInput,
   Platform,
   Animated,
-  Alert,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { GlassCard as SharedGlassCard } from '@/components/GlassCard';
@@ -42,6 +41,7 @@ import { FONTS, type ThemeColors } from '@/constants/theme';
 import { useTheme } from '@/hooks/useTheme';
 import { useBackendData } from '@/hooks/useBackendData';
 import { PremiumModal } from '@/components/PremiumModal';
+import { showAlert } from '../lib/ui/alert';
 
 interface CreateSessionModalProps {
   visible: boolean;
@@ -179,11 +179,11 @@ export default function CreateSessionModal({ visible, onClose, onCreateSession }
 
   const handleCreateSession = async () => {
     if (!sessionName.trim()) {
-      Alert.alert('Missing Name', 'Please enter a session name to continue.');
+      showAlert('Missing Name', 'Please enter a session name to continue.');
       return;
     }
     if (selectedFrequencies.length === 0) {
-      Alert.alert('No Frequencies', 'Please add at least one frequency to your session.');
+      showAlert('No Frequencies', 'Please add at least one frequency to your session.');
       return;
     }
 
@@ -217,11 +217,12 @@ export default function CreateSessionModal({ visible, onClose, onCreateSession }
     try {
       const createdSession = await onCreateSession(newSession);
       if (!createdSession) {
-        Alert.alert('Error', 'Failed to create session. Please try again.');
+        showAlert('Error', 'Failed to create session. Please try again.');
         return;
       }
 
       // Create reminder if notifications are enabled
+      let reminderScheduled = false;
       if (notificationsEnabled && createdSession.id) {
         try {
           const reminder = await createReminder(
@@ -232,9 +233,7 @@ export default function CreateSessionModal({ visible, onClose, onCreateSession }
             selectedSchedule,
             userId
           );
-          if (reminder) {
-            console.log('[CreateSession] Reminder created:', reminder.id);
-          }
+          reminderScheduled = Boolean(reminder?.notificationId);
         } catch (reminderErr) {
           console.error('[CreateSession] Failed to create reminder:', reminderErr);
         }
@@ -242,15 +241,46 @@ export default function CreateSessionModal({ visible, onClose, onCreateSession }
 
       resetForm();
       onClose();
-      Alert.alert(
+      // Do not imply a reminder is set when permission was refused or the
+      // setting is off — the user would otherwise wait for an alert that never
+      // arrives.
+      if (notificationsEnabled && !reminderScheduled) {
+        showAlert(
+          '✨ Session Created',
+          `"${sessionName}" has been added to your active sessions. Reminders are off, so no alert was scheduled — turn on notifications in Settings to get reminded.`,
+          [{ text: 'Got it', style: 'default' }]
+        );
+        return;
+      }
+      showAlert(
         '✨ Session Created',
         `"${sessionName}" has been added to your active sessions.`,
         [{ text: 'Great!', style: 'default' }]
       );
     } catch (e) {
       console.error('[CreateSession] Error:', e);
-      Alert.alert('Error', 'Failed to create session. Please try again.');
+      showAlert('Error', 'Failed to create session. Please try again.');
     }
+  };
+
+  /**
+   * Ask for notification permission at the moment the user opts in. Enabling
+   * the toggle without permission would produce a reminder that never fires.
+   */
+  const handleToggleReminder = async () => {
+    if (notificationsEnabled) {
+      setNotificationsEnabled(false);
+      return;
+    }
+    const granted = await requestNotificationPermission();
+    if (!granted) {
+      showAlert(
+        'Notifications Blocked',
+        'Allow notifications for Harmony Frequency in your device settings to set a session reminder.',
+      );
+      return;
+    }
+    setNotificationsEnabled(true);
   };
 
   const resetForm = () => {
@@ -533,7 +563,7 @@ export default function CreateSessionModal({ visible, onClose, onCreateSession }
                     <Text style={styles.sectionTitle}>Session Reminder</Text>
                     <TouchableOpacity
                       style={[styles.notifToggle, notificationsEnabled && { backgroundColor: colors.gold + '20', borderColor: colors.gold + '50' }]}
-                      onPress={() => setNotificationsEnabled(!notificationsEnabled)}
+                      onPress={handleToggleReminder}
                     >
                       {notificationsEnabled ? (
                         <Bell size={14} color={colors.gold} />

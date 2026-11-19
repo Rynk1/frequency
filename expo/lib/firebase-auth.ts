@@ -1,4 +1,4 @@
-import { signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, onAuthStateChanged, User, getIdTokenResult } from 'firebase/auth';
+import { signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, onAuthStateChanged, User, getIdTokenResult, sendPasswordResetEmail } from 'firebase/auth';
 import { auth } from './firebase';
 
 /**
@@ -80,6 +80,14 @@ export const authService = {
         email: user.email,
         displayName: user.displayName,
       };
+    } catch (error: any) {
+      throw mapAuthError(error);
+    }
+  },
+
+  async requestPasswordReset(email: string): Promise<void> {
+    try {
+      await sendPasswordResetEmail(auth, email.trim());
     } catch (error: any) {
       throw mapAuthError(error);
     }
