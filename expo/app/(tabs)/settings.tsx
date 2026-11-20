@@ -136,10 +136,21 @@ const GlowSlider: React.FC<GlowSliderProps> = ({
       <View style={[sliderStyles.track, { backgroundColor: trackColor, borderColor }]}>
         <Animated.View style={[sliderStyles.fill, { width: fillWidth, backgroundColor: accentColor }]} />
       </View>
-      <Animated.View
-        style={[sliderStyles.thumb, { left: thumbLeft, transform: [{ scale: scaleAnim }], backgroundColor: accentColor, shadowColor: accentColor }]}
-        {...panResponder.panHandlers}
-      />
+      {/*
+        `positionX` drives `left`, which the native animated module cannot
+        handle, while `scaleAnim` drives `transform`, which it can. Sharing one
+        view between the two drivers forces the layout props onto the native
+        module and throws "Style property 'left' is not supported". The
+        transform therefore lives on a separate inner node.
+      */}
+      <Animated.View style={[sliderStyles.thumb, { left: thumbLeft }]} {...panResponder.panHandlers}>
+        <Animated.View
+          style={[
+            sliderStyles.thumbFill,
+            { transform: [{ scale: scaleAnim }], backgroundColor: accentColor, shadowColor: accentColor },
+          ]}
+        />
+      </Animated.View>
     </View>
   );
 };
@@ -148,7 +159,8 @@ const sliderStyles = StyleSheet.create({
   container: { height: 32, justifyContent: 'center', marginVertical: 4 },
   track: { height: 5, borderRadius: 3, overflow: 'visible', position: 'relative', borderWidth: 1, marginHorizontal: 11 },
   fill: { position: 'absolute', left: 0, top: 0, bottom: 0, borderRadius: 3 },
-  thumb: { position: 'absolute', width: 22, height: 22, borderRadius: 11, top: -9, marginLeft: -11, borderWidth: 2, borderColor: '#fff', shadowOffset: { width: 0, height: 0 }, shadowOpacity: 0.8, shadowRadius: 8, elevation: 8 },
+  thumb: { position: 'absolute', width: 22, height: 22, top: -9, marginLeft: -11 },
+  thumbFill: { flex: 1, borderRadius: 11, borderWidth: 2, borderColor: '#fff', shadowOffset: { width: 0, height: 0 }, shadowOpacity: 0.8, shadowRadius: 8, elevation: 8 },
 });
 
 export default function SettingsScreen() {
@@ -264,7 +276,7 @@ export default function SettingsScreen() {
 
       <View style={[styles.safeArea, { paddingTop: insets.top }]}>
         {/* Header */}
-        <View style={styles.header}>
+        <View style={[styles.header, { maxWidth: contentWidth, width: '100%', alignSelf: 'center' }]}>
           <Text style={[styles.headerEyebrow, { color: colors.textMuted }]}>Preferences</Text>
           <Text style={[styles.headerTitle, { color: colors.textPrimary }]}>Settings</Text>
         </View>

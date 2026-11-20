@@ -14,6 +14,7 @@ import { LearningContentProvider } from '@/hooks/useLearningContent';
 import { DataModeProvider } from '@/hooks/useDataMode';
 import { SettingsProvider } from '@/hooks/useSettings';
 import { ensureNotificationChannel } from '@/lib/notifications/permissions';
+import { router } from 'expo-router';
 import { ThemeProvider, useTheme } from '@/hooks/useTheme';
 import { PlayerProvider } from '@/lib/player/PlayerContext';
 import { PlayerHost } from '@/lib/player/PlayerHost';
@@ -94,6 +95,34 @@ export default function RootLayout() {
   // requested in context when the user enables reminders or creates one.
   useEffect(() => {
     ensureNotificationChannel().catch(() => {});
+  }, []);
+
+  // A tapped reminder used to do nothing at all: the notification carried a
+  // `session-reminder` payload that no screen consumed, so the user landed on
+  // whatever tab was last open. Send them to the Journey tab instead, which is
+  // where sessions are started.
+  useEffect(() => {
+    if (Platform.OS === 'web' || isExpoGo) return;
+    let Notifications: any;
+    try {
+      Notifications = require('expo-notifications');
+    } catch {
+      return;
+    }
+
+    const route = (response: any) => {
+      const type = response?.notification?.request?.content?.data?.type;
+      if (type === 'session-reminder') router.push('/(tabs)/sessions');
+    };
+
+    // Cold start: the response that launched the app is not replayed by the
+    // listener, so it has to be read once on mount.
+    Notifications.getLastNotificationResponseAsync?.()
+      .then((response: any) => response && route(response))
+      .catch(() => {});
+
+    const subscription = Notifications.addNotificationResponseReceivedListener(route);
+    return () => subscription?.remove?.();
   }, []);
 
   // Hide splash once fonts are loaded (or errored)

@@ -98,8 +98,11 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({
   const { isTablet, contentWidth } = useResponsive();
   const reducedMotion = useReducedMotion();
   // The visualiser is drawn as SVG, so it needs an exact pixel width rather
-  // than flex sizing; mirror the content cap so it never overflows a tablet.
-  const visualizerWidth = Math.min(width, contentWidth) - 4;
+  // than flex sizing. The player column is capped at `contentWidth` and padded
+  // by `styles.content` on both sides, so the SVG must fit inside that padding
+  // or it overflows the column on a phone.
+  const PLAYER_CONTENT_PADDING = 20;
+  const visualizerWidth = Math.max(0, Math.min(width, contentWidth) - PLAYER_CONTENT_PADDING * 2);
   const [duration, setDuration] = useState<number>(15); // minutes
   const [timeLeft, setTimeLeft] = useState<number>(duration * 60); // seconds
   const [isTimerActive, setIsTimerActive] = useState<boolean>(false);
@@ -309,6 +312,29 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({
       setTimeLeft(Math.round((1 - ratio) * duration * 60));
     },
     [isSessionMode, isPreviewActive, duration]
+  );
+
+  /**
+   * Ratio-based seek shared by the scrubber and the full-screen stage. In
+   * session mode the bar reports progress only, so seeking is a no-op there.
+   */
+  const seekToRatio = useCallback(
+    (ratio: number) => {
+      if (isSessionMode || isPreviewActive) return;
+      const clamped = Math.max(0, Math.min(1, ratio));
+      setTimeLeft(Math.round((1 - clamped) * duration * 60));
+    },
+    [isSessionMode, isPreviewActive, duration]
+  );
+
+  const handleImmersiveVolume = useCallback(
+    (v: number) => {
+      const clamped = Math.max(0, Math.min(1, v));
+      setVolume(clamped);
+      setPlayerVolumeOverride(clamped);
+      if (!isMuted) setAudioVolume(clamped);
+    },
+    [isMuted, setAudioVolume]
   );
 
   const progressPanResponder = useRef(
@@ -754,6 +780,10 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({
 
   const displayTimeLeft = isSessionMode ? sessionTimeLeft : timeLeft;
   const displayTitle = isSessionMode ? sessionName : 'Audio Player';
+
+  const immersiveTotalSeconds = isSessionMode
+    ? sessionFrequencies.reduce((sum, freq) => sum + freq.duration * 60, 0)
+    : duration * 60;
 
   const toggleFavorite = useCallback(() => {
     if (displayFrequency) {
@@ -1242,12 +1272,28 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({
             onClose={() => setIsImmersive(false)}
             onTogglePlay={handlePlayPause}
             isPlaying={isCurrentlyPlaying}
+            isPaused={isPaused}
             hz={displayFrequency?.hz || 0}
             title={displayFrequency?.name || 'No Frequency'}
             subtitle={isSessionMode ? `${sessionName} · Track ${currentFrequencyIndex + 1}/${sessionFrequencies.length}` : displayFrequency?.category}
             visualizerStyle={visualizerStyle}
             onCycleStyle={cycleVisualizerStyle}
             colors={colors}
+            progress={Math.max(0, Math.min(1, progress / 100))}
+            elapsedSeconds={isSessionMode ? immersiveTotalSeconds - sessionTimeLeft : duration * 60 - timeLeft}
+            totalSeconds={isSessionMode ? immersiveTotalSeconds : duration * 60}
+            onSeekRatio={isSessionMode || isPreviewActive ? undefined : seekToRatio}
+            isSessionMode={isSessionMode}
+            currentTrackIndex={currentFrequencyIndex}
+            totalTracks={sessionFrequencies.length}
+            onSkipPrevious={handleSkipPrevious}
+            onSkipNext={handleSkipNext}
+            volume={effectiveVolume}
+            isMuted={isMuted}
+            onVolumeChange={handleImmersiveVolume}
+            onToggleMute={toggleMute}
+            isFavorite={isFavoriteInStore(displayFrequency?.hz || 0)}
+            onToggleFavorite={toggleFavorite}
           />
         </Animated.View>
       </Animated.View>
