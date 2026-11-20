@@ -204,3 +204,68 @@ Ordered by user impact. None of these are required for a first release, but each
 - **Google Play Console state** (products, entitlements, listing, data safety) cannot be inspected from the repository.
 
 The gap between "tests pass" and "a tired person at 11pm can start a tone and trust it" is exactly the gap that device testing closes. Do that before publishing.
+
+---
+
+# Addendum — full-screen player and layout consistency pass (PR #52)
+
+**Date:** 2026-11-19
+**Scope:** the full-screen player (`ImmersiveStage`), cross-tab layout consistency, and a second dependency sweep after the transport repairs in §5.
+
+## A1. Why the full-screen player looked broken
+
+Two independent defects, both rendering-level.
+
+**Animation driver conflict.** In React Native 0.86, `width` and `left` are only safe on the native animation driver behind a feature flag (`NativeAnimatedAllowlist`). The stage drove a `positionX` value on the native driver and then read it into `width`/`left` *on the same node* as a native-driven `transform`. Mixing the two on one node throws at runtime — the "bad drawing" was the animated view failing mid-layout. The fix is structural: layout props live on a JS-driven node, `transform` and glow live on separate inner nodes. There is no longer any node carrying both.
+
+**Theme keys that do not exist.** The stage referenced `colors.bgPrimary`, which is not in the theme, so the background fell back to transparent and whatever was behind it showed through. It also concatenated a hex alpha suffix onto `colors.textMuted` / `colors.textSecondary`, which are not guaranteed to be six-digit hex — producing `rgba(...)33`-style strings that RN rejects. Both replaced with real tokens (`colors.bg`, `colors.glassBorder`).
+
+**Short-screen clipping.** The chrome column was a fixed `justifyContent: 'space-between'` block. On a landscape phone — roughly 380px of usable height — artwork, metadata, transport and volume cannot coexist, and the bottom controls were simply cut off with no way to reach them. The chrome is now a `ScrollView` with `flexGrow: 1`, so the layout is unchanged when it fits and scrolls instead of clipping when it does not. Because the chrome container takes `pointerEvents="none"` while hidden, the tap-to-reveal layer underneath still receives the tap that brings the controls back.
+
+## A2. Layout consistency across tabs
+
+The Journey tab and the other three tabs disagreed about how wide content should be.
+
+- **Double gutters.** `contentWidth` already accounted for the page gutter, and each screen then applied `paddingHorizontal: 22` on top. Every phone screen was ~44px narrower than intended. The width contract now lives in one place (`lib/ui/responsive.ts`) and the arithmetic is pinned by tests: a 390px phone yields 346px of usable content, not 266px.
+- **Headers were unconstrained.** On a tablet, the header row stretched the full device width while the cards below sat in a centred column, so titles floated off to the left of their own content. All four tab headers now share the content column.
+- **The Journey switcher had a hard 420px cap** while the content under it was 720px on the same tablet, so the Overview / Healing Programs control was visibly narrower than the cards it filtered. The categories tab bar had the same problem via a separate `tabBarTablet` style. Both now mirror the content column.
+
+## A3. New disconnect found in this pass
+
+**Tapped reminders did nothing.** Session reminders were scheduled correctly, with a payload of `{ sessionName, type: 'session-reminder' }`, and `setNotificationHandler` made them display — but nothing in the app ever read a notification *response*. Tapping "Time for your *Deep Sleep* healing session" opened the app on whichever tab was last used and left the user to find the session themselves. For a reminder whose entire purpose is to bring someone back to a session, that is a broken promise.
+
+Fixed in `app/_layout.tsx`: a response listener routes `session-reminder` taps to the Journey tab, and the cold-start response is read once on mount because the listener does not replay the notification that launched the app. It uses the same guarded `require('expo-notifications')` as the rest of the codebase, so Expo Go and web remain unaffected.
+
+## A4. Remaining gaps found in this pass
+
+| # | Gap | Severity | Note |
+|---|---|---|---|
+| 1 | **No offline handling** | Medium | There is no `NetInfo` usage anywhere. With no connection the app fails through generic error paths rather than telling the user it is offline. Sessions already downloaded or cached should keep playing; the UI should say so. |
+| 2 | **Accessibility labels are thin** | Medium | 243 pressable/touchable elements, 39 `accessibilityLabel`s, zero `accessibilityRole="header"`. The icon-only controls that matter most — the player's transport, the mini-bar's close, the header buttons — are handled, but the wider app is not. TalkBack users will hear unlabelled buttons. |
+| 3 | **Playback errors use a blocking `alert()`** | Low | `useAudioPlayer.playFrequency` catches failures and calls `alert()`. It works, but a native modal dialog in a calm wellness app is jarring; an inline toast in the player's own visual language would fit better. |
+| 4 | **No sleep timer independent of track length** | Low | Confirmed still absent (see §7.2). The timer is bound to track duration. |
+| 5 | **Pause colour still reads as "stop"** | Low | Carried over from §3.2 — the pause glyph is correct now, but the colour has not been revisited. |
+
+## A5. Verification for this pass
+
+- `tsc --noEmit` clean (only the pre-existing `functions/` subproject errors, whose `node_modules` is not installed here).
+- 27 test files / **158 tests** passing, including new cases pinning the width contract, the single-column phone case, the no-double-gutter regression, and the tablet/wide column counts.
+- Web export builds cleanly.
+- Lint: **141 errors, down from a 147 baseline** — no new errors introduced.
+- `settings.tsx` CRLF endings preserved; `learn.tsx` had *mixed* line endings and was restored byte-for-byte before reapplying a one-line change, so its diff is 1 line rather than 204.
+
+## A6. Additions to the release sequence
+
+Insert between steps 2 and 3 of §8:
+
+2a. **Exercise the full-screen player on a landscape phone and on a tablet.** Confirm the chrome scrolls rather than clips at ~380px height, and that the artwork cap holds on a 12" tablet.
+2b. **Tap a scheduled reminder on a device**, both with the app killed and with it backgrounded, and confirm it lands on the Journey tab in both cases.
+2c. **Decide the offline story.** At minimum, verify what a user sees when they open the app with no connection and whether a cached session still plays.
+
+## A7. Updated verdict
+
+The full-screen player now does what it looks like it does, and the four tabs share one width contract instead of three different ones. Combined with the transport repairs in §5, the app's central promise — *choose a tone, start it, let it run* — is now honestly implemented end to end.
+
+The blockers in §6 are unchanged and remain the gating items: **RevenueCat keys, Play Console products, and a real device pass.** The gaps in A4 are quality issues, not launch blockers, with the exception of offline handling, which should be decided deliberately rather than shipped by accident.
+
+None of this changes the core recommendation: this app is close, and what stands between it and the store is configuration and device verification, not design or architecture.

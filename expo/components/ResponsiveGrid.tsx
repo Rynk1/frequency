@@ -1,5 +1,5 @@
-import React from 'react';
-import { StyleSheet, View, ViewStyle } from 'react-native';
+import React, { useState } from 'react';
+import { LayoutChangeEvent, StyleSheet, View, ViewStyle } from 'react-native';
 import { columnWidth, useResponsive } from '@/lib/ui/responsive';
 
 interface ResponsiveGridProps<T> {
@@ -29,13 +29,24 @@ export function ResponsiveGrid<T>({
   style,
   testID,
 }: ResponsiveGridProps<T>) {
-  const { gridWidth, columns: responsiveColumns } = useResponsive();
+  const { columns: responsiveColumns, gridInnerWidth } = useResponsive();
   const count = Math.max(1, columns ?? responsiveColumns);
-  const cellWidth = columnWidth(gridWidth, count, gap);
+
+  // The grid is rendered inside a padded column, so its own measured width is
+  // the only reliable basis for cell sizes. `gridInnerWidth` is the pre-layout
+  // estimate used for the first frame, before `onLayout` reports the truth.
+  const [measuredWidth, setMeasuredWidth] = useState(0);
+  const availableWidth = measuredWidth > 0 ? measuredWidth : gridInnerWidth;
+  const cellWidth = columnWidth(availableWidth, count, gap);
+
+  const handleLayout = (e: LayoutChangeEvent) => {
+    const next = e.nativeEvent.layout.width;
+    setMeasuredWidth((prev) => (Math.abs(prev - next) > 0.5 ? next : prev));
+  };
 
   if (count === 1) {
     return (
-      <View testID={testID} style={style}>
+      <View testID={testID} style={style} onLayout={handleLayout}>
         {items.map((item, index) => (
           <View key={keyExtractor(item, index)}>{renderItem(item, index)}</View>
         ))}
@@ -44,7 +55,7 @@ export function ResponsiveGrid<T>({
   }
 
   return (
-    <View testID={testID} style={[styles.grid, { columnGap: gap }, style]}>
+    <View testID={testID} style={[styles.grid, { columnGap: gap }, style]} onLayout={handleLayout}>
       {items.map((item, index) => (
         <View key={keyExtractor(item, index)} style={{ width: cellWidth }}>
           {renderItem(item, index)}

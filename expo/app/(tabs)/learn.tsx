@@ -399,7 +399,7 @@ export default function LearnScreen() {
         keyboardShouldPersistTaps="handled"
       >
         {/* Header */}
-        <View style={styles.header}>
+        <View style={[styles.header, { maxWidth: contentWidth, width: '100%', alignSelf: 'center' }]}>
           <View style={{ flex: 1 }}>
             <Text style={styles.headerEyebrow}>Knowledge</Text>
             <Text style={styles.headerTitle}>Learn & Discover</Text>

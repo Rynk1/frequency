@@ -17,6 +17,16 @@ export const MAX_CONTENT_WIDTH = 720;
 /** Upper bound for multi-column grids; beyond this, extra columns stop helping. */
 export const MAX_GRID_WIDTH = 1100;
 
+/**
+ * The horizontal padding every tab applies to its scroll container.
+ *
+ * Screens set `maxWidth` from this module *and* pad their container, so the
+ * width reported here is the outer container width, not the inner text width.
+ * Reporting the inner width instead subtracts the gutter twice and visibly
+ * thins every screen on a phone.
+ */
+export const PAGE_GUTTER = 22;
+
 export interface ResponsiveLayout {
   width: number;
   height: number;
@@ -26,10 +36,14 @@ export interface ResponsiveLayout {
   columns: number;
   /** Horizontal page gutter. */
   gutter: number;
-  /** Width to constrain a single reading column to. */
+  /** Outer width a screen's scroll container should be capped to. */
   contentWidth: number;
-  /** Width available to a card grid. */
+  /** Usable width inside a `contentWidth` container, after both gutters. */
+  contentInnerWidth: number;
+  /** Outer width available to a card grid, including its gutters. */
   gridWidth: number;
+  /** Usable width inside a `gridWidth` container, after both gutters. */
+  gridInnerWidth: number;
 }
 
 export function resolveLayout(width: number, height: number): ResponsiveLayout {
@@ -37,7 +51,12 @@ export function resolveLayout(width: number, height: number): ResponsiveLayout {
   const isWide = width >= BREAKPOINTS.wide;
 
   const gutter = isWide ? 32 : isTablet ? 28 : 20;
-  const available = Math.max(0, width - gutter * 2);
+
+  // Cap the *outer* container so that after `PAGE_GUTTER` on both sides the
+  // inner column lands on MAX_CONTENT_WIDTH / MAX_GRID_WIDTH.
+  const contentWidth = Math.min(width, MAX_CONTENT_WIDTH + PAGE_GUTTER * 2);
+  const gridWidth = Math.min(width, MAX_GRID_WIDTH + PAGE_GUTTER * 2);
+  const inset = PAGE_GUTTER * 2;
 
   return {
     width,
@@ -46,8 +65,10 @@ export function resolveLayout(width: number, height: number): ResponsiveLayout {
     isWide,
     columns: isWide ? 3 : isTablet ? 2 : 1,
     gutter,
-    contentWidth: Math.min(available, MAX_CONTENT_WIDTH),
-    gridWidth: Math.min(available, MAX_GRID_WIDTH),
+    contentWidth,
+    contentInnerWidth: Math.max(0, contentWidth - inset),
+    gridWidth,
+    gridInnerWidth: Math.max(0, gridWidth - inset),
   };
 }
 
