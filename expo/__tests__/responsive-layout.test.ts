@@ -2,6 +2,8 @@ import { describe, it, expect } from 'vitest';
 import {
   BREAKPOINTS,
   MAX_CONTENT_WIDTH,
+  MAX_GRID_WIDTH,
+  PAGE_GUTTER,
   columnWidth,
   resolveLayout,
 } from '../lib/ui/responsive';
@@ -16,14 +18,25 @@ describe('resolveLayout', () => {
     expect(layout.isTablet).toBe(false);
     expect(layout.columns).toBe(1);
     expect(layout.gutter).toBe(20);
-    expect(layout.contentWidth).toBe(350);
+    // A phone is narrower than the cap, so the container is the full width and
+    // the gutter is applied by the screen's own padding.
+    expect(layout.contentWidth).toBe(390);
+    expect(layout.contentInnerWidth).toBe(390 - PAGE_GUTTER * 2);
+  });
+
+  it('does not subtract the page gutter twice on a phone', () => {
+    // Regression: contentWidth used to be `width - gutter*2` while screens also
+    // applied `paddingHorizontal: 22`, thinning every phone screen by ~44px.
+    const layout = resolveLayout(390, 844);
+    expect(layout.contentWidth).toBe(390);
+    expect(layout.contentInnerWidth).toBeGreaterThan(340);
   });
 
   it('switches to two columns at the tablet breakpoint', () => {
     const layout = resolveLayout(BREAKPOINTS.tablet, 1024);
     expect(layout.isTablet).toBe(true);
     expect(layout.columns).toBe(2);
-    expect(layout.contentWidth).toBeLessThanOrEqual(MAX_CONTENT_WIDTH);
+    expect(layout.contentInnerWidth).toBeLessThanOrEqual(MAX_CONTENT_WIDTH);
   });
 
   it('uses three columns on a wide tablet', () => {
@@ -32,15 +45,21 @@ describe('resolveLayout', () => {
 
   it('caps the reading column so lines stay readable on large screens', () => {
     const layout = resolveLayout(2048, 1536);
-    expect(layout.contentWidth).toBe(MAX_CONTENT_WIDTH);
+    // The outer container may be the cap plus its own padding, but the inner
+    // text column must never exceed the readable measure.
+    expect(layout.contentInnerWidth).toBe(MAX_CONTENT_WIDTH);
+    expect(layout.contentWidth).toBe(MAX_CONTENT_WIDTH + PAGE_GUTTER * 2);
     // The grid may use more room than body copy.
-    expect(layout.gridWidth).toBeGreaterThanOrEqual(layout.contentWidth);
+    expect(layout.gridInnerWidth).toBeGreaterThanOrEqual(layout.contentInnerWidth);
+    expect(layout.gridInnerWidth).toBe(MAX_GRID_WIDTH);
   });
 
   it('never reports a negative or zero available width', () => {
     const layout = resolveLayout(100, 400);
     expect(layout.contentWidth).toBeGreaterThan(0);
+    expect(layout.contentInnerWidth).toBeGreaterThan(0);
     expect(layout.gridWidth).toBeGreaterThan(0);
+    expect(layout.gridInnerWidth).toBeGreaterThan(0);
   });
 
   it('treats rotation as a pure function of the measured width', () => {

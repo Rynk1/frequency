@@ -211,7 +211,7 @@ const GlassCard = SharedGlassCard;
 export default function SessionsScreen() {
   const insets = useSafeAreaInsets();
   const { colors, gradients, isDark } = useTheme();
-  const { contentWidth, isTablet } = useResponsive();
+  const { contentWidth } = useResponsive();
   const { updateSetting } = useSettings();
   const styles = useMemo(() => createStyles(colors, gradients, isDark), [colors, gradients, isDark]);
   const [mainTab, setMainTab] = useState<'journey' | 'programs'>('journey');
@@ -1062,7 +1062,7 @@ export default function SessionsScreen() {
 
       <View style={[styles.safeArea, { paddingTop: insets.top }]}>
         {/* Header */}
-        <View style={styles.header}>
+        <View style={[styles.header, { maxWidth: contentWidth, width: '100%', alignSelf: 'center' }]}>
           <View>
             <Text style={styles.headerEyebrow}>Your Healing</Text>
             <Text style={styles.headerTitle}>Journey</Text>
@@ -1091,20 +1091,23 @@ export default function SessionsScreen() {
           </TouchableOpacity>
         </View>
 
-        {/* Main tabs */}
-        <View style={[styles.mainTabBar, isTablet && styles.mainTabBarTablet]}>
-          <TouchableOpacity
-            style={[styles.mainTab, mainTab === 'journey' && styles.mainTabActive]}
-            onPress={() => setMainTab('journey')}
-          >
-            <Text style={[styles.mainTabText, mainTab === 'journey' && styles.mainTabTextActive]}>Overview</Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[styles.mainTab, mainTab === 'programs' && styles.mainTabActive]}
-            onPress={() => setMainTab('programs')}
-          >
-            <Text style={[styles.mainTabText, mainTab === 'programs' && styles.mainTabTextActive]}>Healing Programs</Text>
-          </TouchableOpacity>
+        {/* Main tabs — same column as the header and the scroll content, so the
+            switcher never floats narrower than the page beneath it. */}
+        <View style={[styles.mainTabBarWrap, { maxWidth: contentWidth, width: '100%', alignSelf: 'center' }]}>
+          <View style={styles.mainTabBar}>
+            <TouchableOpacity
+              style={[styles.mainTab, mainTab === 'journey' && styles.mainTabActive]}
+              onPress={() => setMainTab('journey')}
+            >
+              <Text style={[styles.mainTabText, mainTab === 'journey' && styles.mainTabTextActive]}>Overview</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.mainTab, mainTab === 'programs' && styles.mainTabActive]}
+              onPress={() => setMainTab('programs')}
+            >
+              <Text style={[styles.mainTabText, mainTab === 'programs' && styles.mainTabTextActive]}>Healing Programs</Text>
+            </TouchableOpacity>
+          </View>
         </View>
 
         {mainTab === 'journey' ? renderJourneyTab() : renderProgramsTab()}
@@ -1506,16 +1509,14 @@ const createStyles = (colors: any, gradients: any, isDark: boolean) => StyleShee
     justifyContent: 'center',
     marginTop: 4,
   },
-  mainTabBarTablet: { maxWidth: 420, width: '100%', alignSelf: 'center' },
+  mainTabBarWrap: { paddingHorizontal: 22, marginBottom: 16 },
   mainTabBar: {
     flexDirection: 'row',
-    marginHorizontal: 22,
     backgroundColor: colors.glass,
     borderRadius: 14,
     padding: 3,
     borderWidth: 1,
     borderColor: colors.glassBorder,
-    marginBottom: 16,
   },
   mainTab: {
     flex: 1,

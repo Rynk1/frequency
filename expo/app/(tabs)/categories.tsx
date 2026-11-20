@@ -47,7 +47,7 @@ export default function CategoriesScreen() {
   const insets = useSafeAreaInsets();
   const { colors, gradients, isDark } = useTheme();
   const styles = useMemo(() => createStyles(colors, isDark), [colors, isDark]);
-  const { contentWidth, isTablet } = useResponsive();
+  const { contentWidth } = useResponsive();
   const [activeTab, setActiveTab] = useState<TabType>('overview');
   const [selectedCategory, setSelectedCategory] = useState<CategoryType>('all');
   const [infoModalVisible, setInfoModalVisible] = useState(false);
@@ -490,7 +490,7 @@ export default function CategoriesScreen() {
 
       <View style={[styles.safeArea, { paddingTop: insets.top }]}>
         {/* Header */}
-        <View style={styles.header}>
+        <View style={[styles.header, { maxWidth: contentWidth, width: '100%', alignSelf: 'center' }]}>
           <View style={{ flex: 1 }}>
             <Text style={[styles.headerEyebrow, { color: colors.textMuted }]}>Explore</Text>
             <Text style={[styles.headerTitle, { color: colors.textPrimary }]}>Frequencies</Text>
@@ -502,8 +502,8 @@ export default function CategoriesScreen() {
         </View>
 
         {/* Tab Bar — Overview | Library */}
-        <View style={styles.tabBarWrapper}>
-          <View style={[styles.tabBar, isTablet && styles.tabBarTablet]}>
+        <View style={[styles.tabBarWrapper, { maxWidth: contentWidth, width: '100%', alignSelf: 'center' }]}>
+          <View style={styles.tabBar}>
             <TouchableOpacity
               style={[styles.tab, activeTab === 'overview' && styles.tabActive]}
               onPress={() => switchTab('overview')}
@@ -629,7 +629,6 @@ const createStyles = (colors: any, isDark: boolean) => StyleSheet.create({
     paddingHorizontal: 22,
     marginBottom: 4,
   },
-  tabBarTablet: { maxWidth: 420, width: '100%', alignSelf: 'center' },
   tabBar: {
     flexDirection: 'row',
     borderRadius: 16,
