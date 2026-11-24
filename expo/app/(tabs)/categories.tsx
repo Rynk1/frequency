@@ -37,6 +37,7 @@ import {
   visibleIntentCategories,
 } from '@/lib/catalogue/intent-taxonomy';
 import { pluralTracks, t } from '@/lib/copy/strings';
+import { displayNameForFrequency } from '@/lib/catalogue/copy';
 
 type TabType = 'overview' | 'library';
 type CategoryType = 'all' | IntentCategoryId;
@@ -263,7 +264,7 @@ export default function CategoriesScreen() {
                         return (
                           <View key={idx} style={styles.catPreviewRow}>
                             <View style={[styles.catBullet, { backgroundColor: accent }]} />
-                            <Text style={[styles.catPreviewText, { color: colors.textSecondary }]} numberOfLines={1}>{freq.name} — <Text style={{ color: accent }}>{freq.hz}Hz</Text></Text>
+                            <Text style={[styles.catPreviewText, { color: colors.textSecondary }]} numberOfLines={1}>{displayNameForFrequency(freq.id, freq.name)} — <Text style={{ color: accent }}>{freq.hz}Hz</Text></Text>
                             {gated && (
                               <View style={styles.miniPremiumBadge}>
                                 <Crown color={colors.gold} size={10} />
@@ -432,7 +433,7 @@ export default function CategoriesScreen() {
 
                     <View style={styles.freqCardBody}>
                       <View style={styles.freqCardTopRow}>
-                        <Text style={[styles.freqName, { color: colors.textPrimary }]}>{freq.name}</Text>
+                        <Text style={[styles.freqName, { color: colors.textPrimary }]}>{displayNameForFrequency(freq.id, freq.name)}</Text>
                         <View style={styles.badgeGroup}>
                           {isGated && (
                             <View style={styles.freqPremiumBadge}>
@@ -445,6 +446,7 @@ export default function CategoriesScreen() {
                           </View>
                         </View>
                       </View>
+                      <Text style={[styles.freqTechName, { color: colors.textMuted }]} numberOfLines={1}>{freq.name}</Text>
                       <Text style={[styles.freqDesc, { color: colors.textMuted }]} numberOfLines={2}>{freq.description}</Text>
                       {freq.benefits && freq.benefits.length > 0 && (
                         <View style={styles.freqBenefits}>
@@ -1007,6 +1009,13 @@ const createStyles = (colors: any, isDark: boolean) => StyleSheet.create({
   freqCatBadgeText: {
     fontSize: 10,
     fontWeight: '600' as const,
+  },
+  freqTechName: {
+    fontSize: 11,
+    color: colors.textMuted,
+    fontWeight: '600' as const,
+    letterSpacing: 0.3,
+    marginBottom: 3,
   },
   freqDesc: {
     fontSize: 12,
