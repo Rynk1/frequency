@@ -56,6 +56,8 @@ export interface UserProfile {
   onboardingCompleted: boolean;
   onboardingPreferences?: {
     primaryGoal: 'focus' | 'sleep' | 'meditation' | 'healing';
+    /** Intent chosen at onboarding. Optional so older profiles stay valid. */
+    primaryIntent?: string;
     sessionLength: number;
     notifications: boolean;
   };
