@@ -25,21 +25,11 @@ const FORBIDDEN = [
   /\beliminates? (anxiety|depression|pain)\b/i,
 ];
 
-describe('pilot frequency copy', () => {
-  it('covers the ten approved pilot records', () => {
-    expect(entries).toHaveLength(10);
-    expect(Object.keys(FREQUENCY_COPY).sort()).toEqual([
-      'scientific-110',
-      'scientific-40',
-      'scientific-432',
-      'scientific-7.83',
-      'sleep-8',
-      'solfeggio-528',
-      'solfeggio-639',
-      'solfeggio-963',
-      'wealth-528',
-      'wealth-888',
-    ]);
+describe('frequency copy', () => {
+  it('covers every record in the catalogue', () => {
+    expect(entries).toHaveLength(catalogue.length);
+    const missing = [...catalogueIds].filter((id) => !FREQUENCY_COPY[id]);
+    expect(missing).toEqual([]);
   });
 
   it('only targets ids that exist in the catalogue', () => {
@@ -107,7 +97,7 @@ describe('pilot frequency copy', () => {
   });
 
   it('falls back to the seed name when no copy exists', () => {
-    expect(displayNameForFrequency('solfeggio-174', 'Foundation Pure')).toBe('Foundation Pure');
+    expect(displayNameForFrequency('not-a-record', 'Seed Name')).toBe('Seed Name');
     expect(displayNameForFrequency('solfeggio-528', 'Love & Harmony Pure')).toBe('Heart Calm');
   });
 
