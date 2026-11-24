@@ -42,7 +42,7 @@ Articles, for all 8 records:
 Reviewed copy:
 
 - display name, hook, use case, why people use it, about this sound and
-  evidence note for the 10 pilot records
+  evidence note for all 46 records
 - paywall headline and body for all 9 intent categories, plus the default
 - all premium benefit lines
 - all shared UI strings in `lib/copy/strings.ts`
@@ -66,7 +66,7 @@ Reviewed copy:
 
 1. Any scientific sentence names the kind of evidence and its limits.
 2. Abundance copy stays on mindset, focus and intention.
-3. Every pilot track shows an evidence tier and a one-line caveat.
+3. Every track shows an evidence tier and a one-line caveat.
 4. Every detail sheet shows a safety note and a medical disclaimer.
 5. Primary names and titles do not use "healing".
 
@@ -118,24 +118,20 @@ Reviewed copy:
 
 ### Product gaps
 
-1. 36 of 46 records still use their technical seed name and description.
-   They are claim-safe but not benefit-led.
-2. Three programs are flagged premium in the seed but nothing enforces the
-   flag. Do not advertise premium programs until gating ships.
-3. The `offlineDownloads` and `customMixing` capability flags are granted but
-   unread. Remove or implement before relying on them.
-4. A second partial duplicate catalogue was found during discovery. It is
-   documented in `docs/CONTENT_AUDIT_AND_TAXONOMY.md` and not yet merged.
-5. Search synonyms cover intent categories and the 10 pilot records. The
-   remaining records rely on name, Hz and description matching.
-6. iOS billing has not been run on a device. RevenueCat and store product
+1. Cited studies still need a source check before store publication. They
+   are described conservatively and no study is invented.
+2. Offline premium access is fail-closed: a cached profile grants nothing.
+   The 72-hour policy is defined but unused.
+3. iOS billing has not been run on a device. RevenueCat and store product
    configuration need a device test.
+4. No product analytics provider is connected. Events are defined behind
+   `expo/lib/telemetry.ts` and go nowhere until one is wired.
 
 ### Accessibility and layout
 
 1. The free-today tile adds a fourth small-text row on Explore. Check that it
    does not push the first category below the fold on a small phone.
-2. The longest pilot name is "Connection & Compassion". Check truncation on
+2. The longest display name is "Connection & Compassion". Check truncation on
    a 320-point-wide screen and at large text sizes.
 3. The evidence badge and safety note use small text. Check contrast and
    dynamic type.
@@ -150,4 +146,4 @@ in this work. The catalogue audit test still enumerates all 46 records:
 - `expo/__tests__/audio/CatalogueAudioAudit.test.ts`
 - `expo/__tests__/audio/CatalogueAudibility.test.ts`
 
-All 228 tests passed at the time of this report.
+All 231 tests passed at the time of this report.

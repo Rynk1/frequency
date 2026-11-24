@@ -122,6 +122,7 @@ Do not re-add either without an implementation.
 ## Tests
 
 - `expo/__tests__/free-tier.test.ts`
+- `expo/__tests__/program-access.test.ts`
 - `expo/__tests__/preview-config.test.ts`
 - `expo/__tests__/entitlements/*`
 - `expo/__tests__/audio/CatalogueAudioAudit.test.ts`

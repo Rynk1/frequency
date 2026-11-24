@@ -358,9 +358,12 @@ Shipped in this branch, in review-sized commits:
 | Entitlement | Free set pinned at nine, category-based lock removed, locked tracks always preview, preview length configurable. |
 | Free today | One rotating free track above Explore search. |
 | Telemetry | Paywall funnel defined behind a sink seam in `expo/lib/telemetry.ts`. |
+| Programs | Three flagged programs gated in `sessions.tsx`; paywall advertises guided programs. |
+| Flags | Unread offline-download and custom-mixing capabilities removed. |
+| Duplicate seed | Unreachable `backend/` catalogue deleted. |
 | Store metadata | Three variants in `docs/APP_STORE_METADATA.md`. |
 | Claim scan | `expo/__tests__/claim-safety.test.ts`, with a report in `docs/CLAIM_SAFETY_REPORT.md`. |
-| Catalogue export | `docs/frequency-catalog.csv`, 46 rows, pilot rows marked reviewed. |
+| Catalogue export | `docs/frequency-catalog.csv`, 46 rows, all complete. |
 
 Still open:
 
