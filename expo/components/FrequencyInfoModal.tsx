@@ -28,6 +28,7 @@ import {
   Sun,
   Target,
 } from 'lucide-react-native';
+import { SAFETY_NOTE, copyForFrequency, evidenceTierLabel } from '@/lib/catalogue/copy';
 import { FONTS, type ThemeColors, type ThemeGradients } from '@/constants/theme';
 import { useTheme } from '@/hooks/useTheme';
 
@@ -590,6 +591,8 @@ export function FrequencyInfoModal({ visible, onClose, frequency, category }: Fr
     null
   );
 
+  const copy = copyForFrequency(frequency.id);
+
   // Frequency color from data, fallback to category
   const freqGradient = frequency.gradient || [
     catStyle.primary + 'CC',
@@ -662,7 +665,8 @@ export function FrequencyInfoModal({ visible, onClose, frequency, category }: Fr
                 </TouchableOpacity>
               </View>
 
-              <Text style={styles.heroName}>{frequency.name}</Text>
+              <Text style={styles.heroName}>{copy?.displayName ?? frequency.name}</Text>
+              {copy && <Text style={styles.heroTechName}>{frequency.name}</Text>}
 
               <View style={styles.heroBadgeRow}>
                 <View style={[styles.heroHzBadge, { backgroundColor: catStyle.primary + '25', borderColor: catStyle.primary + '50' }]}>
@@ -672,6 +676,11 @@ export function FrequencyInfoModal({ visible, onClose, frequency, category }: Fr
                 {frequency.category && (
                   <View style={[styles.heroCatBadge, { backgroundColor: colors.glass, borderColor: colors.glassBorder }]}>
                     <Text style={styles.heroCatText}>{frequency.category}</Text>
+                  </View>
+                )}
+                {copy && (
+                  <View style={[styles.heroCatBadge, { backgroundColor: catStyle.soft, borderColor: catStyle.primary + '40' }]}>
+                    <Text style={[styles.heroCatText, { color: catStyle.primary }]}>{evidenceTierLabel(copy.evidenceTier)}</Text>
                   </View>
                 )}
               </View>
@@ -702,7 +711,124 @@ export function FrequencyInfoModal({ visible, onClose, frequency, category }: Fr
           contentContainerStyle={styles.scrollInner}
           showsVerticalScrollIndicator={false}
         >
-          {guide && (
+          {copy && (
+            <>
+              {/* Hook and use case */}
+              <PremiumGlassCard style={styles.section}>
+                <View style={[styles.sectionAccent, { backgroundColor: catStyle.primary }]} />
+                <View style={styles.sectionInner}>
+                  <Text style={styles.sectionBody}>{copy.hook}</Text>
+                  <View style={[styles.useCaseRow, { backgroundColor: catStyle.primary + '12', borderColor: catStyle.primary + '30' }]}>
+                    <Target color={catStyle.primary} size={14} />
+                    <Text style={[styles.useCaseText, { color: catStyle.primary }]}>{copy.useCaseLine}</Text>
+                  </View>
+                </View>
+              </PremiumGlassCard>
+
+              {/* Why people use it */}
+              <PremiumGlassCard style={styles.section}>
+                <View style={[styles.sectionAccent, { backgroundColor: catStyle.primary }]} />
+                <View style={styles.sectionInner}>
+                  <View style={styles.sectionIconRow}>
+                    <View style={[styles.sectionIconCircle, { backgroundColor: catStyle.soft }]}>
+                      <Heart color={catStyle.primary} size={16} />
+                    </View>
+                    <Text style={styles.sectionTitle}>Why people use it</Text>
+                  </View>
+                  <Text style={styles.sectionBody}>{copy.whyPeopleUseIt}</Text>
+                  {frequency.benefits && frequency.benefits.length > 0 && (
+                    <View style={styles.benefitsGrid}>
+                      {frequency.benefits.slice(0, 4).map((benefit: string, index: number) => (
+                        <View key={index} style={styles.benefitRow}>
+                          <View style={[styles.benefitDot, { backgroundColor: catStyle.primary }]}>
+                            <Text style={styles.benefitIndex}>{index + 1}</Text>
+                          </View>
+                          <Text style={styles.benefitText}>{benefit}</Text>
+                        </View>
+                      ))}
+                    </View>
+                  )}
+                </View>
+              </PremiumGlassCard>
+
+              {/* About this sound */}
+              <PremiumGlassCard style={styles.section}>
+                <View style={[styles.sectionAccent, { backgroundColor: catStyle.primary }]} />
+                <View style={styles.sectionInner}>
+                  <View style={styles.sectionIconRow}>
+                    <View style={[styles.sectionIconCircle, { backgroundColor: catStyle.soft }]}>
+                      <Activity color={catStyle.primary} size={16} />
+                    </View>
+                    <Text style={styles.sectionTitle}>About this sound</Text>
+                  </View>
+                  <Text style={styles.sectionBody}>{copy.aboutThisSound}</Text>
+                  <View style={[styles.evidenceRow, { backgroundColor: catStyle.primary + '0D', borderColor: catStyle.primary + '30' }]}>
+                    <View style={[styles.evidenceBadge, { backgroundColor: catStyle.primary + '18', borderColor: catStyle.primary + '40' }]}>
+                      <Shield color={catStyle.primary} size={12} />
+                      <Text style={[styles.evidenceBadgeText, { color: catStyle.primary }]}>{evidenceTierLabel(copy.evidenceTier)}</Text>
+                    </View>
+                    <Text style={styles.evidenceNote}>{copy.evidenceNote}</Text>
+                  </View>
+                </View>
+              </PremiumGlassCard>
+
+              {/* Practical guidance */}
+              <PremiumGlassCard style={styles.section}>
+                <View style={[styles.sectionAccent, { backgroundColor: catStyle.primary }]} />
+                <View style={styles.sectionInner}>
+                  <View style={styles.sectionIconRow}>
+                    <View style={[styles.sectionIconCircle, { backgroundColor: catStyle.soft }]}>
+                      <Timer color={catStyle.primary} size={16} />
+                    </View>
+                    <Text style={styles.sectionTitle}>Practical guidance</Text>
+                  </View>
+                  <View style={styles.usageGrid}>
+                    <View style={styles.usageItem}>
+                      <View style={styles.usageLabelRow}>
+                        <Clock color={catStyle.primary} size={12} />
+                        <Text style={[styles.usageLabel, { color: catStyle.primary }]}>Suggested length</Text>
+                      </View>
+                      <Text style={styles.usageValue}>{copy.recommendedLength}</Text>
+                    </View>
+                    <View style={styles.usageItem}>
+                      <View style={styles.usageLabelRow}>
+                        <Sun color={catStyle.primary} size={12} />
+                        <Text style={[styles.usageLabel, { color: catStyle.primary }]}>Best time</Text>
+                      </View>
+                      <Text style={styles.usageValue}>{copy.bestTimeOfDay}</Text>
+                    </View>
+                    <View style={styles.usageItem}>
+                      <View style={styles.usageLabelRow}>
+                        <Shield color={catStyle.primary} size={12} />
+                        <Text style={[styles.usageLabel, { color: catStyle.primary }]}>Headphones</Text>
+                      </View>
+                      <Text style={styles.usageValue}>{copy.headphones}</Text>
+                    </View>
+                  </View>
+                </View>
+              </PremiumGlassCard>
+
+              <View style={[styles.disclaimerWrap, { backgroundColor: 'rgba(251,191,36,0.08)', borderColor: 'rgba(251,191,36,0.25)' }]}>
+                <View style={styles.disclaimerHeader}>
+                  <AlertCircle color="#FBBF24" size={16} />
+                  <Text style={styles.disclaimerTitle}>Safety</Text>
+                </View>
+                <Text style={styles.disclaimerText}>{copy.safetyNote ?? SAFETY_NOTE}</Text>
+              </View>
+
+              <View style={[styles.disclaimerWrap, { backgroundColor: 'rgba(148,163,184,0.08)', borderColor: 'rgba(148,163,184,0.25)' }]}>
+                <View style={styles.disclaimerHeader}>
+                  <AlertCircle color="#94A3B8" size={16} />
+                  <Text style={styles.disclaimerTitle}>Important notice</Text>
+                </View>
+                <Text style={styles.disclaimerText}>
+                  {frequency.disclaimer || 'Harmony Frequency supports relaxation, focus and personal reflection. It is not medical advice and not a substitute for professional care. Individual experience varies.'}
+                </Text>
+              </View>
+            </>
+          )}
+
+          {!copy && guide && (
             <>
               {/* Background & History */}
               <PremiumGlassCard style={styles.section}>
@@ -959,6 +1085,62 @@ const createStyles = (colors: ThemeColors, gradients: ThemeGradients) => StyleSh
     color: '#FFFFFF',
     letterSpacing: 0.2,
     marginBottom: 12,
+  },
+  heroTechName: {
+    fontFamily: FONTS.body,
+    fontSize: 12,
+    fontWeight: '600' as const,
+    color: 'rgba(255,255,255,0.62)',
+    marginTop: -6,
+    marginBottom: 12,
+  },
+  useCaseRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 8,
+    borderWidth: 1,
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    marginTop: 12,
+  },
+  useCaseText: {
+    flex: 1,
+    fontFamily: FONTS.body,
+    fontSize: 13,
+    lineHeight: 19,
+    fontWeight: '600' as const,
+  },
+  evidenceRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    borderWidth: 1,
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    marginTop: 12,
+  },
+  evidenceBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    borderWidth: 1,
+    borderRadius: 999,
+    paddingHorizontal: 9,
+    paddingVertical: 4,
+  },
+  evidenceBadgeText: {
+    fontFamily: FONTS.body,
+    fontSize: 11,
+    fontWeight: '700' as const,
+  },
+  evidenceNote: {
+    flex: 1,
+    fontFamily: FONTS.body,
+    fontSize: 12,
+    lineHeight: 17,
+    color: '#AAB1C5',
   },
   heroBadgeRow: {
     flexDirection: 'row',
