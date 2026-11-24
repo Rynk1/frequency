@@ -38,6 +38,7 @@ import {
 } from '@/lib/catalogue/intent-taxonomy';
 import { pluralTracks, t } from '@/lib/copy/strings';
 import { displayNameForFrequency } from '@/lib/catalogue/copy';
+import { getFreeToday } from '@/lib/catalogue/free-today';
 
 type TabType = 'overview' | 'library';
 type CategoryType = 'all' | IntentCategoryId;
@@ -114,6 +115,12 @@ export default function CategoriesScreen() {
       openPlayer({ frequency: target });
     }
   }, [params.frequencyHz, frequencies]);
+
+  const freeToday = useMemo(() => getFreeToday(), []);
+  const freeTodayIntent = useMemo(
+    () => (freeToday ? INTENT_CATEGORIES.find((category) => category.id === primaryIntentForFrequency(freeToday.id)) : undefined),
+    [freeToday]
+  );
 
   const categories = useMemo(() => {
     const availableIds = frequencies.map((frequency: any) => frequency.id);
@@ -195,6 +202,29 @@ export default function CategoriesScreen() {
     const filtered = getFilteredCategories();
     return (
       <View style={{ flex: 1 }}>
+        {freeToday && (
+          <TouchableOpacity
+            activeOpacity={0.85}
+            onPress={() => openPlayer({ frequency: withIntent(freeToday) })}
+            style={styles.freeTodayWrap}
+            accessibilityRole="button"
+            accessibilityLabel={`Play the free track today, ${displayNameForFrequency(freeToday.id, freeToday.name)}`}
+          >
+            <GlassCard style={styles.freeTodayCard} depth="light">
+              <View style={[styles.freeTodayBadge, { backgroundColor: (freeTodayIntent?.color ?? colors.accent) + '18', borderColor: (freeTodayIntent?.color ?? colors.accent) + '40' }]}>
+                <Text style={[styles.freeTodayBadgeText, { color: freeTodayIntent?.color ?? colors.accent }]}>FREE TODAY</Text>
+              </View>
+              <View style={styles.freeTodayBody}>
+                <Text style={[styles.freeTodayTitle, { color: colors.textPrimary }]} numberOfLines={1}>{displayNameForFrequency(freeToday.id, freeToday.name)}</Text>
+                <Text style={[styles.freeTodayMeta, { color: colors.textMuted }]} numberOfLines={1}>{freeToday.hz} Hz · {freeTodayIntent?.name ?? 'Free track'}</Text>
+              </View>
+              <View style={[styles.freeTodayPlay, { backgroundColor: freeTodayIntent?.color ?? colors.accent }]}>
+                <Play color="#fff" size={14} fill="#fff" />
+              </View>
+            </GlassCard>
+          </TouchableOpacity>
+        )}
+
         {/* Search Bar — only in Overview */}
         <View style={styles.searchRow}>
           <GlassCard style={styles.searchBar} depth="light">
@@ -692,6 +722,46 @@ const createStyles = (colors: any, isDark: boolean) => StyleSheet.create({
     color: colors.accent,
   },
   // Overview: Search
+  freeTodayWrap: {
+    paddingHorizontal: 16,
+    paddingTop: 12,
+  },
+  freeTodayCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+  },
+  freeTodayBadge: {
+    borderWidth: 1,
+    borderRadius: 999,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+  },
+  freeTodayBadgeText: {
+    fontSize: 9,
+    fontWeight: '800' as const,
+    letterSpacing: 0.8,
+  },
+  freeTodayBody: {
+    flex: 1,
+  },
+  freeTodayTitle: {
+    fontSize: 14,
+    fontWeight: '700' as const,
+  },
+  freeTodayMeta: {
+    fontSize: 11,
+    marginTop: 1,
+  },
+  freeTodayPlay: {
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   searchRow: {
     paddingHorizontal: 22,
     paddingTop: 14,
