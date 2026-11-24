@@ -58,6 +58,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { getDailyAlignment, getLocalDateString } from '@/lib/recommendation';
 import { useTheme } from '@/hooks/useTheme';
 import { useSettings } from '@/hooks/useSettings';
+import { t } from '@/lib/copy/strings';
 import { ResponsiveGrid } from '@/components/ResponsiveGrid';
 import { useResponsive } from '@/lib/ui/responsive';
 import { PremiumModal } from '@/components/PremiumModal';
@@ -100,21 +101,21 @@ const STARTER_SESSIONS: Omit<Session, 'id' | 'createdAt'>[] = [
     notes: "Perfect for morning routine."
   },
   {
-    name: "Deep Healing Session",
+    name: "Deep Relaxation Session",
     frequencies: [
       { hz: 174, name: "Foundation Pure", duration: 15 },
       { hz: 285, name: "Transformation Pure", duration: 15 },
       { hz: 528, name: "Love & Miracles", duration: 15 }
     ],
     totalDuration: 45,
-    goal: "Comprehensive healing for body, mind, and spirit",
+    goal: "A longer, quieter session for rest and reflection",
     schedule: ["Sun", "Wed", "Sat"],
     progress: 0,
     totalSessions: 0,
     streak: 0,
     category: 'healing' as const,
     intensity: 'intense' as const,
-    notes: "Powerful healing combination."
+    notes: "A calm blend of low and mid-range tones."
   },
   {
     name: "Complete Chakra Alignment",
@@ -733,7 +734,7 @@ export default function SessionsScreen() {
         <GlassCard style={styles.emptyCard} depth="light">
           <Play color={colors.textMuted} size={32} />
           <Text style={styles.emptyTitle}>No Active Sessions</Text>
-          <Text style={styles.emptyDesc}>Create a session or choose from Healing Programs below</Text>
+          <Text style={styles.emptyDesc}>{t('sessions.empty.active.body')}</Text>
           <TouchableOpacity style={styles.emptyBtn} onPress={() => setShowCreateModal(true)}>
             <Plus color={colors.accent} size={14} />
             <Text style={styles.emptyBtnText}>Create Session</Text>
@@ -1064,7 +1065,7 @@ export default function SessionsScreen() {
         {/* Header */}
         <View style={[styles.header, { maxWidth: contentWidth, width: '100%', alignSelf: 'center' }]}>
           <View>
-            <Text style={styles.headerEyebrow}>Your Healing</Text>
+            <Text style={styles.headerEyebrow}>{t('sessions.eyebrow')}</Text>
             <Text style={styles.headerTitle}>Journey</Text>
           </View>
           <TouchableOpacity
@@ -1105,7 +1106,7 @@ export default function SessionsScreen() {
               style={[styles.mainTab, mainTab === 'programs' && styles.mainTabActive]}
               onPress={() => setMainTab('programs')}
             >
-              <Text style={[styles.mainTabText, mainTab === 'programs' && styles.mainTabTextActive]}>Healing Programs</Text>
+              <Text style={[styles.mainTabText, mainTab === 'programs' && styles.mainTabTextActive]}>{t('sessions.tab.programs')}</Text>
             </TouchableOpacity>
           </View>
         </View>

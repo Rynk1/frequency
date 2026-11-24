@@ -59,7 +59,7 @@ interface SelectedFrequency {
 }
 
 const categories = [
-  { id: 'healing', name: 'Healing', icon: Heart, color: '#F472B6' },
+  { id: 'healing', name: 'Recovery', icon: Heart, color: '#F472B6' },
   { id: 'meditation', name: 'Meditation', icon: Brain, color: '#A78BFA' },
   { id: 'sleep', name: 'Sleep', icon: Moon, color: '#60A5FA' },
   { id: 'focus', name: 'Focus', icon: Zap, color: '#34D399' },
@@ -195,7 +195,7 @@ export default function CreateSessionModal({ visible, onClose, onCreateSession }
       name: sessionName,
       frequencies: selectedFrequencies,
       totalDuration,
-      goal: goal || 'Personal growth and healing',
+      goal: goal || 'Personal growth and rest',
       schedule: selectedSchedule,
       progress: 0,
       totalSessions: 0,
@@ -472,7 +472,7 @@ export default function CreateSessionModal({ visible, onClose, onCreateSession }
                     <TouchableOpacity style={styles.emptyFreqArea} onPress={() => setShowFrequencyPicker(true)}>
                       <Music size={28} color={colors.textMuted} />
                       <Text style={styles.emptyFreqText}>Tap to add frequencies</Text>
-                      <Text style={styles.emptyFreqSub}>Build your healing sequence</Text>
+                      <Text style={styles.emptyFreqSub}>Build your listening sequence</Text>
                     </TouchableOpacity>
                   ) : (
                     <View style={styles.frequencyList}>

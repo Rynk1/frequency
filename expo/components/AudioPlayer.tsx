@@ -946,7 +946,7 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({
                     <Text style={styles.trackSubtitle}>
                       {isSessionMode
                         ? `Track ${currentFrequencyIndex + 1} of ${sessionFrequencies.length}`
-                        : displayFrequency?.category || 'Healing'}
+                        : displayFrequency?.category || 'Practice'}
                     </Text>
                   </View>
                   <View style={styles.trackActions}>
@@ -963,7 +963,7 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({
                         const hz = displayFrequency?.hz || 0;
                         try {
                           await Share.share({
-                            message: `I'm listening to ${freqName} (${hz} Hz) on Harmony Frequency. Join me on this healing journey!`,
+                            message: `I'm listening to ${freqName} (${hz} Hz) on Harmony Frequency. Join me for a calmer moment.`,
                           });
                         } catch (e) {
                           console.warn('Share failed:', e);
@@ -1350,7 +1350,7 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({
                 <Text style={styles.detailFrequency}>{displayFrequency?.hz || 0} Hz</Text>
                 <Text style={styles.panelBody}>{displayFrequency?.description || 'A focused frequency for mindful listening and a calmer audio environment.'}</Text>
                 <View style={styles.detailGrid}>
-                  <View><Text style={styles.detailLabel}>CATEGORY</Text><Text style={styles.detailValue}>{displayFrequency?.category || 'Healing'}</Text></View>
+                  <View><Text style={styles.detailLabel}>CATEGORY</Text><Text style={styles.detailValue}>{displayFrequency?.category || 'Practice'}</Text></View>
                   <View><Text style={styles.detailLabel}>VISUAL STYLE</Text><Text style={styles.detailValue}>{VISUALIZER_LABELS[visualizerStyle]}</Text></View>
                 </View>
                 <TouchableOpacity style={styles.panelButton} onPress={closePlayerPanel}><Text style={styles.panelButtonText}>Done</Text></TouchableOpacity>

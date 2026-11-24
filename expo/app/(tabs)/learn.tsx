@@ -47,6 +47,7 @@ import {
 import { useTheme } from '@/hooks/useTheme';
 import { useResponsive } from '@/lib/ui/responsive';
 import { useGlobalSearchParams } from 'expo-router';
+import { ARTICLE_CATEGORY_LABELS } from '@/lib/copy/strings';
 
 interface Article {
   id: string;
@@ -71,7 +72,7 @@ const CATEGORIES = [
   { id: 'solfeggio', name: 'Solfeggio', icon: Music, color: '#F472B6' },
   { id: 'chakras', name: 'Chakras', icon: Zap, color: '#FBBF24' },
   { id: 'brainwaves', name: 'Brainwaves', icon: Brain, color: '#818CF8' },
-  { id: 'healing', name: 'Healing', icon: Heart, color: '#34D399' },
+  { id: 'healing', name: 'Recovery', icon: Heart, color: '#34D399' },
   { id: 'sleep', name: 'Sleep', icon: Moon, color: '#60A5FA' },
   { id: 'manifestation', name: 'Manifestation', icon: Sparkles, color: '#FBBF24' },
   { id: 'science', name: 'Science', icon: Activity, color: '#22D3EE' },
@@ -80,7 +81,7 @@ const CATEGORIES = [
 const STATIC_ARTICLES: Article[] = [
   {
     id: '1',
-    title: 'Solfeggio Frequencies: Ancient Tones for Modern Healing',
+    title: 'Solfeggio Frequencies: Ancient Tones for Modern Practice',
     category: 'solfeggio',
     readTime: 6,
     difficulty: 'Beginner',
@@ -517,7 +518,7 @@ export default function LearnScreen() {
                 </View>
                 <View style={styles.heroBadgeRow}>
                   <View style={[styles.heroCatBadge, { backgroundColor: featuredArticle.color + '20' }]}>
-                    <Text style={[styles.heroCatBadgeText, { color: featuredArticle.color }]}>{featuredArticle.category}</Text>
+                    <Text style={[styles.heroCatBadgeText, { color: featuredArticle.color }]}>{ARTICLE_CATEGORY_LABELS[featuredArticle.category] ?? featuredArticle.category}</Text>
                   </View>
                   <View style={[styles.heroDiffBadge, { backgroundColor: DIFFICULTY_COLORS[featuredArticle.difficulty] + '20' }]}>
                     <Text style={[styles.heroDiffText, { color: DIFFICULTY_COLORS[featuredArticle.difficulty] }]}>{featuredArticle.difficulty}</Text>
@@ -565,7 +566,7 @@ export default function LearnScreen() {
                   </View>
                   <View style={styles.articleHeaderMeta}>
                     <View style={[styles.articleCatBadge, { backgroundColor: article.color + '18', borderColor: article.color + '35' }]}>
-                      <Text style={[styles.articleCatBadgeText, { color: article.color }]}>{article.category}</Text>
+                      <Text style={[styles.articleCatBadgeText, { color: article.color }]}>{ARTICLE_CATEGORY_LABELS[article.category] ?? article.category}</Text>
                     </View>
                     <View style={[styles.articleDiffBadge, { backgroundColor: DIFFICULTY_COLORS[article.difficulty] + '18' }]}>
                       <Text style={[styles.articleDiffText, { color: DIFFICULTY_COLORS[article.difficulty] }]}>{article.difficulty}</Text>
@@ -632,7 +633,7 @@ export default function LearnScreen() {
               </TouchableOpacity>
               <View style={[styles.modalCatPill, { backgroundColor: selectedArticle.color + '18', borderColor: selectedArticle.color + '35' }]}>
                 {React.createElement(selectedArticle.icon, { size: 12, color: selectedArticle.color })}
-                <Text style={[styles.modalCatPillText, { color: selectedArticle.color }]}>{selectedArticle.category}</Text>
+                <Text style={[styles.modalCatPillText, { color: selectedArticle.color }]}>{ARTICLE_CATEGORY_LABELS[selectedArticle.category] ?? selectedArticle.category}</Text>
               </View>
               <View style={styles.modalActions}>
                 <TouchableOpacity

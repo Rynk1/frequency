@@ -67,3 +67,25 @@ export function t(key: StringKey, vars?: Record<string, string | number>): strin
 export function pluralTracks(count: number): string {
   return t(count === 1 ? 'explore.results.one' : 'explore.results.other', { count });
 }
+
+/** Article categories use legacy slugs in data; these are the labels users see. */
+export const ARTICLE_CATEGORY_LABELS: Record<string, string> = {
+  all: 'All topics',
+  solfeggio: 'Solfeggio',
+  chakras: 'Chakras',
+  brainwaves: 'Brainwaves',
+  healing: 'Recovery',
+  sleep: 'Sleep',
+  manifestation: 'Manifestation',
+  science: 'Science',
+};
+
+/** Session categories use legacy slugs in data; these are the labels users see. */
+export const SESSION_CATEGORY_LABELS: Record<string, string> = {
+  general: 'General',
+  healing: 'Recovery',
+  meditation: 'Meditation',
+  sleep: 'Sleep',
+  focus: 'Focus',
+  manifestation: 'Abundance',
+};

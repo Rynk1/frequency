@@ -30,6 +30,7 @@ import { PremiumGate } from './PremiumGate';
 import { GlassCard } from './GlassCard';
 import { useResponsive } from '@/lib/ui/responsive';
 import { router } from 'expo-router';
+import { ARTICLE_CATEGORY_LABELS } from '@/lib/copy/strings';
 
 type LibrarySection = 'favorites' | 'history' | 'listening' | 'bookmarks';
 
@@ -169,7 +170,7 @@ export const LibraryModal: React.FC<LibraryModalProps> = ({ visible, initialSect
                   <TouchableOpacity key={article.id} activeOpacity={0.85} onPress={() => { onClose(); router.push({ pathname: '/(tabs)/learn', params: { articleId: article.id } } as any); }}>
                   <GlassCard style={styles.itemCard} depth="light">
                     <View style={[styles.itemIcon, { backgroundColor: colors.accentSoft }]}><Bookmark color={colors.accent} size={18} fill={colors.accent} /></View>
-                    <View style={styles.itemCopy}><Text style={styles.itemTitle}>{article.title}</Text><Text style={styles.itemSubtitle}>{article.category} · {article.readTime} min read</Text></View>
+                    <View style={styles.itemCopy}><Text style={styles.itemTitle}>{article.title}</Text><Text style={styles.itemSubtitle}>{ARTICLE_CATEGORY_LABELS[article.category] ?? article.category} · {article.readTime} min read</Text></View>
                   </GlassCard>
                   </TouchableOpacity>
                 ))}

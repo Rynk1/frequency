@@ -174,7 +174,7 @@ export const usePremiumUsage = (config: Partial<PremiumUsageConfig> = {}) => {
 
     showPremiumGateForFeature(
       feature.trim(),
-      description || `${feature.trim()} is a premium feature. Upgrade to unlock advanced capabilities and enhance your frequency healing experience.`,
+      description || `${feature.trim()} is a premium feature. Upgrade to unlock the full library and longer sessions.`,
       icon
     );
 

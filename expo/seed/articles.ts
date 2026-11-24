@@ -6,7 +6,7 @@ export function getArticlesSeed(): CanonicalArticle[] {
   return [
     {
       id: 'article-1',
-      title: 'Solfeggio Frequencies: Ancient Tones for Modern Healing',
+      title: 'Solfeggio Frequencies: Ancient Tones for Modern Practice',
       content: `Solfeggio frequencies represent a system of musical tones popular in contemporary sound-healing and wellness traditions. The modern scale commonly includes 396 Hz, 417 Hz, 528 Hz, 639 Hz, 741 Hz, and 852 Hz.\n\nWhile popular accounts frequently attribute these tones directly to ancient Medieval Gregorian chants or biblical numerology rediscovered in the 1970s by Dr. Joseph Puleo, historical claims linking the complete modern system to ancient practice should be treated cautiously.\n\nEach frequency carries strong contemporary wellness associations: 396 Hz with letting go of worry; 417 Hz with change; 528 Hz with harmony and love; 639 Hz with interpersonal connection; 741 Hz with clarity; and 852 Hz with inner stillness.\n\nFrom a scientific perspective, evidence remains exploratory. Listeners use these tones for relaxation, meditation, and personal reflection.`,
       category: ArticleCategory.SOLFEGGIO,
       tags: ['solfeggio', 'basics', 'wellness', 'tradition'],
