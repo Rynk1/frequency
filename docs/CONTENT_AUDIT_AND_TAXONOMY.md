@@ -41,7 +41,7 @@ This document records the inventory, the audit scores and the approved intent ta
 | Notifications and share | `hooks/useSessionManager.ts`, `components/AudioPlayer.tsx` |
 | Daily challenge | `lib/recommendation.ts` |
 | Settings and library | `app/(tabs)/settings.tsx`, `components/LibraryModal.tsx` |
-| Second seed copy | `backend/seed.ts`, `backend/trpc/routes/frequencies/seed-data.ts` |
+| Second seed copy (removed) | `backend/seed.ts`, `backend/trpc/routes/frequencies/seed-data.ts` |
 | Store metadata draft | `docs/PRODUCT_TO_CONSUMER_FIT_REPORT.md` section 8.3 |
 
 There is no localization layer. Every string is inline in a component or seed file.
@@ -159,7 +159,7 @@ Medium impact:
 9. Paywall copy is abstract and leads with track counts.
 10. "SMR (Sensorimotor Rhythm)", "110 Hz Resonance" and "Crown Chakra Pure" are unreadable to the target audience.
 11. Duplicate Hz values carry different names, including two records both called "Deep Rest Delta".
-12. `backend/seed.ts` and `backend/trpc/routes/frequencies/seed-data.ts` hold a second copy of program and article text that already disagrees with `seed/`.
+12. Resolved: `backend/seed.ts` and `backend/trpc/routes/frequencies/seed-data.ts` were unreachable duplicate copies with different ids. Deleted; `seed/` is the only seed source.
 
 Low impact:
 
