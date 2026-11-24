@@ -131,9 +131,7 @@ function computeCapabilities(isPremium: boolean) {
     extendedSessions: isPremium,
     binaural: isPremium,
     chakra: isPremium,
-    offlineDownloads: isPremium,
     advancedAnalytics: isPremium,
-    customMixing: isPremium,
   };
 }
 

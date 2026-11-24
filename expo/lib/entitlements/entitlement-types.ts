@@ -11,9 +11,7 @@ export interface EntitlementCapabilities {
   extendedSessions: boolean;
   binaural: boolean;
   chakra: boolean;
-  offlineDownloads: boolean;
   advancedAnalytics: boolean;
-  customMixing: boolean;
 }
 
 export interface EntitlementState {

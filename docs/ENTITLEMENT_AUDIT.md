@@ -7,7 +7,8 @@ Scope: what the app gates, where it gates it, and what still needs fixing.
 
 The free tier is defined in one place and enforced in three: the catalogue
 flag, the player, and the session ledger. Two mismatches were found and fixed
-in this branch. Three gaps remain and are listed at the end.
+in this branch. Premium programs are now gated too. Two gaps remain and are
+listed at the end.
 
 ## Where entitlement comes from
 
@@ -75,17 +76,19 @@ The default is 180 seconds. It resolves in this order:
 The preview badge reads from the same function, so it cannot say 3 minutes
 while playing 4. Tests cover the default, an override and invalid values.
 
+## Premium programs
+
+Three programs are flagged `isPremium: true` in `seed/programs.ts`: session-6,
+session-10 and session-12. `sessions.tsx` keeps the flag when it maps the
+program list, marks those cards, and opens the paywall instead of starting
+playback. `lib/catalogue/program-access.ts` holds the rule and
+`__tests__/program-access.test.ts` pins both the locked and free sets.
+
+The paywall now advertises guided programs because the gate is enforced.
+
 ## Gaps that remain
 
-### 1. Program premium flags are not enforced
-
-Three programs are flagged `isPremium: true` in `seed/programs.ts`, but
-`app/(tabs)/sessions.tsx` never reads the flag. Any user can start them.
-
-Do not advertise premium programs until this is fixed. The paywall copy
-deliberately does not mention programs.
-
-### 2. Offline grace is defined but unreachable
+### 1. Offline grace is defined but unreachable
 
 `CANONICAL_PREMIUM_POLICY.offlineGracePeriodHours` is 72, and the entitlement
 engine can enforce it, but `useAuth.ts` never passes `isOffline`. A cached
@@ -96,11 +99,12 @@ the offline flag and a real verification timestamp, or delete the policy
 field. `lastVerifiedAt` is currently `lastLoginAt`, which is a login time, not
 an entitlement verification time.
 
-### 3. Two capability flags have no reader
+## Removed flags
 
-`offlineDownloads` and `customMixing` are granted to premium users but no code
-reads them. They were removed from paywall copy. Remove the flags or build the
-features.
+`offlineDownloads` and `customMixing` were granted to premium users but no
+code read them. They are removed from the entitlement type, the capability
+registry, the cloud function response and the operational feature flags.
+Do not re-add either without an implementation.
 
 ## Verified enforcement points
 
@@ -111,6 +115,7 @@ features.
 | 3 sessions a day | `lib/usage/SessionLedger.ts`, `attemptStartSession` |
 | Binaural and chakra tones | seed `isPremium` plus `CapabilityRegistry` in `EntitlementValidator` |
 | Own affirmations | `AffirmationStreamCard` returns early when not premium |
+| Guided programs | `seed/programs.ts` `isPremium`, `isProgramLocked` in `sessions.tsx` |
 | Progress insights | `UsageAnalyticsModal.hasAccess` |
 | Webhook fail-closed | `functions/src/index.ts` `handleSubscriptionWebhook` |
 
@@ -124,13 +129,11 @@ features.
 
 ## Needs human review
 
-1. Program gating: decide whether the three flagged programs should be
-   premium. If yes, gate them and add the benefit to the paywall.
-2. Offline access: decide whether premium should survive a short offline
+1. Offline access: decide whether premium should survive a short offline
    period. If yes, record a verification timestamp and pass `isOffline`.
-3. Session ledger tampering: a local ledger resets if the user clears app
+2. Session ledger tampering: a local ledger resets if the user clears app
    data. Accept this as a UX limit or move the count to the server.
-4. iOS: the store-management link and RevenueCat product setup are untested
+3. iOS: the store-management link and RevenueCat product setup are untested
    on a device.
-5. Trial reminder: it only fires if notification permission is granted. There
+4. Trial reminder: it only fires if notification permission is granted. There
    is no email fallback.

@@ -43,9 +43,12 @@ Repository-specific knowledge for the Harmony Frequency mobile app.
 - Offline downloads, custom frequency mixing and priority support were once
   advertised with nothing behind them. Do not re-add a benefit without real
   gating; the paywall is a purchase contract.
-- The `offlineDownloads` / `customMixing` capability flags are still granted
-  to premium users but nothing reads them. Remove or implement before
-  relying on them.
+- The `offlineDownloads` / `customMixing` capability flags were removed because
+  nothing read them. Do not re-add a flag or a paywall line without a real
+  implementation.
+- Programs flagged `isPremium` in `seed/programs.ts` are gated through
+  `lib/catalogue/program-access.ts`. The paywall advertises guided programs
+  because that gate is enforced.
 
 ## Payment / subscription architecture
 
