@@ -83,6 +83,25 @@ describe('intent category sizing', () => {
     const onlySleep = visibleIntentCategories(['sleep-8', 'sleep-1.5', 'sleep-4.5']);
     expect(onlySleep.map((category) => category.id)).toEqual(['sleep']);
   });
+
+  it('makes every catalogue record reachable from a visible category', () => {
+    const visible = visibleIntentCategories(catalogueIds);
+    const reachable = new Set(visible.flatMap((category) => frequencyIdsForIntent(category.id)));
+    const unreachable = catalogueIds.filter((id) => !reachable.has(id));
+    expect(unreachable).toEqual([]);
+  });
+
+  it('exposes the 13 records that Explore used to hide', () => {
+    const previouslyHidden = catalogue
+      .filter((frequency) => ['healing', 'sleep', 'wealth'].includes(frequency.category))
+      .map((frequency) => frequency.id);
+    expect(previouslyHidden).toHaveLength(13);
+    const visible = visibleIntentCategories(catalogueIds);
+    const reachable = new Set(visible.flatMap((category) => frequencyIdsForIntent(category.id)));
+    for (const id of previouslyHidden) {
+      expect(reachable.has(id), `${id} is still hidden`).toBe(true);
+    }
+  });
 });
 
 describe('intent search', () => {

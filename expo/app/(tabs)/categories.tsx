@@ -16,7 +16,7 @@ import { ResponsiveGrid } from '@/components/ResponsiveGrid';
 import { useResponsive } from '@/lib/ui/responsive';
 import { GlassCard as SharedGlassCard } from '@/components/GlassCard';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Zap, Brain, Sparkles, Eye, Grid, List, Info, Play, Search, X, Crown, SlidersHorizontal } from 'lucide-react-native';
+import { Zap, Moon, Waves, Target, Flower2, Sparkles, Heart, Leaf, Eye, Globe, Grid, List, Info, Play, Search, X, Crown, SlidersHorizontal } from 'lucide-react-native';
 import { FrequencyInfoModal } from '@/components/FrequencyInfoModal';
 import { PremiumGate } from '@/components/PremiumGate';
 import { usePlayer } from '@/lib/player/PlayerContext';
@@ -25,11 +25,32 @@ import { useFrequencies } from '@/hooks/useDataHelpers';
 import { useDataInitialization } from '@/hooks/useDataInitialization';
 import { usePremiumUsage } from '@/hooks/usePremiumUsage';
 import { useAuth } from '@/hooks/useAuth';
-import { CATEGORY_COLORS } from '@/constants/theme';
 import { useTheme } from '@/hooks/useTheme';
+import {
+  INTENT_CATEGORIES,
+  type IntentCategoryId,
+  type IntentCategoryDefinition,
+  frequencyIdsForIntent,
+  frequencyMatchesIntentQuery,
+  intentsMatchingQuery,
+  primaryIntentForFrequency,
+  visibleIntentCategories,
+} from '@/lib/catalogue/intent-taxonomy';
 
 type TabType = 'overview' | 'library';
-type CategoryType = 'all' | 'scientific' | 'binaural' | 'solfeggio' | 'chakra';
+type CategoryType = 'all' | IntentCategoryId;
+
+const INTENT_ICONS: Record<string, any> = {
+  moon: Moon,
+  waves: Waves,
+  target: Target,
+  lotus: Flower2,
+  sparkles: Sparkles,
+  heart: Heart,
+  leaf: Leaf,
+  eye: Eye,
+  globe: Globe,
+};
 
 const TRUST_TRIANGLE_FREE_HZ = [432, 528, 639, 7.83, 8];
 
@@ -77,10 +98,10 @@ export default function CategoriesScreen() {
     }).start();
   }, [activeTab]);
 
-  const { scientific, binaural: brainwave, solfeggio, chakra } = useFrequencies();
+  const { frequencies } = useFrequencies();
   const { isInitialized, isLoading } = useDataInitialization();
   const { isPremium } = useAuth();
-  const { showPremiumGate, gateConfig, closePremiumGate, attemptFeatureAccess } = usePremiumUsage();
+  const { showPremiumGate, gateConfig, closePremiumGate } = usePremiumUsage();
 
   useEffect(() => {
     if (!params.frequencyHz) return;
@@ -90,55 +111,46 @@ export default function CategoriesScreen() {
       setSelectedCategory('all');
       openPlayer({ frequency: target });
     }
-  }, [params.frequencyHz, scientific, brainwave, solfeggio, chakra]);
+  }, [params.frequencyHz, frequencies]);
 
-  const categories = [
-    {
-      id: 'scientific' as CategoryType,
-      name: 'Research',
-      data: scientific,
-      icon: Zap,
-      description: 'Science-backed frequencies with documented research',
-      colorKey: 'scientific',
-      isPremium: false,
-    },
-    {
-      id: 'binaural' as CategoryType,
-      name: 'Brainwaves',
-      data: brainwave,
-      icon: Brain,
-      description: 'Brainwave entrainment for different mental states',
-      colorKey: 'binaural',
-      isPremium: true,
-    },
-    {
-      id: 'solfeggio' as CategoryType,
-      name: 'Solfeggio',
-      data: solfeggio,
-      icon: Sparkles,
-      description: 'Ancient musical scale with spiritual significance',
-      colorKey: 'solfeggio',
-      isPremium: false,
-    },
-    {
-      id: 'chakra' as CategoryType,
-      name: 'Chakras',
-      data: chakra,
-      icon: Eye,
-      description: 'Energy center frequencies for balance and healing',
-      colorKey: 'chakra',
-      isPremium: true,
-    },
-  ];
-
-  const getAllFrequencies = () => {
-    const all: any[] = [];
-    categories.forEach(cat => {
-      cat.data.forEach(freq => {
-        all.push({ ...freq, category: cat.name, categoryId: cat.id, colorKey: cat.colorKey });
-      });
+  const categories = useMemo(() => {
+    const availableIds = frequencies.map((frequency: any) => frequency.id);
+    return visibleIntentCategories(availableIds).map((definition: IntentCategoryDefinition) => {
+      const ids = frequencyIdsForIntent(definition.id);
+      const data = frequencies.filter((frequency: any) => ids.includes(frequency.id));
+      return {
+        ...definition,
+        data,
+        icon: INTENT_ICONS[definition.icon],
+        description: definition.subtitle,
+        isPremium: data.length > 0 && data.every((frequency: any) => isFrequencyGated(frequency)),
+      };
     });
-    return all;
+  }, [frequencies]);
+
+  const withIntent = (frequency: any) => {
+    const intentId = primaryIntentForFrequency(frequency.id);
+    const intent = INTENT_CATEGORIES.find((category) => category.id === intentId);
+    return {
+      ...frequency,
+      categoryId: intent?.id ?? frequency.category,
+      intentName: intent?.name ?? frequency.category,
+      intentColor: intent?.color,
+    };
+  };
+
+  const getAllFrequencies = () => frequencies.map(withIntent);
+
+  const matchesSearch = (frequency: any) => {
+    if (!searchQuery.trim()) return true;
+    const q = searchQuery.toLowerCase();
+    return (
+      frequency.name?.toLowerCase().includes(q) ||
+      String(frequency.hz ?? '').includes(q) ||
+      frequency.description?.toLowerCase().includes(q) ||
+      (frequency.benefits ?? []).some((benefit: string) => benefit.toLowerCase().includes(q)) ||
+      frequencyMatchesIntentQuery(frequency.id, searchQuery)
+    );
   };
 
   const getFilteredFrequencies = () => {
@@ -146,33 +158,26 @@ export default function CategoriesScreen() {
     if (selectedCategory === 'all') {
       freqs = getAllFrequencies();
     } else {
-      const cat = categories.find(c => c.id === selectedCategory);
+      const cat = categories.find((c: any) => c.id === selectedCategory);
       if (!cat) return [];
-      freqs = cat.data.map((f: any) => ({ ...f, category: cat.name, categoryId: cat.id, colorKey: cat.colorKey }));
+      freqs = cat.data.map(withIntent);
     }
-    return freqs;
+    return freqs.filter(matchesSearch);
   };
 
   const getFilteredCategories = () => {
     if (!searchQuery.trim()) return categories;
     const q = searchQuery.toLowerCase();
-    return categories.filter(cat =>
+    const matchedIntents = intentsMatchingQuery(searchQuery);
+    return categories.filter((cat: any) =>
       cat.name.toLowerCase().includes(q) ||
-      cat.description.toLowerCase().includes(q) ||
-      cat.data.some((f: any) => f.name?.toLowerCase().includes(q) || f.hz?.toString().includes(q))
+      cat.subtitle.toLowerCase().includes(q) ||
+      matchedIntents.includes(cat.id) ||
+      cat.data.some((frequency: any) => matchesSearch(frequency))
     );
   };
 
   const handleCategorySelect = (categoryId: CategoryType) => {
-    const cat = categories.find(c => c.id === categoryId);
-    if (cat?.isPremium && !isPremium) {
-      const hasAccess = attemptFeatureAccess(
-        `${cat.name} Frequencies`,
-        `Access premium ${cat.name.toLowerCase()} frequencies.`,
-        cat.icon
-      );
-      if (!hasAccess) return;
-    }
     setSelectedCategory(categoryId);
     setActiveTab('library');
   };
@@ -182,13 +187,6 @@ export default function CategoriesScreen() {
     if (tab === 'overview') {
       setSelectedCategory('all');
     }
-  };
-
-  const getCategoryType = (categoryId: string): 'healing' | 'sleep' | 'wealth' | 'scientific' | 'solfeggio' | 'chakra' | 'binaural' => {
-    const map: Record<string, 'healing' | 'sleep' | 'wealth' | 'scientific' | 'solfeggio' | 'chakra' | 'binaural'> = {
-      scientific: 'scientific', binaural: 'binaural', solfeggio: 'solfeggio', chakra: 'chakra',
-    };
-    return map[categoryId] || 'scientific';
   };
 
   const renderOverview = () => {
@@ -202,7 +200,7 @@ export default function CategoriesScreen() {
             <TextInput
               ref={searchInputRef}
               style={[styles.searchInput, { color: colors.textPrimary }]}
-              placeholder="Search frequencies, Hz, or type..."
+              placeholder="Search by need, Hz, or name..."
               placeholderTextColor={colors.textMuted}
               value={searchQuery}
               onChangeText={setSearchQuery}
@@ -226,8 +224,8 @@ export default function CategoriesScreen() {
           {filtered.length === 0 ? (
             <View style={styles.emptyState}>
               <Search color={colors.textMuted} size={36} />
-              <Text style={[styles.emptyStateText, { color: colors.textSecondary }]}>No categories found</Text>
-              <Text style={[styles.emptyStateSubtext, { color: colors.textMuted }]}>Try a different search term</Text>
+              <Text style={[styles.emptyStateText, { color: colors.textSecondary }]}>No matching needs</Text>
+              <Text style={[styles.emptyStateSubtext, { color: colors.textMuted }]}>Try sleep, anxiety, focus or a frequency like 528</Text>
             </View>
           ) : (
             <ResponsiveGrid
@@ -235,19 +233,19 @@ export default function CategoriesScreen() {
               keyExtractor={(cat: any) => cat.id}
               renderItem={(cat: any) => {
                 const IconComp = cat.icon;
-                const cc = CATEGORY_COLORS[cat.colorKey];
+                const accent = cat.color;
                 return (
                   <TouchableOpacity activeOpacity={0.85} onPress={() => handleCategorySelect(cat.id)}>
                     <GlassCard style={styles.catCard} depth="normal">
-                    <View style={[styles.catCardTopBorder, { backgroundColor: cc.primary, opacity: 0.5 }]} />
+                    <View style={[styles.catCardTopBorder, { backgroundColor: accent, opacity: 0.5 }]} />
 
                     <View style={styles.catCardHeader}>
-                      <View style={[styles.catIconWrap, { borderColor: cc.primary + '30' }]}>
-                        <IconComp color={cc.primary} size={22} />
+                      <View style={[styles.catIconWrap, { borderColor: accent + '30' }]}>
+                        <IconComp color={accent} size={22} />
                       </View>
                       <View style={styles.catCardHeaderText}>
                         <Text style={[styles.catName, { color: colors.textPrimary }]}>{cat.name}</Text>
-                        <Text style={[styles.catCount, { color: colors.textMuted }]}>{cat.data.length} frequencies</Text>
+                        <Text style={[styles.catCount, { color: colors.textMuted }]}>{cat.data.length} tracks</Text>
                       </View>
                       {cat.isPremium && !isPremium && (
                         <View style={styles.premiumBadge}>
@@ -263,12 +261,12 @@ export default function CategoriesScreen() {
                         const gated = isFrequencyGated(freq);
                         return (
                           <View key={idx} style={styles.catPreviewRow}>
-                            <View style={[styles.catBullet, { backgroundColor: cc.primary }]} />
-                            <Text style={[styles.catPreviewText, { color: colors.textSecondary }]}>{freq.name} — <Text style={{ color: cc.primary }}>{freq.hz}Hz</Text></Text>
+                            <View style={[styles.catBullet, { backgroundColor: accent }]} />
+                            <Text style={[styles.catPreviewText, { color: colors.textSecondary }]} numberOfLines={1}>{freq.name} — <Text style={{ color: accent }}>{freq.hz}Hz</Text></Text>
                             {gated && (
                               <View style={styles.miniPremiumBadge}>
                                 <Crown color={colors.gold} size={10} />
-                                <Text style={styles.miniPremiumText}>PREMIUM</Text>
+                                <Text style={styles.miniPremiumText}>PREVIEW</Text>
                               </View>
                             )}
                           </View>
@@ -280,11 +278,11 @@ export default function CategoriesScreen() {
                     </View>
 
                     <TouchableOpacity
-                      style={[styles.catSelectBtn, { borderColor: cc.primary + '40' }]}
+                      style={[styles.catSelectBtn, { borderColor: accent + '40' }]}
                       onPress={() => handleCategorySelect(cat.id)}
                     >
-                      <IconComp color={cc.primary} size={14} />
-                      <Text style={[styles.catSelectBtnText, { color: cc.primary }]}>Explore {cat.name}</Text>
+                      <IconComp color={accent} size={14} />
+                      <Text style={[styles.catSelectBtnText, { color: accent }]}>Explore {cat.name}</Text>
                     </TouchableOpacity>
                     </GlassCard>
                   </TouchableOpacity>
@@ -299,9 +297,32 @@ export default function CategoriesScreen() {
 
   const renderLibrary = () => {
     const freqs = getFilteredFrequencies();
+    const activeCategory = categories.find((c: any) => c.id === selectedCategory);
     return (
       <View style={{ flex: 1 }}>
-        {/* Category filter tabs — the "tab list" for library */}
+        <View style={styles.searchRow}>
+          <GlassCard style={styles.searchBar} depth="light">
+            <Search color={colors.textMuted} size={16} />
+            <TextInput
+              style={[styles.searchInput, { color: colors.textPrimary }]}
+              placeholder="Search by need, Hz, or name..."
+              placeholderTextColor={colors.textMuted}
+              value={searchQuery}
+              onChangeText={setSearchQuery}
+              autoCorrect={false}
+              autoCapitalize="none"
+              returnKeyType="search"
+              onSubmitEditing={() => Keyboard.dismiss()}
+            />
+            {searchQuery.length > 0 && (
+              <TouchableOpacity onPress={() => setSearchQuery('')}>
+                <X color={colors.textMuted} size={14} />
+              </TouchableOpacity>
+            )}
+          </GlassCard>
+        </View>
+
+        {/* Intent filter tabs */}
         <View style={styles.libFilterContainer}>
           <ScrollView
             horizontal
@@ -328,53 +349,49 @@ export default function CategoriesScreen() {
               </View>
             </TouchableOpacity>
 
-            {categories.map(cat => {
+            {categories.map((cat: any) => {
               const IconComp = cat.icon;
-              const cc = CATEGORY_COLORS[cat.colorKey];
+              const accent = cat.color;
               const active = selectedCategory === cat.id;
               return (
                 <TouchableOpacity
                   key={cat.id}
                   style={[
                     styles.libFilterTab,
-                    active && [styles.libFilterTabActiveColored, { backgroundColor: cc.primary + '25', borderColor: cc.primary + '60' }],
+                    active && [styles.libFilterTabActiveColored, { backgroundColor: accent + '25', borderColor: accent + '60' }],
                   ]}
                   onPress={() => setSelectedCategory(cat.id)}
                   activeOpacity={0.8}
                 >
-                  <IconComp color={active ? cc.primary : colors.textMuted} size={13} />
-                  <Text style={[styles.libFilterTabText, active && { color: cc.primary, fontWeight: '700' as const }]}>
+                  <IconComp color={active ? accent : colors.textMuted} size={13} />
+                  <Text style={[styles.libFilterTabText, active && { color: accent, fontWeight: '700' as const }]}>
                     {cat.name}
                   </Text>
                   <View style={[
                     styles.libFilterCount,
-                    active && { backgroundColor: cc.primary + '30', borderColor: cc.primary + '40' }
+                    active && { backgroundColor: accent + '30', borderColor: accent + '40' }
                   ]}>
-                    <Text style={[styles.libFilterCountText, active && { color: cc.primary }]}>
+                    <Text style={[styles.libFilterCountText, active && { color: accent }]}>
                       {cat.data.length}
                     </Text>
                   </View>
-                  {active && <View style={[styles.libFilterActiveDot, { backgroundColor: cc.primary }]} />}
+                  {active && <View style={[styles.libFilterActiveDot, { backgroundColor: accent }]} />}
                 </TouchableOpacity>
               );
             })}
           </ScrollView>
         </View>
 
-        {/* Divider */}
         <View style={styles.libDivider} />
 
-        {/* Results count */}
         <View style={styles.resultsRow}>
           <SlidersHorizontal color={colors.textMuted} size={13} />
           <Text style={styles.resultsText}>
-            {freqs.length} {freqs.length === 1 ? 'frequency' : 'frequencies'}
+            {freqs.length} {freqs.length === 1 ? 'track' : 'tracks'}
           </Text>
-          {selectedCategory !== 'all' && (
+          {activeCategory && (
             <View style={styles.resultsCatTag}>
-              <Text style={styles.resultsCatTagText}>
-                {categories.find(c => c.id === selectedCategory)?.name}
-              </Text>
+              <Text style={styles.resultsCatTagText}>{activeCategory.name}</Text>
             </View>
           )}
         </View>
@@ -385,11 +402,12 @@ export default function CategoriesScreen() {
         >
           {freqs.length === 0 ? (
             <View style={styles.emptyState}>
-              <Text style={[styles.emptyStateText, { color: colors.textSecondary }]}>No frequencies found</Text>
+              <Text style={[styles.emptyStateText, { color: colors.textSecondary }]}>No matching tracks</Text>
+              <Text style={[styles.emptyStateSubtext, { color: colors.textMuted }]}>Try sleep, anxiety, focus or a frequency like 528</Text>
             </View>
           ) : (
             freqs.map((freq) => {
-              const cc = CATEGORY_COLORS[freq.colorKey] || CATEGORY_COLORS.scientific;
+              const accent = freq.intentColor || colors.accent;
               const isGated = isFrequencyGated(freq);
               const isActiveTrack = isPlaying && currentFrequency === freq.hz;
               return (
@@ -398,17 +416,17 @@ export default function CategoriesScreen() {
                   style={isActiveTrack ? [styles.freqCard, styles.freqCardActive] : styles.freqCard}
                   depth="normal"
                 >
-                  <View style={[styles.freqCardTopBorder, { backgroundColor: cc.primary, opacity: 0.5 }]} />
+                  <View style={[styles.freqCardTopBorder, { backgroundColor: accent, opacity: 0.5 }]} />
 
                   <View style={styles.freqCardInner}>
-                    <View style={[styles.freqCardLeft, { borderColor: cc.primary + '30' }]}>
+                    <View style={[styles.freqCardLeft, { borderColor: accent + '30' }]}>
                       {isGated && (
                         <View style={styles.freqHzCrownBadge}>
                           <Crown color={colors.gold} size={10} />
                         </View>
                       )}
-                      <Text style={[styles.freqHz, { color: cc.primary }]}>{freq.hz}</Text>
-                      <Text style={[styles.freqHzLabel, { color: cc.primary + 'AA' }]}>Hz</Text>
+                      <Text style={[styles.freqHz, { color: accent }]}>{freq.hz}</Text>
+                      <Text style={[styles.freqHzLabel, { color: accent + 'AA' }]}>Hz</Text>
                     </View>
 
                     <View style={styles.freqCardBody}>
@@ -418,11 +436,11 @@ export default function CategoriesScreen() {
                           {isGated && (
                             <View style={styles.freqPremiumBadge}>
                               <Crown color={colors.gold} size={10} />
-                              <Text style={styles.freqPremiumBadgeText}>PREMIUM</Text>
+                              <Text style={styles.freqPremiumBadgeText}>PREVIEW</Text>
                             </View>
                           )}
-                          <View style={[styles.freqCatBadge, { borderColor: cc.primary + '30' }]}>
-                            <Text style={[styles.freqCatBadgeText, { color: cc.primary }]}>{freq.category}</Text>
+                          <View style={[styles.freqCatBadge, { borderColor: accent + '30' }]}>
+                            <Text style={[styles.freqCatBadgeText, { color: accent }]}>{freq.intentName}</Text>
                           </View>
                         </View>
                       </View>
@@ -431,7 +449,7 @@ export default function CategoriesScreen() {
                         <View style={styles.freqBenefits}>
                           {freq.benefits.slice(0, 2).map((b: string, idx: number) => (
                             <View key={idx} style={styles.freqBenefitRow}>
-                              <View style={[styles.freqBenefitDot, { backgroundColor: cc.primary }]} />
+                              <View style={[styles.freqBenefitDot, { backgroundColor: accent }]} />
                               <Text style={[styles.freqBenefitText, { color: colors.textSecondary }]} numberOfLines={1}>{b}</Text>
                             </View>
                           ))}
@@ -441,22 +459,22 @@ export default function CategoriesScreen() {
 
                     <View style={styles.freqCardActions}>
                       <TouchableOpacity
-                        style={[styles.freqInfoBtn, { borderColor: cc.primary + '30' }]}
+                        style={[styles.freqInfoBtn, { borderColor: accent + '30' }]}
                         onPress={() => { setInfoFrequency(freq); setInfoModalVisible(true); }}
                       >
-                        <Info color={cc.primary} size={15} />
+                        <Info color={accent} size={15} />
                       </TouchableOpacity>
                       <TouchableOpacity
                         style={[
                           styles.freqPlayBtn,
-                          { backgroundColor: isGated && !isPremium ? colors.gold : cc.primary }
+                          { backgroundColor: isGated && !isPremium ? colors.gold : accent }
                         ]}
                         onPress={() => openPlayer({ frequency: freq })}
                       >
                         <Play color="#fff" size={14} fill="#fff" />
                       </TouchableOpacity>
                       {isGated && !isPremium && (
-                        <Text style={styles.previewTagText}>3m preview</Text>
+                        <Text style={styles.previewTagText}>Preview</Text>
                       )}
                     </View>
                   </View>
@@ -537,7 +555,7 @@ export default function CategoriesScreen() {
           visible={infoModalVisible}
           onClose={() => { setInfoModalVisible(false); setInfoFrequency(null); }}
           frequency={infoFrequency}
-          category={getCategoryType(infoFrequency.categoryId)}
+          category={infoFrequency.category}
         />
       )}
 
