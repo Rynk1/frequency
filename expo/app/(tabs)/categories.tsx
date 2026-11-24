@@ -39,6 +39,7 @@ import {
 import { pluralTracks, t } from '@/lib/copy/strings';
 import { displayNameForFrequency } from '@/lib/catalogue/copy';
 import { getFreeToday } from '@/lib/catalogue/free-today';
+import { track } from '@/lib/telemetry';
 
 type TabType = 'overview' | 'library';
 type CategoryType = 'all' | IntentCategoryId;
@@ -205,7 +206,10 @@ export default function CategoriesScreen() {
         {freeToday && (
           <TouchableOpacity
             activeOpacity={0.85}
-            onPress={() => openPlayer({ frequency: withIntent(freeToday) })}
+            onPress={() => {
+              track('free_today_played', { frequencyId: freeToday.id });
+              openPlayer({ frequency: withIntent(freeToday) });
+            }}
             style={styles.freeTodayWrap}
             accessibilityRole="button"
             accessibilityLabel={`Play the free track today, ${displayNameForFrequency(freeToday.id, freeToday.name)}`}

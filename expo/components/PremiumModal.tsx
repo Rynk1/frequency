@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import {
   View,
   Text,
@@ -59,6 +59,7 @@ import {
 } from '@/lib/pricing';
 import { PREMIUM_BENEFITS } from '@/lib/premium-benefits';
 import { buildTrialReminder } from '@/lib/notifications/trial-reminder';
+import { track } from '@/lib/telemetry';
 import { CANONICAL_PREMIUM_POLICY } from '@/lib/usage/PremiumPolicy';
 import { PREMIUM_FREQUENCY_COUNT } from '@/lib/usage/PremiumPolicy';
 import { COLORS, GRADIENTS, FONTS, TEXT_PRESETS } from '@/constants/theme';
@@ -74,6 +75,7 @@ async function scheduleTrialReminderNotification(): Promise<void> {
       content: { title: reminder.title, body: reminder.body },
       trigger: { date: reminder.fireAt } as any,
     });
+    track('trial_reminder_scheduled', { fireAt: reminder.fireAt.toISOString() });
   } catch {
     // A missing reminder must never block a completed purchase.
   }
@@ -167,6 +169,16 @@ export const PremiumModal: React.FC<PremiumModalProps> = ({
     };
   }, [visible, isPremium, isTrialActive]);
 
+  useEffect(() => {
+    if (!visible) return;
+    track('paywall_viewed', {
+      trigger,
+      intent: userProfile?.onboardingPreferences?.primaryIntent ?? 'none',
+      premium: isPremium,
+      trial: isTrialActive,
+    });
+  }, [visible, trigger, userProfile?.onboardingPreferences?.primaryIntent, isPremium, isTrialActive]);
+
   const monthlyPriceLabel =
     storeOfferings?.monthly?.priceString || formatPrice(PREMIUM_PLANS.monthly.price);
   const yearlyPriceLabel =
@@ -208,6 +220,7 @@ export const PremiumModal: React.FC<PremiumModalProps> = ({
       if (trialEnabled) {
         await scheduleTrialReminderNotification();
       }
+      track(trialEnabled ? 'trial_started' : 'purchase_completed', { plan: selectedPlan });
       if (refreshSubscriptionStatus) {
         await refreshSubscriptionStatus();
       }
@@ -217,12 +230,13 @@ export const PremiumModal: React.FC<PremiumModalProps> = ({
     } catch (e: any) {
       // RevenueCat rejects with `userCancelled` when the sheet is dismissed.
       if (e?.userCancelled || e?.code === 'PURCHASE_CANCELLED') return;
+      track('purchase_failed', { plan: selectedPlan, reason: e?.code ?? 'unknown' });
       setError(e?.message || 'Purchase failed. Please try again.');
     } finally {
       setIsProcessing(false);
       setProcessingLabel('');
     }
-  }, [refreshSubscriptionStatus, onStartTrial, onUpgrade, onClose]);
+  }, [refreshSubscriptionStatus, onStartTrial, onUpgrade, onClose, selectedPlan]);
 
   const handleStartTrial = useCallback(async () => {
     if (!hasAcceptedAutoRenew) {
@@ -231,6 +245,11 @@ export const PremiumModal: React.FC<PremiumModalProps> = ({
     }
     await initiatePurchase(selectedPlan, true);
   }, [hasAcceptedAutoRenew, selectedPlan, initiatePurchase]);
+
+  const handleDismiss = useCallback(() => {
+    track('paywall_dismissed', { trigger });
+    onClose();
+  }, [trigger, onClose]);
 
   const handleUpgrade = useCallback(async () => {
     await initiatePurchase(selectedPlan, false);
@@ -823,7 +842,7 @@ const { contentWidth } = useResponsive();
                 {autoRenewNote()}
               </Text>
 
-              <TouchableOpacity onPress={onClose} style={styles.secondaryDismiss} testID="paywall-dismiss">
+              <TouchableOpacity onPress={handleDismiss} style={styles.secondaryDismiss} testID="paywall-dismiss">
                 <Text style={styles.secondaryDismissText}>Not now, keep exploring free</Text>
               </TouchableOpacity>
             </Animated.View>
