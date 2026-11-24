@@ -40,6 +40,11 @@ export const PREMIUM_BENEFITS: PremiumBenefit[] = [
     evidence: 'premiumFrequencies/binaural/chakra capabilities, gated in AudioPlayer.tsx',
   },
   {
+    id: 'guided-programs',
+    text: 'Guided programs for sleep, calm and focus',
+    evidence: 'seed/programs.ts isPremium, gated in sessions.tsx handleStartStarterSession',
+  },
+  {
     id: 'custom-affirmations',
     text: 'Record and play your own affirmations',
     evidence: 'AffirmationStreamCard.handleOpenRecordModal returns early when !isPremium',
