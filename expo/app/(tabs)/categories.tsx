@@ -36,6 +36,7 @@ import {
   primaryIntentForFrequency,
   visibleIntentCategories,
 } from '@/lib/catalogue/intent-taxonomy';
+import { pluralTracks, t } from '@/lib/copy/strings';
 
 type TabType = 'overview' | 'library';
 type CategoryType = 'all' | IntentCategoryId;
@@ -200,7 +201,7 @@ export default function CategoriesScreen() {
             <TextInput
               ref={searchInputRef}
               style={[styles.searchInput, { color: colors.textPrimary }]}
-              placeholder="Search by need, Hz, or name..."
+              placeholder={t('common.search.placeholder')}
               placeholderTextColor={colors.textMuted}
               value={searchQuery}
               onChangeText={setSearchQuery}
@@ -224,8 +225,8 @@ export default function CategoriesScreen() {
           {filtered.length === 0 ? (
             <View style={styles.emptyState}>
               <Search color={colors.textMuted} size={36} />
-              <Text style={[styles.emptyStateText, { color: colors.textSecondary }]}>No matching needs</Text>
-              <Text style={[styles.emptyStateSubtext, { color: colors.textMuted }]}>Try sleep, anxiety, focus or a frequency like 528</Text>
+              <Text style={[styles.emptyStateText, { color: colors.textSecondary }]}>{t('explore.empty.title')}</Text>
+              <Text style={[styles.emptyStateSubtext, { color: colors.textMuted }]}>{t('explore.empty.body')}</Text>
             </View>
           ) : (
             <ResponsiveGrid
@@ -245,7 +246,7 @@ export default function CategoriesScreen() {
                       </View>
                       <View style={styles.catCardHeaderText}>
                         <Text style={[styles.catName, { color: colors.textPrimary }]}>{cat.name}</Text>
-                        <Text style={[styles.catCount, { color: colors.textMuted }]}>{cat.data.length} tracks</Text>
+                        <Text style={[styles.catCount, { color: colors.textMuted }]}>{t('explore.category.tracks', { count: cat.data.length })}</Text>
                       </View>
                       {cat.isPremium && !isPremium && (
                         <View style={styles.premiumBadge}>
@@ -266,14 +267,14 @@ export default function CategoriesScreen() {
                             {gated && (
                               <View style={styles.miniPremiumBadge}>
                                 <Crown color={colors.gold} size={10} />
-                                <Text style={styles.miniPremiumText}>PREVIEW</Text>
+                                <Text style={styles.miniPremiumText}>{t('explore.badge.preview').toUpperCase()}</Text>
                               </View>
                             )}
                           </View>
                         );
                       })}
                       {cat.data.length > 3 && (
-                        <Text style={[styles.catMoreText, { color: colors.textMuted }]}>+{cat.data.length - 3} more</Text>
+                        <Text style={[styles.catMoreText, { color: colors.textMuted }]}>{t('explore.category.more', { count: cat.data.length - 3 })}</Text>
                       )}
                     </View>
 
@@ -282,7 +283,7 @@ export default function CategoriesScreen() {
                       onPress={() => handleCategorySelect(cat.id)}
                     >
                       <IconComp color={accent} size={14} />
-                      <Text style={[styles.catSelectBtnText, { color: accent }]}>Explore {cat.name}</Text>
+                      <Text style={[styles.catSelectBtnText, { color: accent }]}>{t('explore.category.explore', { name: cat.name })}</Text>
                     </TouchableOpacity>
                     </GlassCard>
                   </TouchableOpacity>
@@ -305,7 +306,7 @@ export default function CategoriesScreen() {
             <Search color={colors.textMuted} size={16} />
             <TextInput
               style={[styles.searchInput, { color: colors.textPrimary }]}
-              placeholder="Search by need, Hz, or name..."
+              placeholder={t('common.search.placeholder')}
               placeholderTextColor={colors.textMuted}
               value={searchQuery}
               onChangeText={setSearchQuery}
@@ -387,7 +388,7 @@ export default function CategoriesScreen() {
         <View style={styles.resultsRow}>
           <SlidersHorizontal color={colors.textMuted} size={13} />
           <Text style={styles.resultsText}>
-            {freqs.length} {freqs.length === 1 ? 'track' : 'tracks'}
+            {pluralTracks(freqs.length)}
           </Text>
           {activeCategory && (
             <View style={styles.resultsCatTag}>
@@ -402,8 +403,8 @@ export default function CategoriesScreen() {
         >
           {freqs.length === 0 ? (
             <View style={styles.emptyState}>
-              <Text style={[styles.emptyStateText, { color: colors.textSecondary }]}>No matching tracks</Text>
-              <Text style={[styles.emptyStateSubtext, { color: colors.textMuted }]}>Try sleep, anxiety, focus or a frequency like 528</Text>
+              <Text style={[styles.emptyStateText, { color: colors.textSecondary }]}>{t('explore.library.empty.title')}</Text>
+              <Text style={[styles.emptyStateSubtext, { color: colors.textMuted }]}>{t('explore.empty.body')}</Text>
             </View>
           ) : (
             freqs.map((freq) => {
@@ -436,7 +437,7 @@ export default function CategoriesScreen() {
                           {isGated && (
                             <View style={styles.freqPremiumBadge}>
                               <Crown color={colors.gold} size={10} />
-                              <Text style={styles.freqPremiumBadgeText}>PREVIEW</Text>
+                              <Text style={styles.freqPremiumBadgeText}>{t('explore.badge.preview').toUpperCase()}</Text>
                             </View>
                           )}
                           <View style={[styles.freqCatBadge, { borderColor: accent + '30' }]}>
@@ -474,7 +475,7 @@ export default function CategoriesScreen() {
                         <Play color="#fff" size={14} fill="#fff" />
                       </TouchableOpacity>
                       {isGated && !isPremium && (
-                        <Text style={styles.previewTagText}>Preview</Text>
+                        <Text style={styles.previewTagText}>{t('explore.badge.preview')}</Text>
                       )}
                     </View>
                   </View>
@@ -510,8 +511,8 @@ export default function CategoriesScreen() {
         {/* Header */}
         <View style={[styles.header, { maxWidth: contentWidth, width: '100%', alignSelf: 'center' }]}>
           <View style={{ flex: 1 }}>
-            <Text style={[styles.headerEyebrow, { color: colors.textMuted }]}>Explore</Text>
-            <Text style={[styles.headerTitle, { color: colors.textPrimary }]}>Frequencies</Text>
+            <Text style={[styles.headerEyebrow, { color: colors.textMuted }]}>{t('explore.eyebrow')}</Text>
+            <Text style={[styles.headerTitle, { color: colors.textPrimary }]}>{t('explore.title')}</Text>
           </View>
           <View style={[styles.headerFreqBadge, { backgroundColor: colors.glass, borderColor: colors.glassBorder }]}>
             <Zap color={colors.accent} size={14} />
@@ -528,7 +529,7 @@ export default function CategoriesScreen() {
               activeOpacity={0.8}
             >
               <Grid color={activeTab === 'overview' ? colors.accent : colors.textMuted} size={15} />
-              <Text style={[styles.tabText, activeTab === 'overview' && styles.tabTextActive]}>Overview</Text>
+              <Text style={[styles.tabText, activeTab === 'overview' && styles.tabTextActive]}>{t('explore.tab.overview')}</Text>
             </TouchableOpacity>
             <TouchableOpacity
               style={[styles.tab, activeTab === 'library' && styles.tabActive]}
@@ -536,7 +537,7 @@ export default function CategoriesScreen() {
               activeOpacity={0.8}
             >
               <List color={activeTab === 'library' ? colors.accent : colors.textMuted} size={15} />
-              <Text style={[styles.tabText, activeTab === 'library' && styles.tabTextActive]}>Library</Text>
+              <Text style={[styles.tabText, activeTab === 'library' && styles.tabTextActive]}>{t('explore.tab.library')}</Text>
               <View style={styles.tabBadge}>
                 <Text style={styles.tabBadgeText}>{getAllFrequencies().length}</Text>
               </View>
