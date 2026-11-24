@@ -133,11 +133,13 @@ Reviewed copy:
 
 ### Accessibility and layout
 
-1. The longest pilot name is "Connection & Compassion". Check truncation on
+1. The free-today tile adds a fourth small-text row on Explore. Check that it
+   does not push the first category below the fold on a small phone.
+2. The longest pilot name is "Connection & Compassion". Check truncation on
    a 320-point-wide screen and at large text sizes.
-2. The evidence badge and safety note use small text. Check contrast and
+3. The evidence badge and safety note use small text. Check contrast and
    dynamic type.
-3. The paywall now has a secondary dismiss action. Confirm it is reachable by
+4. The paywall now has a secondary dismiss action. Confirm it is reachable by
    screen readers and does not sit under the home indicator.
 
 ## Audio and data safety
@@ -148,4 +150,4 @@ in this work. The catalogue audit test still enumerates all 46 records:
 - `expo/__tests__/audio/CatalogueAudioAudit.test.ts`
 - `expo/__tests__/audio/CatalogueAudibility.test.ts`
 
-All 207 tests passed at the time of this report.
+All 228 tests passed at the time of this report.

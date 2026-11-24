@@ -354,7 +354,10 @@ Shipped in this branch, in review-sized commits:
 | Pilot copy | 10 records in `expo/lib/catalogue/copy.ts`, with evidence tier, hook, use case, guidance and keywords. |
 | Detail sheet | Hook, use case, why people use it, about this sound, evidence badge, practical guidance, safety and disclaimer. |
 | Onboarding | Asks "What do you need right now?" with six needs. Stores an additive `primaryIntent`. |
-| Paywall | Intent-led headline, trigger-specific copy, store-aware billing text, secondary dismiss. |
+| Paywall | Intent-led headline, trigger-specific copy, store-aware billing text, weekly price, trial timeline, secondary dismiss. |
+| Entitlement | Free set pinned at nine, category-based lock removed, locked tracks always preview, preview length configurable. |
+| Free today | One rotating free track above Explore search. |
+| Telemetry | Paywall funnel defined behind a sink seam in `expo/lib/telemetry.ts`. |
 | Store metadata | Three variants in `docs/APP_STORE_METADATA.md`. |
 | Claim scan | `expo/__tests__/claim-safety.test.ts`, with a report in `docs/CLAIM_SAFETY_REPORT.md`. |
 | Catalogue export | `docs/frequency-catalog.csv`, 46 rows, pilot rows marked reviewed. |
@@ -363,6 +366,7 @@ Still open:
 
 - 36 records need reviewed copy.
 - Premium program gating is not enforced. Do not advertise premium programs.
+- Offline grace is defined but never applied, because `isOffline` is not passed.
 - The duplicate partial catalogue has not been merged.
 - Search synonyms for the 36 pending records are not authored.
 - iOS billing has not been tested on a device.
