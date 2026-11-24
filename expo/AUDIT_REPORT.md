@@ -249,7 +249,7 @@ Audio playback and frequency generation are handled by `expo/hooks/useAudioPlaye
 ### C. Dual-Mode (Online / Offline Mock) Data Architecture
 `expo/hooks/useDataModes.ts` and `expo/hooks/useBackendData.ts` provide a fallback system:
 * When `dataMode` is `'remote'`, the app fetches live curated programs and articles from the Hono API backend (`/data`).
-* When `dataMode` is `'local'` (or if backend request fails), the app seamlessly falls back to static seed data (`expo/constants/frequencies.ts` and `expo/backend/trpc/routes/frequencies/seed-data.ts`).
+* When `dataMode` is `'local'` (or if backend request fails), the app seamlessly falls back to static seed data (`expo/constants/frequencies.ts`, assembled by `expo/seed/frequencies.ts`).
 * This guarantees the application remains fully playable offline or when backend connectivity is lost.
 
 ---

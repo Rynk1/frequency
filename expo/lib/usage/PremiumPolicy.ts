@@ -28,9 +28,7 @@ export type CapabilityName =
   | 'extendedSessions'
   | 'binaural'
   | 'chakra'
-  | 'offlineDownloads'
-  | 'advancedAnalytics'
-  | 'customMixing';
+  | 'advancedAnalytics';
 
 export class CapabilityRegistry {
   /**

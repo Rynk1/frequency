@@ -47,6 +47,7 @@ import {
 import { useTheme } from '@/hooks/useTheme';
 import { useResponsive } from '@/lib/ui/responsive';
 import { useGlobalSearchParams } from 'expo-router';
+import { ARTICLE_CATEGORY_LABELS } from '@/lib/copy/strings';
 
 interface Article {
   id: string;
@@ -71,7 +72,7 @@ const CATEGORIES = [
   { id: 'solfeggio', name: 'Solfeggio', icon: Music, color: '#F472B6' },
   { id: 'chakras', name: 'Chakras', icon: Zap, color: '#FBBF24' },
   { id: 'brainwaves', name: 'Brainwaves', icon: Brain, color: '#818CF8' },
-  { id: 'healing', name: 'Healing', icon: Heart, color: '#34D399' },
+  { id: 'healing', name: 'Recovery', icon: Heart, color: '#34D399' },
   { id: 'sleep', name: 'Sleep', icon: Moon, color: '#60A5FA' },
   { id: 'manifestation', name: 'Manifestation', icon: Sparkles, color: '#FBBF24' },
   { id: 'science', name: 'Science', icon: Activity, color: '#22D3EE' },
@@ -80,7 +81,7 @@ const CATEGORIES = [
 const STATIC_ARTICLES: Article[] = [
   {
     id: '1',
-    title: 'Solfeggio Frequencies: Ancient Tones for Modern Healing',
+    title: 'Solfeggio Frequencies: Ancient Tones for Modern Practice',
     category: 'solfeggio',
     readTime: 6,
     difficulty: 'Beginner',
@@ -246,19 +247,19 @@ const STATIC_ARTICLES: Article[] = [
     category: 'science',
     readTime: 9,
     difficulty: 'Advanced',
-    content: `MIT researchers investigate 40 Hz sensory stimulation in Alzheimer's disease models. While promising, human clinical trials are preliminary and use specialized equipment. Playing a 40 Hz audio track through a commercial smartphone app is not a medical treatment for Alzheimer's disease.`,
+    content: `Early laboratory research has explored 40 Hz sensory stimulation in relation to memory and attention. This work is early-stage and uses specialised equipment. Playing a 40 Hz audio track through a commercial smartphone app is not a medical treatment.`,
     keyPoints: [
       '40 Hz falls in the gamma brainwave range associated with active cognition',
-      'MIT studies investigate 40 Hz sensory stimulation in Alzheimer\'s models',
+      'Early laboratory research explores 40 Hz stimulation and memory',
       'Human clinical trials are preliminary',
-      'A consumer audio track is not an Alzheimer\'s medical treatment',
+      'A consumer audio track is not a medical treatment',
     ],
     practicalTips: [
       'Use 40 Hz audio as a focus backdrop during study or work',
       'Keep sessions to 15–20 minutes as gamma frequencies are activating',
       'Listen at a comfortable volume during waking hours',
     ],
-    scientificBasis: 'Tsai et al. (MIT, 2016) demonstrated microglial and amyloid changes in mice using 40 Hz sensory stimulation. Human trials remain exploratory.',
+    scientificBasis: 'Early laboratory work has explored 40 Hz sensory stimulation in relation to memory and attention. Human trials remain exploratory.',
     icon: Brain,
     color: '#A78BFA',
     gradient: ['#A78BFA', '#7C3AED'],
@@ -517,7 +518,7 @@ export default function LearnScreen() {
                 </View>
                 <View style={styles.heroBadgeRow}>
                   <View style={[styles.heroCatBadge, { backgroundColor: featuredArticle.color + '20' }]}>
-                    <Text style={[styles.heroCatBadgeText, { color: featuredArticle.color }]}>{featuredArticle.category}</Text>
+                    <Text style={[styles.heroCatBadgeText, { color: featuredArticle.color }]}>{ARTICLE_CATEGORY_LABELS[featuredArticle.category] ?? featuredArticle.category}</Text>
                   </View>
                   <View style={[styles.heroDiffBadge, { backgroundColor: DIFFICULTY_COLORS[featuredArticle.difficulty] + '20' }]}>
                     <Text style={[styles.heroDiffText, { color: DIFFICULTY_COLORS[featuredArticle.difficulty] }]}>{featuredArticle.difficulty}</Text>
@@ -565,7 +566,7 @@ export default function LearnScreen() {
                   </View>
                   <View style={styles.articleHeaderMeta}>
                     <View style={[styles.articleCatBadge, { backgroundColor: article.color + '18', borderColor: article.color + '35' }]}>
-                      <Text style={[styles.articleCatBadgeText, { color: article.color }]}>{article.category}</Text>
+                      <Text style={[styles.articleCatBadgeText, { color: article.color }]}>{ARTICLE_CATEGORY_LABELS[article.category] ?? article.category}</Text>
                     </View>
                     <View style={[styles.articleDiffBadge, { backgroundColor: DIFFICULTY_COLORS[article.difficulty] + '18' }]}>
                       <Text style={[styles.articleDiffText, { color: DIFFICULTY_COLORS[article.difficulty] }]}>{article.difficulty}</Text>
@@ -632,7 +633,7 @@ export default function LearnScreen() {
               </TouchableOpacity>
               <View style={[styles.modalCatPill, { backgroundColor: selectedArticle.color + '18', borderColor: selectedArticle.color + '35' }]}>
                 {React.createElement(selectedArticle.icon, { size: 12, color: selectedArticle.color })}
-                <Text style={[styles.modalCatPillText, { color: selectedArticle.color }]}>{selectedArticle.category}</Text>
+                <Text style={[styles.modalCatPillText, { color: selectedArticle.color }]}>{ARTICLE_CATEGORY_LABELS[selectedArticle.category] ?? selectedArticle.category}</Text>
               </View>
               <View style={styles.modalActions}>
                 <TouchableOpacity

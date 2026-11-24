@@ -159,7 +159,7 @@ export function getDailyChallenge(
       },
       {
         title: 'Awakening Vitality',
-        description: 'Energize your mind with 741 Hz Intuition Boost',
+        description: 'Begin with clarity and 741 Hz',
         frequency: 741,
         duration: 15,
         reward: '55 XP + Vitality Badge',
@@ -177,24 +177,24 @@ export function getDailyChallenge(
     challengePool = [
       {
         title: 'Focus Flow',
-        description: 'Enhance concentration with 40 Hz Gamma waves',
+        description: 'Settle into focused work with 40 Hz Gamma',
         frequency: 40,
         duration: 20,
         reward: '60 XP + Focus Badge',
       },
       {
         title: 'Midday Recharge',
-        description: 'Reset stress levels with 528 Hz Transformation',
+        description: 'Take a calm pause with 528 Hz',
         frequency: 528,
         duration: 15,
         reward: '50 XP + Clarity Boost',
       },
       {
         title: 'Abundance Pulse',
-        description: 'Attract focus and wealth with 888 Hz Abundance',
+        description: 'Set a clear intention with 888 Hz Abundance',
         frequency: 888,
         duration: 15,
-        reward: '65 XP + Wealth Sparkle',
+        reward: '65 XP + Abundance Badge',
       },
     ];
   } else if (hour >= 17 && hour < 21) {
@@ -202,7 +202,7 @@ export function getDailyChallenge(
     challengePool = [
       {
         title: 'Deep Relaxation',
-        description: 'Unwind evening stress with 432 Hz Universal Resonance',
+        description: 'Unwind after your day with 432 Hz',
         frequency: 432,
         duration: 15,
         reward: '45 XP + Evening Calm',
@@ -216,7 +216,7 @@ export function getDailyChallenge(
       },
       {
         title: 'Foundation Reset',
-        description: 'Ground physical tension with 174 Hz Foundation',
+        description: 'Ground and settle with 174 Hz Foundation',
         frequency: 174,
         duration: 15,
         reward: '50 XP + Grounding Touch',
@@ -227,21 +227,21 @@ export function getDailyChallenge(
     challengePool = [
       {
         title: 'Sleep Preparation',
-        description: 'Prepare for deep rest with 2 Hz Delta waves',
+        description: 'Wind down for rest with 2 Hz Delta',
         frequency: 2,
         duration: 25,
         reward: '70 XP + Sleep Tracker',
       },
       {
         title: 'Night Meditation',
-        description: 'Ease into subconscious healing with 6 Hz Theta waves',
+        description: 'Settle into quiet reflection with 6 Hz Theta',
         frequency: 6,
         duration: 20,
         reward: '60 XP + Night Calm',
       },
       {
         title: 'Peaceful Restoration',
-        description: 'Restorative night rest with 285 Hz Quantum Repair',
+        description: 'Wind down gently with 285 Hz Gentle Renewal',
         frequency: 285,
         duration: 20,
         reward: '65 XP + Dream Key',

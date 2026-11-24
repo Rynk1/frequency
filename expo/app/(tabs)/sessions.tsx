@@ -58,9 +58,11 @@ import { useAuth } from '@/hooks/useAuth';
 import { getDailyAlignment, getLocalDateString } from '@/lib/recommendation';
 import { useTheme } from '@/hooks/useTheme';
 import { useSettings } from '@/hooks/useSettings';
+import { t } from '@/lib/copy/strings';
 import { ResponsiveGrid } from '@/components/ResponsiveGrid';
 import { useResponsive } from '@/lib/ui/responsive';
 import { PremiumModal } from '@/components/PremiumModal';
+import { isProgramLocked } from '@/lib/catalogue/program-access';
 import { showAlert } from '../../lib/ui/alert';
 
 
@@ -81,7 +83,9 @@ interface Session {
   intensity: 'gentle' | 'moderate' | 'intense';
 }
 
-const STARTER_SESSIONS: Omit<Session, 'id' | 'createdAt'>[] = [
+type StarterSession = Omit<Session, 'id' | 'createdAt'> & { isPremium?: boolean; id?: string };
+
+const STARTER_SESSIONS: StarterSession[] = [
   {
     name: "Morning Energy Boost",
     frequencies: [
@@ -100,21 +104,21 @@ const STARTER_SESSIONS: Omit<Session, 'id' | 'createdAt'>[] = [
     notes: "Perfect for morning routine."
   },
   {
-    name: "Deep Healing Session",
+    name: "Deep Relaxation Session",
     frequencies: [
       { hz: 174, name: "Foundation Pure", duration: 15 },
       { hz: 285, name: "Transformation Pure", duration: 15 },
       { hz: 528, name: "Love & Miracles", duration: 15 }
     ],
     totalDuration: 45,
-    goal: "Comprehensive healing for body, mind, and spirit",
+    goal: "A longer, quieter session for rest and reflection",
     schedule: ["Sun", "Wed", "Sat"],
     progress: 0,
     totalSessions: 0,
     streak: 0,
     category: 'healing' as const,
     intensity: 'intense' as const,
-    notes: "Powerful healing combination."
+    notes: "A calm blend of low and mid-range tones."
   },
   {
     name: "Complete Chakra Alignment",
@@ -219,10 +223,11 @@ export default function SessionsScreen() {
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [selectedSession, setSelectedSession] = useState<Session | null>(null);
   const [showStarterDetails, setShowStarterDetails] = useState(false);
-  const [selectedStarterSession, setSelectedStarterSession] = useState<typeof STARTER_SESSIONS[0] | null>(null);
+  const [selectedStarterSession, setSelectedStarterSession] = useState<StarterSession | null>(null);
   const [showUsageAnalytics, setShowUsageAnalytics] = useState(false);
   const [selectedAchievement, setSelectedAchievement] = useState<any | null>(null);
   const [showRewardPaywall, setShowRewardPaywall] = useState(false);
+  const [showProgramPaywall, setShowProgramPaywall] = useState(false);
   const { open: openPlayer } = usePlayer();
 
   const pulseAnim = useRef(new Animated.Value(1)).current;
@@ -316,6 +321,8 @@ export default function SessionsScreen() {
   const displayStarterSessions = React.useMemo(() => {
     if (!localPrograms || localPrograms.length === 0) return STARTER_SESSIONS;
     return localPrograms.map((s) => ({
+      id: s.id,
+      isPremium: s.isPremium,
       name: s.name,
       frequencies: s.frequencies.map((f: string) => {
         const hzMatch = f.match(/-(\d+(\.\d+)?)$/);
@@ -350,7 +357,12 @@ export default function SessionsScreen() {
     });
   };
 
-  const handleStartStarterSession = (session: typeof STARTER_SESSIONS[0]) => {
+  const handleStartStarterSession = (session: StarterSession) => {
+    if (isProgramLocked(session.isPremium, isPremium)) {
+      setShowStarterDetails(false);
+      setShowProgramPaywall(true);
+      return;
+    }
     openPlayer({
       frequency: {
         hz: session.frequencies[0]?.hz || 528,
@@ -733,7 +745,7 @@ export default function SessionsScreen() {
         <GlassCard style={styles.emptyCard} depth="light">
           <Play color={colors.textMuted} size={32} />
           <Text style={styles.emptyTitle}>No Active Sessions</Text>
-          <Text style={styles.emptyDesc}>Create a session or choose from Healing Programs below</Text>
+          <Text style={styles.emptyDesc}>{t('sessions.empty.active.body')}</Text>
           <TouchableOpacity style={styles.emptyBtn} onPress={() => setShowCreateModal(true)}>
             <Plus color={colors.accent} size={14} />
             <Text style={styles.emptyBtnText}>Create Session</Text>
@@ -969,7 +981,7 @@ export default function SessionsScreen() {
       showsVerticalScrollIndicator={false}
       contentContainerStyle={[styles.scrollContent, { maxWidth: contentWidth, width: '100%', alignSelf: 'center' }]}
     >
-      <Text style={styles.programsSubtitle}>Curated healing programs designed by experts</Text>
+      <Text style={styles.programsSubtitle}>Guided programs for sleep, calm and focus</Text>
       <ResponsiveGrid
         items={displayStarterSessions}
         keyExtractor={(session: any, index: number) => `${session.name}-${index}`}
@@ -1002,6 +1014,12 @@ export default function SessionsScreen() {
                 <View style={styles.programHeaderText}>
                   <Text style={styles.programName}>{session.name}</Text>
                   <Text style={styles.programCountText}>{session.frequencies.length} frequencies</Text>
+                  {isProgramLocked(session.isPremium, isPremium) && (
+                    <View style={styles.programPremiumRow}>
+                      <Crown color={colors.gold} size={11} />
+                      <Text style={styles.programPremiumText}>Premium program</Text>
+                    </View>
+                  )}
                 </View>
                 <View style={[styles.programScheduleBadge, { backgroundColor: meta.color + '18', borderColor: meta.color + '40' }]}>
                   <Text style={[styles.programScheduleText, { color: meta.color }]}>{session.schedule[0]}</Text>
@@ -1038,7 +1056,9 @@ export default function SessionsScreen() {
                   onPress={() => handleStartStarterSession(session)}
                 >
                   <Play color={meta.color} size={13} fill={meta.color} />
-                  <Text style={[styles.programStartBtnText, { color: meta.color }]}>Start</Text>
+                  <Text style={[styles.programStartBtnText, { color: meta.color }]}>
+                    {isProgramLocked(session.isPremium, isPremium) ? 'Unlock' : 'Start'}
+                  </Text>
                 </TouchableOpacity>
               </View>
             </GlassCard>
@@ -1064,7 +1084,7 @@ export default function SessionsScreen() {
         {/* Header */}
         <View style={[styles.header, { maxWidth: contentWidth, width: '100%', alignSelf: 'center' }]}>
           <View>
-            <Text style={styles.headerEyebrow}>Your Healing</Text>
+            <Text style={styles.headerEyebrow}>{t('sessions.eyebrow')}</Text>
             <Text style={styles.headerTitle}>Journey</Text>
           </View>
           <TouchableOpacity
@@ -1105,7 +1125,7 @@ export default function SessionsScreen() {
               style={[styles.mainTab, mainTab === 'programs' && styles.mainTabActive]}
               onPress={() => setMainTab('programs')}
             >
-              <Text style={[styles.mainTabText, mainTab === 'programs' && styles.mainTabTextActive]}>Healing Programs</Text>
+              <Text style={[styles.mainTabText, mainTab === 'programs' && styles.mainTabTextActive]}>{t('sessions.tab.programs')}</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -1195,7 +1215,9 @@ export default function SessionsScreen() {
                         onPress={() => handleStartStarterSession(selectedStarterSession)}
                       >
                         <Play color="#fff" size={16} fill="#fff" />
-                        <Text style={styles.startProgramBtnText}>Start Now</Text>
+                        <Text style={styles.startProgramBtnText}>
+                          {isProgramLocked(selectedStarterSession?.isPremium, isPremium) ? 'Unlock with Premium' : 'Start Now'}
+                        </Text>
                       </TouchableOpacity>
                     </View>
                     <View style={{ height: 60 }} />
@@ -1436,6 +1458,14 @@ export default function SessionsScreen() {
           </View>
         </Modal>
       )}
+
+      <PremiumModal
+        visible={showProgramPaywall}
+        onClose={() => setShowProgramPaywall(false)}
+        onStartTrial={() => setShowProgramPaywall(false)}
+        onUpgrade={() => setShowProgramPaywall(false)}
+        trigger="premium_content"
+      />
 
       <PremiumModal
         visible={showRewardPaywall}
@@ -2420,6 +2450,8 @@ const createStyles = (colors: any, gradients: any, isDark: boolean) => StyleShee
     letterSpacing: 0.2,
     marginBottom: 2,
   },
+  programPremiumRow: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 3 },
+  programPremiumText: { fontSize: 10, color: colors.gold, fontWeight: '600' as const },
   programCountText: {
     fontSize: 12,
     color: colors.textMuted,

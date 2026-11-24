@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "HarmonyFrequency: Your Spiritual Soundscape",
+    "name": "Harmony Frequency",
     "slug": "harmonyfrequency-your-spiritual-soundscape",
     "version": "1.0.0",
     "orientation": "portrait",
@@ -20,7 +20,7 @@
         "UIBackgroundModes": [
           "audio"
         ],
-        "NSMicrophoneUsageDescription": "Harmony Frequency requires microphone access so you can record custom voice affirmations to play over healing soundscapes."
+        "NSMicrophoneUsageDescription": "Harmony Frequency requires microphone access so you can record custom voice affirmations to play alongside your chosen sound."
       }
     },
     "android": {

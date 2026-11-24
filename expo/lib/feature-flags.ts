@@ -9,8 +9,6 @@ export type SystemOperatingMode =
 export interface OperationalFeatureFlags {
   purchasesEnabled: boolean;
   binauralModeEnabled: boolean;
-  customMixingEnabled: boolean;
-  offlineDownloadsEnabled: boolean;
   experimentalFeaturesEnabled: boolean;
   maintenanceMode: boolean;
   disabledFrequencies: string[];
@@ -22,8 +20,6 @@ export interface OperationalFeatureFlags {
 export const DEFAULT_FEATURE_FLAGS: OperationalFeatureFlags = {
   purchasesEnabled: true,
   binauralModeEnabled: true,
-  customMixingEnabled: true,
-  offlineDownloadsEnabled: true,
   experimentalFeaturesEnabled: false,
   maintenanceMode: false,
   disabledFrequencies: [],

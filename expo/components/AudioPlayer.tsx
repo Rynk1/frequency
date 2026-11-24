@@ -54,6 +54,7 @@ import { Share } from 'react-native';
 import { DEFAULT_PREMIUM_POLICY } from '@/lib/subscription-service';
 import { PremiumModal, PremiumTrigger } from './PremiumModal';
 import { usePremiumUsage } from '@/hooks/usePremiumUsage';
+import { getPreviewDurationSeconds, getPreviewLabel } from '@/lib/usage/preview-config';
 import { AffirmationStreamCard } from './AffirmationStreamCard';
 import { AffirmationVideoStage } from './AffirmationVideoStage';
 import { Affirmation, AffirmationMode } from '@/types/affirmation';
@@ -630,8 +631,7 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({
   const handlePlayPause = useCallback(async () => {
     // Layer 2 Authorization Check
     const targetFreq = isSessionMode ? sessionFrequencies[currentFrequencyIndex] : frequency;
-    const targetCategory = String(targetFreq?.category || '').toLowerCase();
-    const isFreqLocked = targetFreq?.isPremium || targetCategory === 'chakra' || targetCategory === 'binaural';
+    const isFreqLocked = Boolean(targetFreq?.isPremium);
     const isLockedForUser = isFreqLocked && !capabilities?.premiumFrequencies;
     const playbackMode: 'full' | 'preview' = (isLockedForUser || isPreviewActive) ? 'preview' : 'full';
 
@@ -650,9 +650,14 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({
       const requestedMinutes = isSessionMode
         ? Math.ceil(sessionTimeLeft / 60)
         : duration;
+      // A locked track is authorised for a short preview, so the free-tier
+      // duration cap must not block the preview before it can start.
+      const authorisedMinutes = isLockedForUser
+        ? Math.min(requestedMinutes, maxFreeDuration)
+        : requestedMinutes;
       const auth = await attemptStartSession(
         String(targetFreq?.name || 'session'),
-        requestedMinutes,
+        authorisedMinutes,
       );
       if (!auth.allowed) {
         if (auth.reason === 'session_limit') {
@@ -683,7 +688,7 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({
           }
           if (isLockedForUser) {
             setIsPreviewActive(true);
-            setTimeLeft(DEFAULT_PREMIUM_POLICY.premiumPreviewDuration);
+            setTimeLeft(getPreviewDurationSeconds());
           }
           playFrequency(currentFreq, currentFreq.name, playbackMode);
           setIsSessionActive(true);
@@ -697,7 +702,7 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({
           if (isLockedForUser) {
             setIsPreviewActive(true);
             setDuration(3);
-            setTimeLeft(DEFAULT_PREMIUM_POLICY.premiumPreviewDuration);
+            setTimeLeft(getPreviewDurationSeconds());
           }
           playFrequency(frequency, frequency.name, playbackMode);
           if (timeLeft > 0) {
@@ -902,7 +907,7 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({
                       />
                       {isPreviewActive && (
                         <View style={[styles.previewBadge, styles.videoPreviewBadge]}>
-                          <Text style={styles.previewBadgeText}>3-MINUTE PREVIEW</Text>
+                          <Text style={styles.previewBadgeText}>{getPreviewLabel()}</Text>
                         </View>
                       )}
                     </View>
@@ -929,7 +934,7 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({
                     <View style={styles.visualizerOverlay}>
                       {isPreviewActive && (
                         <View style={styles.previewBadge}>
-                          <Text style={styles.previewBadgeText}>3-MINUTE PREVIEW</Text>
+                          <Text style={styles.previewBadgeText}>{getPreviewLabel()}</Text>
                         </View>
                       )}
                       <Text style={styles.frequencyHz}>{displayFrequency?.hz || 0} Hz</Text>
@@ -946,7 +951,7 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({
                     <Text style={styles.trackSubtitle}>
                       {isSessionMode
                         ? `Track ${currentFrequencyIndex + 1} of ${sessionFrequencies.length}`
-                        : displayFrequency?.category || 'Healing'}
+                        : displayFrequency?.category || 'Practice'}
                     </Text>
                   </View>
                   <View style={styles.trackActions}>
@@ -963,7 +968,7 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({
                         const hz = displayFrequency?.hz || 0;
                         try {
                           await Share.share({
-                            message: `I'm listening to ${freqName} (${hz} Hz) on Harmony Frequency. Join me on this healing journey!`,
+                            message: `I'm listening to ${freqName} (${hz} Hz) on Harmony Frequency. Join me for a calmer moment.`,
                           });
                         } catch (e) {
                           console.warn('Share failed:', e);
@@ -1350,7 +1355,7 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({
                 <Text style={styles.detailFrequency}>{displayFrequency?.hz || 0} Hz</Text>
                 <Text style={styles.panelBody}>{displayFrequency?.description || 'A focused frequency for mindful listening and a calmer audio environment.'}</Text>
                 <View style={styles.detailGrid}>
-                  <View><Text style={styles.detailLabel}>CATEGORY</Text><Text style={styles.detailValue}>{displayFrequency?.category || 'Healing'}</Text></View>
+                  <View><Text style={styles.detailLabel}>CATEGORY</Text><Text style={styles.detailValue}>{displayFrequency?.category || 'Practice'}</Text></View>
                   <View><Text style={styles.detailLabel}>VISUAL STYLE</Text><Text style={styles.detailValue}>{VISUALIZER_LABELS[visualizerStyle]}</Text></View>
                 </View>
                 <TouchableOpacity style={styles.panelButton} onPress={closePlayerPanel}><Text style={styles.panelButtonText}>Done</Text></TouchableOpacity>

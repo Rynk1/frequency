@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import {
   View,
   Text,
@@ -35,6 +35,8 @@ import {
   RotateCcw,
 } from 'lucide-react-native';
 import { useAuth } from '@/hooks/useAuth';
+import { autoRenewNote, couldNotOpenSubscriptionsMessage, openingStoreLabel, secureCheckoutLabel, secureProcessingNote, storeUnavailableMessage } from '@/lib/billing/platform-copy';
+import { paywallCopyForIntent, paywallCopyForTrigger } from '@/lib/catalogue/paywall-copy';
 import {
   getManageSubscriptionUrl,
   type Plan,
@@ -52,12 +54,32 @@ import {
   formatPrice,
   getPlanBillingNote,
   getYearlyMonthlyPrice,
+  getWeeklyEquivalent,
   getSavingsPercentForOfferings,
 } from '@/lib/pricing';
 import { PREMIUM_BENEFITS } from '@/lib/premium-benefits';
+import { buildTrialReminder } from '@/lib/notifications/trial-reminder';
+import { track } from '@/lib/telemetry';
 import { CANONICAL_PREMIUM_POLICY } from '@/lib/usage/PremiumPolicy';
 import { PREMIUM_FREQUENCY_COUNT } from '@/lib/usage/PremiumPolicy';
 import { COLORS, GRADIENTS, FONTS, TEXT_PRESETS } from '@/constants/theme';
+
+async function scheduleTrialReminderNotification(): Promise<void> {
+  try {
+    const Notifications = require('expo-notifications') as typeof import('expo-notifications');
+    const permissions = await Notifications.getPermissionsAsync();
+    if (!permissions.granted) return;
+    const reminder = buildTrialReminder();
+    if (reminder.fireAt.getTime() <= Date.now()) return;
+    await Notifications.scheduleNotificationAsync({
+      content: { title: reminder.title, body: reminder.body },
+      trigger: { date: reminder.fireAt } as any,
+    });
+    track('trial_reminder_scheduled', { fireAt: reminder.fireAt.toISOString() });
+  } catch {
+    // A missing reminder must never block a completed purchase.
+  }
+}
 
 export type PremiumTrigger =
   | 'premium_content'
@@ -88,6 +110,11 @@ export const PremiumModal: React.FC<PremiumModalProps> = ({
   trigger = 'premium_content',
 }) => {
   const { userProfile, isTrialActive, trialDaysLeft, isPremium, refreshSubscriptionStatus } = useAuth();
+  const intentPaywallCopy = paywallCopyForIntent(userProfile?.onboardingPreferences?.primaryIntent);
+  const heroCopy = paywallCopyForTrigger(trigger, {
+    freeMinutes: FREE_SESSION_MINUTES,
+    freeSessions: FREE_SESSIONS_PER_DAY,
+  }) ?? intentPaywallCopy;
   const [selectedPlan, setSelectedPlan] = useState<'monthly' | 'yearly'>('yearly');
   const [hasAcceptedAutoRenew, setHasAcceptedAutoRenew] = useState<boolean>(false);
   const [isProcessing, setIsProcessing] = useState<boolean>(false);
@@ -142,6 +169,16 @@ export const PremiumModal: React.FC<PremiumModalProps> = ({
     };
   }, [visible, isPremium, isTrialActive]);
 
+  useEffect(() => {
+    if (!visible) return;
+    track('paywall_viewed', {
+      trigger,
+      intent: userProfile?.onboardingPreferences?.primaryIntent ?? 'none',
+      premium: isPremium,
+      trial: isTrialActive,
+    });
+  }, [visible, trigger, userProfile?.onboardingPreferences?.primaryIntent, isPremium, isTrialActive]);
+
   const monthlyPriceLabel =
     storeOfferings?.monthly?.priceString || formatPrice(PREMIUM_PLANS.monthly.price);
   const yearlyPriceLabel =
@@ -158,20 +195,32 @@ export const PremiumModal: React.FC<PremiumModalProps> = ({
     ? `Billed annually at ${storeOfferings.yearly.priceString}`
     : getPlanBillingNote('yearly');
   const savings = getSavingsPercentForOfferings(storeOfferings);
+  const yearlyWeeklyLabel = formatPrice(
+    getWeeklyEquivalent('yearly', storeOfferings?.yearly?.price ?? PREMIUM_PLANS.yearly.price),
+    storeOfferings?.yearly?.currencyCode ?? PREMIUM_PLANS.yearly.currency
+  );
+  const monthlyWeeklyLabel = formatPrice(
+    getWeeklyEquivalent('monthly', storeOfferings?.monthly?.price ?? PREMIUM_PLANS.monthly.price),
+    storeOfferings?.monthly?.currencyCode ?? PREMIUM_PLANS.monthly.currency
+  );
 
   const initiatePurchase = useCallback(async (plan: Plan, trialEnabled: boolean) => {
     setError(null);
     setIsProcessing(true);
-    setProcessingLabel(trialEnabled ? 'Preparing your free trial…' : 'Opening Google Play…');
+    setProcessingLabel(trialEnabled ? 'Preparing your free trial...' : openingStoreLabel());
     try {
       if (!isStoreBillingAvailable()) {
-        throw new Error('In-app purchases are unavailable on this device. Please update the app through Google Play and try again.');
+        throw new Error(storeUnavailableMessage());
       }
       const result = await purchasePlan(plan);
       if (result?.success === false) {
         // User dismissed the store purchase sheet — stay on the paywall.
         return;
       }
+      if (trialEnabled) {
+        await scheduleTrialReminderNotification();
+      }
+      track(trialEnabled ? 'trial_started' : 'purchase_completed', { plan: selectedPlan });
       if (refreshSubscriptionStatus) {
         await refreshSubscriptionStatus();
       }
@@ -181,12 +230,13 @@ export const PremiumModal: React.FC<PremiumModalProps> = ({
     } catch (e: any) {
       // RevenueCat rejects with `userCancelled` when the sheet is dismissed.
       if (e?.userCancelled || e?.code === 'PURCHASE_CANCELLED') return;
+      track('purchase_failed', { plan: selectedPlan, reason: e?.code ?? 'unknown' });
       setError(e?.message || 'Purchase failed. Please try again.');
     } finally {
       setIsProcessing(false);
       setProcessingLabel('');
     }
-  }, [refreshSubscriptionStatus, onStartTrial, onUpgrade, onClose]);
+  }, [refreshSubscriptionStatus, onStartTrial, onUpgrade, onClose, selectedPlan]);
 
   const handleStartTrial = useCallback(async () => {
     if (!hasAcceptedAutoRenew) {
@@ -195,6 +245,11 @@ export const PremiumModal: React.FC<PremiumModalProps> = ({
     }
     await initiatePurchase(selectedPlan, true);
   }, [hasAcceptedAutoRenew, selectedPlan, initiatePurchase]);
+
+  const handleDismiss = useCallback(() => {
+    track('paywall_dismissed', { trigger });
+    onClose();
+  }, [trigger, onClose]);
 
   const handleUpgrade = useCallback(async () => {
     await initiatePurchase(selectedPlan, false);
@@ -205,7 +260,7 @@ export const PremiumModal: React.FC<PremiumModalProps> = ({
     try {
       await Linking.openURL(url);
     } catch {
-      setError('Could not open the Google Play subscriptions screen. Open the Play Store app and manage your subscriptions there.');
+      setError(couldNotOpenSubscriptionsMessage());
       return;
     }
     if (refreshSubscriptionStatus) await refreshSubscriptionStatus();
@@ -214,7 +269,7 @@ export const PremiumModal: React.FC<PremiumModalProps> = ({
   const handleManageSubscription = useCallback(async () => {
     setError(null);
     setIsProcessing(true);
-    setProcessingLabel('Opening Google Play…');
+    setProcessingLabel(openingStoreLabel());
     try {
       await openStoreManagement();
       setShowManageSheet(false);
@@ -236,7 +291,7 @@ export const PremiumModal: React.FC<PremiumModalProps> = ({
     setError(null);
     setManagementAction('cancel');
     setIsProcessing(true);
-    setProcessingLabel('Opening Google Play…');
+    setProcessingLabel(openingStoreLabel());
     try {
       await openStoreManagement();
       setShowCancelConfirm(false);
@@ -251,7 +306,7 @@ export const PremiumModal: React.FC<PremiumModalProps> = ({
     setError(null);
     setManagementAction('resume');
     setIsProcessing(true);
-    setProcessingLabel('Opening Google Play…');
+    setProcessingLabel(openingStoreLabel());
     try {
       await openStoreManagement();
       setShowManageSheet(false);
@@ -385,7 +440,7 @@ const { contentWidth } = useResponsive();
                 </GlassCard>
 
                 {/* Management actions */}
-                <Text style={styles.sectionTitle}>Manage Subscription</Text>
+                <Text style={styles.sectionTitle}>Manage subscription</Text>
                 <GlassCard style={styles.managementCard}>
                   <TouchableOpacity
                     style={styles.mgmtRow}
@@ -396,8 +451,8 @@ const { contentWidth } = useResponsive();
                       <CreditCard color="#60A5FA" size={18} />
                     </View>
                     <View style={styles.mgmtText}>
-                      <Text style={styles.mgmtTitle}>Billing Portal</Text>
-                      <Text style={styles.mgmtSub}>Update payment method, invoices</Text>
+                      <Text style={styles.mgmtTitle}>Manage subscription</Text>
+                      <Text style={styles.mgmtSub}>Update payment method or cancel</Text>
                     </View>
                     <ChevronRight color={COLORS.textMuted} size={16} />
                   </TouchableOpacity>
@@ -473,7 +528,7 @@ const { contentWidth } = useResponsive();
                 )}
 
                 <Text style={styles.secureNote}>
-                  <Shield color={COLORS.textMuted} size={12} />  Subscriptions are securely processed by Google Play. Cancel anytime.
+                  <Shield color={COLORS.textMuted} size={12} />  {secureProcessingNote()}
                 </Text>
               </Animated.View>
             </ScrollView>
@@ -593,24 +648,8 @@ const { contentWidth } = useResponsive();
                   <Sparkles color={COLORS.goldLight} size={14} style={styles.sparkle1} />
                   <Sparkles color={COLORS.goldLight} size={10} style={styles.sparkle2} />
                 </View>
-                <Text style={styles.heroTitle}>
-                  {trigger === 'preview_complete'
-                    ? '3-Minute Preview Complete'
-                    : trigger === 'duration_limit'
-                    ? 'Extend Your Practice'
-                    : trigger === 'session_limit'
-                    ? "You've Used Today's Free Sessions"
-                    : 'Unlock Premium'}
-                </Text>
-                <Text style={styles.heroSubtitle}>
-                  {trigger === 'preview_complete'
-                    ? 'You experienced 3 minutes of this session. Unlock the full length, every binaural beat and all chakra frequencies.'
-                    : trigger === 'duration_limit'
-                    ? `Free sessions are limited to ${FREE_SESSION_MINUTES} minutes. Upgrade for unlimited session length.`
-                    : trigger === 'session_limit'
-                    ? `Free listening includes ${FREE_SESSIONS_PER_DAY} sessions per day. Upgrade for unlimited daily sessions and every premium frequency.`
-                    : 'Transform your wellness journey with unlimited access to binaural and chakra collections.'}
-                </Text>
+                <Text style={styles.heroTitle}>{heroCopy.headline}</Text>
+                <Text style={styles.heroSubtitle}>{heroCopy.body}</Text>
               </View>
 
               {/* Trial card */}
@@ -622,11 +661,18 @@ const { contentWidth } = useResponsive();
                   >
                     <View style={styles.trialHeader}>
                       <Sparkles color={COLORS.accent} size={18} />
-                      <Text style={styles.trialTitle}>{PREMIUM_TRIAL_DAYS}-Day Free Trial</Text>
+                      <Text style={styles.trialTitle}>{PREMIUM_TRIAL_DAYS}-day free trial</Text>
                     </View>
                     <Text style={styles.trialDesc}>
-                      Experience every premium feature free for {PREMIUM_TRIAL_DAYS} days. Cancel before it ends and you won't be charged.
+                      Try everything for {PREMIUM_TRIAL_DAYS} days. Cancel before it ends and you won't be charged.
                     </Text>
+                    <View style={styles.trialTimeline}>
+                      <Text style={styles.trialTimelineItem}>Today: full access</Text>
+                      <Text style={styles.trialTimelineDot}>·</Text>
+                      <Text style={styles.trialTimelineItem}>Day 5: reminder</Text>
+                      <Text style={styles.trialTimelineDot}>·</Text>
+                      <Text style={styles.trialTimelineItem}>Day 7: first payment unless you cancel</Text>
+                    </View>
 
                     <TouchableOpacity
                       style={styles.acceptRow}
@@ -637,7 +683,7 @@ const { contentWidth } = useResponsive();
                         {hasAcceptedAutoRenew && <Check color={COLORS.bg} size={12} />}
                       </View>
                       <Text style={styles.acceptText}>
-                        I agree to start a subscription with auto-renewal. I can cancel anytime at least 24 hours before the trial ends to avoid charges.
+                        I agree to start a subscription that renews automatically. I can cancel at least 24 hours before the trial ends to avoid a charge.
                       </Text>
                     </TouchableOpacity>
 
@@ -650,7 +696,7 @@ const { contentWidth } = useResponsive();
                       {isProcessing && processingLabel.includes('trial') ? (
                         <ActivityIndicator color={COLORS.bg} size="small" />
                       ) : (
-                        <Text style={styles.trialButtonText}>Start Free Trial with {selectedPlan === 'yearly' ? 'Yearly' : 'Monthly'}</Text>
+                        <Text style={styles.trialButtonText}>Start free trial</Text>
                       )}
                     </TouchableOpacity>
                   </LinearGradient>
@@ -658,7 +704,7 @@ const { contentWidth } = useResponsive();
               )}
 
               {/* Features */}
-              <Text style={styles.sectionTitle}>Premium Features</Text>
+              <Text style={styles.sectionTitle}>What you get</Text>
               <View style={styles.featuresCard}>
                 {premiumFeatures.map((feature, i) => (
                   <View key={feature.id}>
@@ -683,7 +729,7 @@ const { contentWidth } = useResponsive();
               </View>
 
               {/* Pricing */}
-              <Text style={styles.sectionTitle}>Choose Your Plan</Text>
+              <Text style={styles.sectionTitle}>Choose a plan</Text>
 
               {/* Yearly */}
               <TouchableOpacity
@@ -705,6 +751,7 @@ const { contentWidth } = useResponsive();
                     <View style={styles.planPriceCol}>
                       <Text style={styles.planPrice}>{yearlyMonthlyLabel}</Text>
                       <Text style={styles.planPeriod}>/month</Text>
+                      <Text style={styles.planWeekly}>About {yearlyWeeklyLabel} a week</Text>
                     </View>
                   </View>
                   <Text style={styles.planBilling}>{yearlyBillingNote}</Text>
@@ -733,6 +780,7 @@ const { contentWidth } = useResponsive();
                     <View style={styles.planPriceCol}>
                       <Text style={styles.planPrice}>{monthlyPriceLabel}</Text>
                       <Text style={styles.planPeriod}>/month</Text>
+                      <Text style={styles.planWeekly}>About {monthlyWeeklyLabel} a week</Text>
                     </View>
                   </View>
                   <Text style={styles.planBilling}>{getPlanBillingNote('monthly')}</Text>
@@ -772,7 +820,7 @@ const { contentWidth } = useResponsive();
                     <>
                       <Crown color="#1a1200" size={18} />
                       <Text style={styles.upgradeBtnTextDark}>
-                        Upgrade to Premium — {selectedPlan === 'yearly' ? `${yearlyPriceLabel}/yr` : `${monthlyPriceLabel}/mo`}
+                        Go Premium — {selectedPlan === 'yearly' ? `${yearlyPriceLabel}/yr` : `${monthlyPriceLabel}/mo`}
                       </Text>
                     </>
                   )}
@@ -782,7 +830,7 @@ const { contentWidth } = useResponsive();
               <View style={styles.trustRow}>
                 <View style={styles.trustItem}>
                   <Shield color={COLORS.textMuted} size={12} />
-                  <Text style={styles.trustText}>Secure checkout by Google Play</Text>
+                  <Text style={styles.trustText}>{secureCheckoutLabel()}</Text>
                 </View>
                 <View style={styles.trustItem}>
                   <Check color={COLORS.textMuted} size={12} />
@@ -791,8 +839,12 @@ const { contentWidth } = useResponsive();
               </View>
 
               <Text style={styles.disclaimer}>
-                Subscriptions auto-renew unless cancelled at least 24 hours before the period ends. Manage or cancel your subscription anytime in Google Play.
+                {autoRenewNote()}
               </Text>
+
+              <TouchableOpacity onPress={handleDismiss} style={styles.secondaryDismiss} testID="paywall-dismiss">
+                <Text style={styles.secondaryDismissText}>Not now, keep exploring free</Text>
+              </TouchableOpacity>
             </Animated.View>
           </ScrollView>
         </SafeAreaView>
@@ -851,7 +903,10 @@ const styles = StyleSheet.create({
   trialCard: { padding: 18, borderRadius: 20, borderWidth: 1, borderColor: 'rgba(167,139,250,0.2)' },
   trialHeader: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 8 },
   trialTitle: { ...TEXT_PRESETS.headingSmall, color: COLORS.textPrimary, fontWeight: '600' as const },
-  trialDesc: { ...TEXT_PRESETS.bodySmall, color: COLORS.textSecondary, lineHeight: 18, marginBottom: 14 },
+  trialDesc: { ...TEXT_PRESETS.bodySmall, color: COLORS.textSecondary, lineHeight: 18, marginBottom: 8 },
+  trialTimeline: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', marginBottom: 14, gap: 4 },
+  trialTimelineItem: { fontSize: 10, color: COLORS.textMuted },
+  trialTimelineDot: { fontSize: 10, color: COLORS.textMuted },
   acceptRow: { flexDirection: 'row', alignItems: 'flex-start', marginBottom: 14, gap: 10 },
   checkbox: {
     width: 20, height: 20, borderRadius: 6, marginTop: 2,
@@ -903,6 +958,7 @@ const styles = StyleSheet.create({
   savingsText: { fontSize: 11, fontWeight: '700' as const, color: COLORS.gold, letterSpacing: 0.3 },
   planPriceCol: { alignItems: 'flex-end' },
   planPrice: { fontFamily: FONTS.heading, fontSize: 26, color: COLORS.textPrimary, lineHeight: 30 },
+  planWeekly: { fontSize: 10, color: COLORS.textMuted, marginTop: 2 },
   planPeriod: { ...TEXT_PRESETS.caption, color: COLORS.textMuted },
   planBilling: { ...TEXT_PRESETS.caption, color: COLORS.textMuted, marginTop: 2 },
   planCheck: {
@@ -921,6 +977,8 @@ const styles = StyleSheet.create({
   trustItem: { flexDirection: 'row', alignItems: 'center', gap: 5 },
   trustText: { fontSize: 11, color: COLORS.textMuted, letterSpacing: 0.2 },
   disclaimer: { fontSize: 11, color: COLORS.textMuted, textAlign: 'center', lineHeight: 16, paddingHorizontal: 12 },
+  secondaryDismiss: { alignSelf: 'center', paddingVertical: 14, paddingHorizontal: 16 },
+  secondaryDismissText: { fontSize: 13, color: COLORS.textSecondary, fontWeight: '600' },
   // Error
   errorCard: {
     backgroundColor: 'rgba(248,113,113,0.08)', borderWidth: 1, borderColor: 'rgba(248,113,113,0.25)',

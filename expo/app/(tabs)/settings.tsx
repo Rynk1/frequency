@@ -37,6 +37,7 @@ import {
 import { useSettings } from '@/hooks/useSettings';
 import { useFavorites } from '@/hooks/useFavorites';
 import { useAuth } from '@/hooks/useAuth';
+import { storeName } from '@/lib/billing/platform-copy';
 import { useResponsive } from '@/lib/ui/responsive';
 import { useTheme } from '@/hooks/useTheme';
 import { useSessionManager } from '@/hooks/useSessionManager';
@@ -217,7 +218,7 @@ export default function SettingsScreen() {
   const handleDeleteAccount = () => {
     showAlert(
       'Delete Account',
-      'This permanently deletes your account, saved sessions, favourites and listening history. Active subscriptions must be cancelled separately in Google Play. This cannot be undone.',
+      `This permanently deletes your account, saved sessions, favourites and listening history. Active subscriptions must be cancelled separately in ${storeName()}. This cannot be undone.`,
       [
         { text: 'Cancel', style: 'cancel' },
         {

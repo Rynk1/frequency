@@ -28,6 +28,7 @@ import {
   TrendingUp,
 } from 'lucide-react-native';
 import { useAuth } from '@/hooks/useAuth';
+import { autoRenewNote, couldNotOpenSubscriptionsMessage, verifyingPurchaseLabel, verifyingShortLabel } from '@/lib/billing/platform-copy';
 import { getSubscriptionStatus, type SubscriptionStatus } from '@/lib/subscription-service';
 import { PREMIUM_TRIAL_DAYS } from '@/lib/pricing';
 import { PREMIUM_FREQUENCY_COUNT } from '@/lib/usage/PremiumPolicy';
@@ -140,7 +141,7 @@ export default function SubscriptionResultScreen() {
       const { getManageSubscriptionUrl } = await import('@/lib/subscription-service');
       await Linking.openURL(getManageSubscriptionUrl());
     } catch (e: any) {
-      setVerifyError(e?.message || 'Could not open the Google Play subscriptions screen.');
+      setVerifyError(e?.message || couldNotOpenSubscriptionsMessage());
     }
   }, []);
 
@@ -257,7 +258,7 @@ export default function SubscriptionResultScreen() {
                     <Text style={styles.statusLabel}>Entitlement</Text>
                     <Text style={styles.statusValue}>
                       {isVerifying
-                        ? 'Verifying with Google Play…'
+                        ? verifyingShortLabel()
                         : serverStatus
                           ? serverStatus.isPremium
                             ? 'Premium Active'
@@ -298,7 +299,7 @@ export default function SubscriptionResultScreen() {
             {isVerifying && (
               <GlassCard style={styles.verifyCard}>
                 <ActivityIndicator color={COLORS.accent} size="small" />
-                <Text style={styles.verifyText}>Verifying your payment with Google Play…</Text>
+                <Text style={styles.verifyText}>{verifyingPurchaseLabel()}</Text>
               </GlassCard>
             )}
 
@@ -377,7 +378,7 @@ export default function SubscriptionResultScreen() {
             </View>
 
             <Text style={styles.disclaimer}>
-              Subscriptions auto-renew unless cancelled at least 24 hours before the period ends. Manage or cancel your subscription anytime in Google Play.
+              {autoRenewNote()}
             </Text>
           </Animated.View>
         </ScrollView>

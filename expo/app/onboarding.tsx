@@ -4,22 +4,15 @@ import { Redirect, router } from 'expo-router';
 import { useAuth } from '@/hooks/useAuth';
 import { useSettings } from '@/hooks/useSettings';
 import { auth } from '@/lib/firebase';
-
-type PrimaryGoal = 'focus' | 'sleep' | 'meditation' | 'healing';
-
-const GOALS: { id: PrimaryGoal; title: string; description: string }[] = [
-  { id: 'focus', title: 'Focus and clarity', description: 'Build a calm, attentive work rhythm.' },
-  { id: 'sleep', title: 'Better sleep', description: 'Wind down and support restorative rest.' },
-  { id: 'meditation', title: 'Meditation', description: 'Create space for stillness and reflection.' },
-  { id: 'healing', title: 'General wellbeing', description: 'Explore a balanced daily practice.' },
-];
+import { ONBOARDING_INTENTS, defaultOnboardingIntent, onboardingIntentById } from '@/lib/onboarding/intents';
 
 const SESSION_LENGTHS = [10, 20, 30];
 
 export default function OnboardingPage() {
   const { user, userProfile, updateProfile, isLoading, bootstrapState } = useAuth();
   const { updateSetting } = useSettings();
-  const [goal, setGoal] = useState<PrimaryGoal>('focus');
+  const [intentId, setIntentId] = useState(defaultOnboardingIntent().id);
+  const selectedIntent = onboardingIntentById(intentId) ?? defaultOnboardingIntent();
   const [sessionLength, setSessionLength] = useState(20);
   const [notifications, setNotifications] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
@@ -46,7 +39,8 @@ export default function OnboardingPage() {
     const payloadUpdates = {
       onboardingCompleted: true,
       onboardingPreferences: {
-        primaryGoal: goal,
+        primaryGoal: selectedIntent.goal,
+        primaryIntent: selectedIntent.id,
         sessionLength,
         notifications,
       },
@@ -85,17 +79,17 @@ export default function OnboardingPage() {
   return (
     <View style={styles.container}>
       <View style={styles.content}>
-        <Text style={styles.eyebrow}>WELCOME TO FREQUENCY</Text>
-        <Text style={styles.title}>Set up your first practice</Text>
-        <Text style={styles.subtitle}>A few choices help us make your starting sessions feel useful from day one.</Text>
+        <Text style={styles.eyebrow}>WELCOME</Text>
+        <Text style={styles.title}>What do you need right now?</Text>
+        <Text style={styles.subtitle}>Pick what matters most today. We will start you with a few tracks that fit, and you can change this later.</Text>
 
-        <Text style={styles.sectionTitle}>What brings you here?</Text>
+        <Text style={styles.sectionTitle}>I am here for</Text>
         <View style={styles.options}>
-          {GOALS.map((option) => (
+          {ONBOARDING_INTENTS.map((option) => (
             <Pressable
               key={option.id}
-              onPress={() => setGoal(option.id)}
-              style={[styles.option, goal === option.id && styles.optionSelected]}
+              onPress={() => setIntentId(option.id)}
+              style={[styles.option, intentId === option.id && styles.optionSelected]}
             >
               <Text style={styles.optionTitle}>{option.title}</Text>
               <Text style={styles.optionDescription}>{option.description}</Text>
@@ -103,7 +97,7 @@ export default function OnboardingPage() {
           ))}
         </View>
 
-        <Text style={styles.sectionTitle}>Choose a usual session length</Text>
+        <Text style={styles.sectionTitle}>How long is a usual session?</Text>
         <View style={styles.lengthRow}>
           {SESSION_LENGTHS.map((length) => (
             <Pressable
@@ -137,8 +131,9 @@ export default function OnboardingPage() {
           disabled={isSaving || isLoading || !user}
           style={[styles.continueButton, (isSaving || isLoading || !user) && styles.continueButtonDisabled]}
         >
-          {isSaving ? <ActivityIndicator color="#0B1020" /> : <Text style={styles.continueText}>Begin my journey</Text>}
+          {isSaving ? <ActivityIndicator color="#0B1020" /> : <Text style={styles.continueText}>Continue</Text>}
         </Pressable>
+        <Text style={styles.helperNote}>You can change this any time in Profile.</Text>
       </View>
     </View>
   );
@@ -171,4 +166,5 @@ const styles = StyleSheet.create({
   continueButton: { backgroundColor: '#C4B5FD', borderRadius: 12, minHeight: 52, justifyContent: 'center', alignItems: 'center', marginTop: 4 },
   continueButtonDisabled: { opacity: 0.6 },
   continueText: { color: '#0B1020', fontSize: 16, fontWeight: '700' },
+  helperNote: { color: '#7C879E', fontSize: 12, textAlign: 'center', marginTop: 12 },
 });

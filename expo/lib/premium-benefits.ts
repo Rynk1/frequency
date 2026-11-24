@@ -26,18 +26,23 @@ const freeSessions = CANONICAL_PREMIUM_POLICY.dailyFreeSessionsLimit;
 export const PREMIUM_BENEFITS: PremiumBenefit[] = [
   {
     id: 'premium-frequencies',
-    text: `All ${PREMIUM_FREQUENCY_COUNT} premium frequencies`,
+    text: `All ${PREMIUM_FREQUENCY_COUNT} premium tracks in the full library`,
     evidence: 'seed/frequencies isPremium flag, gated in categories.tsx and AudioPlayer.tsx',
   },
   {
     id: 'unlimited-duration',
-    text: `Unlimited session length (free: ${freeMinutes} min, ${freeSessions}/day)`,
+    text: `Full-length sessions (free: ${freeMinutes} min, ${freeSessions}/day)`,
     evidence: 'usePremiumUsage.getMaxSessionDuration returns Infinity for premium',
   },
   {
     id: 'binaural-beats',
-    text: 'Binaural beats and all seven chakra frequencies',
+    text: 'Binaural beats and all seven chakra tones',
     evidence: 'premiumFrequencies/binaural/chakra capabilities, gated in AudioPlayer.tsx',
+  },
+  {
+    id: 'guided-programs',
+    text: 'Guided programs for sleep, calm and focus',
+    evidence: 'seed/programs.ts isPremium, gated in sessions.tsx handleStartStarterSession',
   },
   {
     id: 'custom-affirmations',

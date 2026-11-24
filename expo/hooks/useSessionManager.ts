@@ -160,7 +160,7 @@ const initialAchievements: Achievement[] = [
   { id: '3', title: 'Frequency Explorer', description: 'Try 5 different frequencies', icon: 'star', unlocked: false, progress: 0, target: 5, reward: 'Frequency mixer', rewardId: 'frequency_mixer', rewardKind: 'premium' },
   { id: '4', title: 'Dedication', description: 'Complete 30 sessions', icon: 'medal', unlocked: false, progress: 0, target: 30, reward: 'Dedication badge', rewardId: 'dedication_badge', rewardKind: 'badge' },
   { id: '5', title: 'Night Owl', description: 'Complete 10 sleep sessions', icon: 'moon', unlocked: false, progress: 0, target: 10, reward: 'Dream journal', rewardId: 'dream_journal', rewardKind: 'premium' },
-  { id: '6', title: 'Deep Healer', description: 'Complete 10 healing sessions', icon: 'users', unlocked: false, progress: 0, target: 10, reward: 'Healing circle badge', rewardId: 'healing_badge', rewardKind: 'badge' },
+  { id: '6', title: 'Steady Practice', description: 'Complete 10 practice sessions', icon: 'users', unlocked: false, progress: 0, target: 10, reward: 'Practice badge', rewardId: 'healing_badge', rewardKind: 'badge' },
   { id: '7', title: 'Zen Master', description: 'Meditate for 500 minutes total', icon: 'brain', unlocked: false, progress: 0, target: 500, reward: 'Master frequency library', rewardId: 'master_frequencies', rewardKind: 'premium' },
   { id: '8', title: 'Century Club', description: 'Complete 100 total sessions', icon: 'sun', unlocked: false, progress: 0, target: 100, reward: 'Sunrise theme', rewardId: 'sunrise_theme', rewardKind: 'setting' },
 ];
@@ -550,7 +550,7 @@ export const [SessionManagerProvider, useSessionManager] = createContextHook(() 
 
       const content = {
         title: '🎵 Session Reminder',
-        body: `Time for your "${sessionName}" healing session`,
+        body: `Time for your "${sessionName}" session`,
         data: { sessionName, type: 'session-reminder' },
         sound: true,
       };

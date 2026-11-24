@@ -7,6 +7,7 @@ import {
   getPlanBillingNote,
   getTrialDaysLeft,
   getYearlyMonthlyPrice,
+  getWeeklyEquivalent,
   getYearlySavingsPercent,
   getSavingsPercentForOfferings,
 } from '../lib/pricing';
@@ -31,6 +32,12 @@ describe('canonical premium pricing', () => {
     expect(getYearlyMonthlyPrice()).toBeCloseTo(59.99 / 12, 5);
     expect(getPlanBillingNote('yearly')).toBe('Billed annually at $59.99');
     expect(getPlanBillingNote('monthly')).toContain('monthly');
+  });
+
+  it('shows a comparable weekly equivalent for both plans', () => {
+    expect(getWeeklyEquivalent('yearly')).toBeCloseTo(59.99 / 52, 5);
+    expect(getWeeklyEquivalent('monthly')).toBeCloseTo((9.99 * 12) / 52, 5);
+    expect(getWeeklyEquivalent('monthly', 12)).toBeCloseTo((12 * 12) / 52, 5);
   });
 
   it('reports the annual savings implied by the canonical numbers', () => {

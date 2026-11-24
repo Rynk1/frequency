@@ -19,9 +19,7 @@ export function computeCapabilities(isPremiumOrTrial: boolean): EntitlementCapab
       extendedSessions: true,
       binaural: true,
       chakra: true,
-      offlineDownloads: true,
       advancedAnalytics: true,
-      customMixing: true,
     };
   }
   return {
@@ -29,9 +27,7 @@ export function computeCapabilities(isPremiumOrTrial: boolean): EntitlementCapab
     extendedSessions: false,
     binaural: false,
     chakra: false,
-    offlineDownloads: false,
     advancedAnalytics: false,
-    customMixing: false,
   };
 }
 

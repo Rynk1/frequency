@@ -6,7 +6,7 @@ export function getArticlesSeed(): CanonicalArticle[] {
   return [
     {
       id: 'article-1',
-      title: 'Solfeggio Frequencies: Ancient Tones for Modern Healing',
+      title: 'Solfeggio Frequencies: Ancient Tones for Modern Practice',
       content: `Solfeggio frequencies represent a system of musical tones popular in contemporary sound-healing and wellness traditions. The modern scale commonly includes 396 Hz, 417 Hz, 528 Hz, 639 Hz, 741 Hz, and 852 Hz.\n\nWhile popular accounts frequently attribute these tones directly to ancient Medieval Gregorian chants or biblical numerology rediscovered in the 1970s by Dr. Joseph Puleo, historical claims linking the complete modern system to ancient practice should be treated cautiously.\n\nEach frequency carries strong contemporary wellness associations: 396 Hz with letting go of worry; 417 Hz with change; 528 Hz with harmony and love; 639 Hz with interpersonal connection; 741 Hz with clarity; and 852 Hz with inner stillness.\n\nFrom a scientific perspective, evidence remains exploratory. Listeners use these tones for relaxation, meditation, and personal reflection.`,
       category: ArticleCategory.SOLFEGGIO,
       tags: ['solfeggio', 'basics', 'wellness', 'tradition'],
@@ -119,7 +119,7 @@ export function getArticlesSeed(): CanonicalArticle[] {
         'Sequential meditation offers a calming routine for mindfulness',
       ],
       practicalTips: [
-        'Treat chakra soundscapes as a reflective meditation framework',
+        'Use chakra soundscapes as a reflective meditation framework',
         'Spend 5–15 minutes per frequency during focused meditation',
         'Visualize calm color themes associated with each focus area',
         'Maintain a comfortable, relaxed posture',
@@ -148,7 +148,7 @@ export function getArticlesSeed(): CanonicalArticle[] {
         '528 Hz is widely associated with love and transformation in modern sound therapy',
         'A small 2018 study (9 participants) noted cortisol changes after 528-Hz-tuned music',
         'The study tested music rather than an isolated pure tone',
-        'Claims that 528 Hz repairs DNA or regenerates cells are not established by clinical science',
+        'Clinical science does not establish that 528 Hz repairs DNA or regenerates cells',
       ],
       practicalTips: [
         'Use 528 Hz as a tranquil backdrop for heart-focused meditation',
@@ -233,9 +233,9 @@ export function getArticlesSeed(): CanonicalArticle[] {
     {
       id: 'article-8',
       title: '40 Hz Gamma Research: What Scientists Are Investigating',
-      content: `Gamma brainwaves (30–100 Hz) represent fast neural oscillations associated with complex cognitive processing and perception. In recent years, 40 Hz sensory stimulation has become an active area of neuroscience research.\n\nLandmark research led by Dr. Li-Huei Tsai at MIT demonstrated that 40 Hz flickering light and auditory tones reduced amyloid and tau markers in mouse models of Alzheimer's disease. This led to ongoing human clinical trials evaluating neuroprotective mechanisms.\n\nWhile this research is legitimate and promising, clinical research protocols use controlled, specialized equipment. Playing a 40 Hz audio track through a commercial smartphone app is not a medical treatment for Alzheimer's disease or cognitive impairment.\n\n40 Hz audio provides an engaging backdrop for attentive study and focus.`,
+      content: `Gamma brainwaves (30–100 Hz) represent fast neural oscillations associated with complex cognitive processing and perception. In recent years, 40 Hz sensory stimulation has become an active area of neuroscience research.\n\nEarly laboratory research has explored 40 Hz light and sound stimulation in relation to memory and attention. This work is early-stage, and clinical research protocols use controlled, specialised equipment.\n\nPlaying a 40 Hz audio track through a commercial smartphone app is not a medical treatment, and it is not a substitute for professional care.\n\n40 Hz audio provides an engaging backdrop for attentive study and focus.`,
       category: ArticleCategory.SCIENCE,
-      tags: ['gamma', '40hz', 'neuroscience', 'cognitive', 'research', 'MIT'],
+      tags: ['gamma', '40hz', 'neuroscience', 'cognitive', 'research'],
       isPremium: false,
       status: ContentStatus.PUBLISHED,
       author: 'Frequency Lab',
@@ -243,9 +243,9 @@ export function getArticlesSeed(): CanonicalArticle[] {
       difficulty: 'Advanced',
       keyPoints: [
         '40 Hz falls in the gamma brainwave range associated with active cognition',
-        'MIT studies investigate 40 Hz sensory stimulation in Alzheimer\'s models',
+        'Early laboratory research explores 40 Hz stimulation and memory',
         'Human clinical trials are ongoing and preliminary',
-        'A consumer audio track is not an Alzheimer\'s medical treatment',
+        'A consumer audio track is not a medical treatment',
       ],
       practicalTips: [
         'Use 40 Hz audio as a focus backdrop during study or work',
@@ -253,7 +253,7 @@ export function getArticlesSeed(): CanonicalArticle[] {
         'Listen at a comfortable volume during waking hours',
         'Combine with structured work or study goals',
       ],
-      scientificBasis: 'Tsai et al. (MIT, 2016) demonstrated microglial and amyloid changes in mice using 40 Hz sensory stimulation. Human trials (Chan et al., 2022) remain exploratory.',
+      scientificBasis: 'Early laboratory work has explored 40 Hz sensory stimulation in relation to memory and attention. Human trials remain exploratory.',
       iconIdentifier: 'Brain',
       colorToken: '#A78BFA',
       publishedAt: now,
