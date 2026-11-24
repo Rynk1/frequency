@@ -363,7 +363,7 @@ const frequencyGuides: Record<string, {
   'Gamma Waves': {
     background: "Gamma brainwaves (30-100 Hz) represent fast neural oscillations investigated in cognitive research and advanced meditation studies.",
     purpose: "A research-inspired 40-Hz gamma listening experience connected to cognitive clarity and neuroscience research.",
-    scientificBasis: "40-Hz sensory stimulation is an active area of clinical research (including Alzheimer's studies). However, consumer audio tracks are not equivalent to clinical treatment protocols.",
+    scientificBasis: "40-Hz sensory stimulation is an active area of research into attention and memory. However, consumer audio tracks are not equivalent to clinical treatment protocols.",
     benefits: [
       "Cognitive clarity backdrop",
       "Heightened awareness",

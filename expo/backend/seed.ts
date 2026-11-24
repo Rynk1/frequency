@@ -495,7 +495,7 @@ export function getSeedData() {
     {
       id: 'article-8',
       title: '40 Hz Gamma Research: What Scientists Are Investigating',
-      content: `MIT researchers investigate 40 Hz sensory stimulation in Alzheimer's disease models. While promising, human clinical trials are preliminary and use specialized equipment. Playing a 40 Hz audio track through a commercial smartphone app is not a medical treatment for Alzheimer's disease.`,
+      content: `Early laboratory research has explored 40 Hz sensory stimulation in relation to memory and attention. This work is early-stage and uses specialised equipment. Playing a 40 Hz audio track through a commercial smartphone app is not a medical treatment.`,
       category: 'scientific',
       tags: ['gamma', '40hz', 'neuroscience', 'cognitive', 'research', 'MIT'],
       isPremium: false,
@@ -505,9 +505,9 @@ export function getSeedData() {
       difficulty: 'Advanced',
       keyPoints: [
         '40 Hz falls in the gamma brainwave range associated with active cognition',
-        'MIT studies investigate 40 Hz sensory stimulation in Alzheimer\'s models',
+        'Early laboratory research explores 40 Hz stimulation and memory',
         'Human clinical trials are preliminary',
-        'A consumer audio track is not an Alzheimer\'s medical treatment',
+        'A consumer audio track is not a medical treatment',
       ],
       practicalTips: [
         'Use 40 Hz audio as a focus backdrop during study or work',

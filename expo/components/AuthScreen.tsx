@@ -67,8 +67,8 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ mode, onToggleMode }) =>
               </Text>
               <Text style={styles.subtitle}>
                 {mode === 'signin' 
-                  ? 'Sign in to continue your frequency journey'
-                  : 'Join thousands discovering healing frequencies'
+                  ? 'Sign in to continue your practice'
+                  : 'A calmer space for sleep, focus and rest'
                 }
               </Text>
             </View>

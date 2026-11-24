@@ -969,7 +969,7 @@ export default function SessionsScreen() {
       showsVerticalScrollIndicator={false}
       contentContainerStyle={[styles.scrollContent, { maxWidth: contentWidth, width: '100%', alignSelf: 'center' }]}
     >
-      <Text style={styles.programsSubtitle}>Curated healing programs designed by experts</Text>
+      <Text style={styles.programsSubtitle}>Guided programs for sleep, calm and focus</Text>
       <ResponsiveGrid
         items={displayStarterSessions}
         keyExtractor={(session: any, index: number) => `${session.name}-${index}`}

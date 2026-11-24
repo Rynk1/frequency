@@ -233,9 +233,9 @@ export function getArticlesSeed(): CanonicalArticle[] {
     {
       id: 'article-8',
       title: '40 Hz Gamma Research: What Scientists Are Investigating',
-      content: `Gamma brainwaves (30–100 Hz) represent fast neural oscillations associated with complex cognitive processing and perception. In recent years, 40 Hz sensory stimulation has become an active area of neuroscience research.\n\nLandmark research led by Dr. Li-Huei Tsai at MIT demonstrated that 40 Hz flickering light and auditory tones reduced amyloid and tau markers in mouse models of Alzheimer's disease. This led to ongoing human clinical trials evaluating neuroprotective mechanisms.\n\nWhile this research is legitimate and promising, clinical research protocols use controlled, specialized equipment. Playing a 40 Hz audio track through a commercial smartphone app is not a medical treatment for Alzheimer's disease or cognitive impairment.\n\n40 Hz audio provides an engaging backdrop for attentive study and focus.`,
+      content: `Gamma brainwaves (30–100 Hz) represent fast neural oscillations associated with complex cognitive processing and perception. In recent years, 40 Hz sensory stimulation has become an active area of neuroscience research.\n\nEarly laboratory research has explored 40 Hz light and sound stimulation in relation to memory and attention. This work is early-stage, and clinical research protocols use controlled, specialised equipment.\n\nPlaying a 40 Hz audio track through a commercial smartphone app is not a medical treatment, and it is not a substitute for professional care.\n\n40 Hz audio provides an engaging backdrop for attentive study and focus.`,
       category: ArticleCategory.SCIENCE,
-      tags: ['gamma', '40hz', 'neuroscience', 'cognitive', 'research', 'MIT'],
+      tags: ['gamma', '40hz', 'neuroscience', 'cognitive', 'research'],
       isPremium: false,
       status: ContentStatus.PUBLISHED,
       author: 'Frequency Lab',
@@ -243,9 +243,9 @@ export function getArticlesSeed(): CanonicalArticle[] {
       difficulty: 'Advanced',
       keyPoints: [
         '40 Hz falls in the gamma brainwave range associated with active cognition',
-        'MIT studies investigate 40 Hz sensory stimulation in Alzheimer\'s models',
+        'Early laboratory research explores 40 Hz stimulation and memory',
         'Human clinical trials are ongoing and preliminary',
-        'A consumer audio track is not an Alzheimer\'s medical treatment',
+        'A consumer audio track is not a medical treatment',
       ],
       practicalTips: [
         'Use 40 Hz audio as a focus backdrop during study or work',
@@ -253,7 +253,7 @@ export function getArticlesSeed(): CanonicalArticle[] {
         'Listen at a comfortable volume during waking hours',
         'Combine with structured work or study goals',
       ],
-      scientificBasis: 'Tsai et al. (MIT, 2016) demonstrated microglial and amyloid changes in mice using 40 Hz sensory stimulation. Human trials (Chan et al., 2022) remain exploratory.',
+      scientificBasis: 'Early laboratory work has explored 40 Hz sensory stimulation in relation to memory and attention. Human trials remain exploratory.',
       iconIdentifier: 'Brain',
       colorToken: '#A78BFA',
       publishedAt: now,
