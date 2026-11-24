@@ -339,3 +339,31 @@ Additional rules:
 - Record IDs, which programs reference.
 - Premium flags, preview length and daily limits, until the entitlement audit is approved.
 - The five trust-triangle free tones: 432, 528, 639, 7.83 and 8 Hz.
+
+## 9. Implementation status
+
+Shipped in this branch, in review-sized commits:
+
+| Area | State |
+|---|---|
+| Live claim breaches | Removed from challenges, the Learn screen, seed articles, extracted guides and backend seed. |
+| Intent taxonomy | `expo/lib/catalogue/intent-taxonomy.ts`, with all 46 records mapped and a three-track minimum per category. |
+| Explore | Nine intent categories, all 46 records reachable, intent search in Overview and Library. |
+| Shared strings | `expo/lib/copy/strings.ts`, with placeholder interpolation and article and session category labels. |
+| Primary labels | "Healing" removed from tab labels, article titles, chips, player fallbacks, share text and the app name. |
+| Pilot copy | 10 records in `expo/lib/catalogue/copy.ts`, with evidence tier, hook, use case, guidance and keywords. |
+| Detail sheet | Hook, use case, why people use it, about this sound, evidence badge, practical guidance, safety and disclaimer. |
+| Onboarding | Asks "What do you need right now?" with six needs. Stores an additive `primaryIntent`. |
+| Paywall | Intent-led headline, trigger-specific copy, store-aware billing text, secondary dismiss. |
+| Store metadata | Three variants in `docs/APP_STORE_METADATA.md`. |
+| Claim scan | `expo/__tests__/claim-safety.test.ts`, with a report in `docs/CLAIM_SAFETY_REPORT.md`. |
+| Catalogue export | `docs/frequency-catalog.csv`, 46 rows, pilot rows marked reviewed. |
+
+Still open:
+
+- 36 records need reviewed copy.
+- Premium program gating is not enforced. Do not advertise premium programs.
+- The duplicate partial catalogue has not been merged.
+- Search synonyms for the 36 pending records are not authored.
+- iOS billing has not been tested on a device.
+

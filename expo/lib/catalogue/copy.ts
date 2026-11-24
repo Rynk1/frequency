@@ -21,6 +21,9 @@ export const EVIDENCE_TIER_LABELS: Record<EvidenceTier, string> = {
 export const SAFETY_NOTE =
   'Keep the volume moderate. Do not listen while driving or operating machinery. Stop if you feel uncomfortable.';
 
+export const MEDICAL_DISCLAIMER =
+  'Harmony Frequency supports relaxation, focus and personal reflection. It is not medical advice and not a substitute for professional care. Individual experience varies.';
+
 export const PULSING_TONE_SAFETY_NOTE =
   'Keep the volume moderate. Do not listen while driving or operating machinery. If you have epilepsy or a history of seizures, a pacemaker, or are pregnant, talk to a doctor before using pulsing tones. Stop if you feel uncomfortable.';
 
@@ -69,7 +72,7 @@ export const FREQUENCY_COPY: Record<string, FrequencyCopy> = {
     whyPeopleUseIt:
       '528 Hz is one of the best-known tones in the modern Solfeggio tradition. Many listeners use it for heart-centred meditation and gratitude practice. Individual experience varies.',
     aboutThisSound:
-      '528 Hz pure tone, part of the modern Solfeggio scale. A small 2018 study of nine participants reported mood and hormone changes after listening to 528-Hz-tuned music. The study used music rather than an isolated tone, and the sample was very small.',
+      '528 Hz pure tone, part of the modern Solfeggio scale. A small 2018 study of nine participants reported endocrine and autonomic changes after listening to 528-Hz-tuned music. The study used music rather than an isolated tone, and the sample was very small.',
     evidenceTier: 'early-research',
     evidenceNote: 'One small study; music, not a pure tone.',
     recommendedLength: '10 to 20 minutes',

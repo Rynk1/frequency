@@ -119,7 +119,7 @@ export function getArticlesSeed(): CanonicalArticle[] {
         'Sequential meditation offers a calming routine for mindfulness',
       ],
       practicalTips: [
-        'Treat chakra soundscapes as a reflective meditation framework',
+        'Use chakra soundscapes as a reflective meditation framework',
         'Spend 5–15 minutes per frequency during focused meditation',
         'Visualize calm color themes associated with each focus area',
         'Maintain a comfortable, relaxed posture',
@@ -148,7 +148,7 @@ export function getArticlesSeed(): CanonicalArticle[] {
         '528 Hz is widely associated with love and transformation in modern sound therapy',
         'A small 2018 study (9 participants) noted cortisol changes after 528-Hz-tuned music',
         'The study tested music rather than an isolated pure tone',
-        'Claims that 528 Hz repairs DNA or regenerates cells are not established by clinical science',
+        'Clinical science does not establish that 528 Hz repairs DNA or regenerates cells',
       ],
       practicalTips: [
         'Use 528 Hz as a tranquil backdrop for heart-focused meditation',

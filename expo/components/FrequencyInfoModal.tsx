@@ -28,7 +28,7 @@ import {
   Sun,
   Target,
 } from 'lucide-react-native';
-import { SAFETY_NOTE, copyForFrequency, evidenceTierLabel } from '@/lib/catalogue/copy';
+import { MEDICAL_DISCLAIMER, SAFETY_NOTE, copyForFrequency, evidenceTierLabel } from '@/lib/catalogue/copy';
 import { FONTS, type ThemeColors, type ThemeGradients } from '@/constants/theme';
 import { useTheme } from '@/hooks/useTheme';
 
@@ -822,7 +822,7 @@ export function FrequencyInfoModal({ visible, onClose, frequency, category }: Fr
                   <Text style={styles.disclaimerTitle}>Important notice</Text>
                 </View>
                 <Text style={styles.disclaimerText}>
-                  {frequency.disclaimer || 'Harmony Frequency supports relaxation, focus and personal reflection. It is not medical advice and not a substitute for professional care. Individual experience varies.'}
+                  {frequency.disclaimer || MEDICAL_DISCLAIMER}
                 </Text>
               </View>
             </>

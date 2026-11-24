@@ -1,0 +1,47 @@
+id,hz,technique_category,technical_name,intent_category,intent_name,evidence_tier,display_name,hook,use_case,recommended_length,best_time,headphones,keywords,copy_status
+solfeggio-174,174,solfeggio,Foundation Pure,body,Body & Recovery,,,,,,,,,pending
+solfeggio-285,285,solfeggio,Transformation Pure,body,Body & Recovery,,,,,,,,,pending
+solfeggio-396,396,solfeggio,Liberation Pure,calm,Calm & Stress Relief,,,,,,,,,pending
+solfeggio-417,417,solfeggio,Change Pure,calm,Calm & Stress Relief,,,,,,,,,pending
+solfeggio-528,528,solfeggio,Love & Harmony Pure,calm,Calm & Stress Relief,early-research,Heart Calm,"A gentle tone for gratitude, heart-centred meditation and calm.","Try it for: gratitude journaling, a midday reset, quiet meditation.",10 to 20 minutes,Anytime; often used in the evening,optional,528 hz; love frequency; gratitude; heart; calm; solfeggio,reviewed
+solfeggio-639,639,solfeggio,Relationships Pure,connection,Connection & Relationships,traditional,Connection & Compassion,A warm tone for reflection on connection and kind communication.,"Try it for: before a difficult conversation, journaling about relationships, shared quiet time.",10 to 20 minutes,Before a conversation or in the evening,optional,639 hz; relationships; connection; compassion; communication; solfeggio,reviewed
+solfeggio-741,741,solfeggio,Intuition Pure,focus,Focus & Energy,,,,,,,,,pending
+solfeggio-852,852,solfeggio,Spiritual Order Pure,meditation,Meditation & Mindfulness,,,,,,,,,pending
+solfeggio-963,963,solfeggio,Divine Connection Pure,spiritual,Spiritual & Chakra Work,traditional,Divine Connection,"A still, high tone for quiet contemplation and meditation.","Try it for: seated meditation, quiet reflection, the end of a longer practice.",15 to 30 minutes,Evening or during a longer meditation,optional,963 hz; crown; spiritual; meditation; divine; solfeggio,reviewed
+chakra-194.18,194.18,chakra,Root Chakra Pure,spiritual,Spiritual & Chakra Work,,,,,,,,,pending
+chakra-210.42,210.42,chakra,Sacral Chakra Pure,spiritual,Spiritual & Chakra Work,,,,,,,,,pending
+chakra-126.22,126.22,chakra,Solar Plexus Pure,spiritual,Spiritual & Chakra Work,,,,,,,,,pending
+chakra-341.3,341.3,chakra,Heart Chakra Pure,spiritual,Spiritual & Chakra Work,,,,,,,,,pending
+chakra-384,384,chakra,Throat Chakra Pure,spiritual,Spiritual & Chakra Work,,,,,,,,,pending
+chakra-426.7,426.7,chakra,Third Eye Pure,spiritual,Spiritual & Chakra Work,,,,,,,,,pending
+chakra-963,963,chakra,Crown Chakra Pure,spiritual,Spiritual & Chakra Work,,,,,,,,,pending
+binaural-1.5,1.5,binaural,Deep Rest Delta,sleep,Sleep & Rest,,,,,,,,,pending
+binaural-2.5,2.5,binaural,Delta Waves Pure,sleep,Sleep & Rest,,,,,,,,,pending
+binaural-4.5,4.5,binaural,Theta Deep Meditation,meditation,Meditation & Mindfulness,,,,,,,,,pending
+binaural-6,6,binaural,Theta Waves Pure,meditation,Meditation & Mindfulness,,,,,,,,,pending
+binaural-8.5,8.5,binaural,Alpha Relaxation,calm,Calm & Stress Relief,,,,,,,,,pending
+binaural-10,10,binaural,Alpha Waves Pure,calm,Calm & Stress Relief,,,,,,,,,pending
+binaural-12,12,binaural,Alpha Focus,focus,Focus & Energy,,,,,,,,,pending
+binaural-14,14,binaural,SMR (Sensorimotor Rhythm),focus,Focus & Energy,,,,,,,,,pending
+binaural-16,16,binaural,Beta Focus,focus,Focus & Energy,,,,,,,,,pending
+binaural-20,20,binaural,Beta Waves Pure,focus,Focus & Energy,,,,,,,,,pending
+binaural-25,25,binaural,High Beta Energy,focus,Focus & Energy,,,,,,,,,pending
+binaural-40,40,binaural,Gamma Waves Pure,focus,Focus & Energy,,,,,,,,,pending
+binaural-60,60,binaural,High Gamma Insight,meditation,Meditation & Mindfulness,,,,,,,,,pending
+healing-7.83,7.83,healing,Schumann Resonance,nature,Nature & Earth,,,,,,,,,pending
+healing-174,174,healing,Physical Ease,body,Body & Recovery,,,,,,,,,pending
+healing-528,528,healing,Love Frequency,calm,Calm & Stress Relief,,,,,,,,,pending
+healing-40,40,healing,40 Hz Gamma,focus,Focus & Energy,,,,,,,,,pending
+healing-110,110,healing,110 Hz Resonance,nature,Nature & Earth,,,,,,,,,pending
+sleep-1.5,1.5,sleep,Deep Rest Delta,sleep,Sleep & Rest,,,,,,,,,pending
+sleep-4.5,4.5,sleep,Rest & Dreaming Theta,sleep,Sleep & Rest,,,,,,,,,pending
+sleep-8,8,sleep,Sleep Transition,sleep,Sleep & Rest,early-research,Drift Off,A quiet 8 Hz tone for the last stretch before bed.,"Try it for: the last 15 minutes before bed, winding down after screens.",10 to 20 minutes,Before bed,recommended,sleep; 8 hz; bedtime; wind down; alpha; insomnia,reviewed
+sleep-6,6,sleep,Evening Theta,sleep,Sleep & Rest,,,,,,,,,pending
+wealth-888,888,wealth,Abundance Frequency,abundance,Abundance & Manifestation,popular-practice,Abundance Mindset,A reflective tone for goal setting and a constructive money mindset.,"Try it for: morning intention setting, journaling about goals, planning your week.",10 to 15 minutes,Morning or early afternoon,optional,888 hz; abundance; money mindset; manifestation; goals; intention; confidence,reviewed
+wealth-432,432,wealth,Natural Harmony,calm,Calm & Stress Relief,,,,,,,,,pending
+wealth-528,528,wealth,Manifestation Power,abundance,Abundance & Manifestation,popular-practice,Manifestation Focus,A 528 Hz backdrop for intention setting and focused goal reflection.,"Try it for: writing down a goal, a morning intention, a planning session.",10 to 15 minutes,Morning,optional,528 hz; manifestation; abundance; intention; affirmation; goals,reviewed
+wealth-10,10,wealth,Alpha Success State,abundance,Abundance & Manifestation,,,,,,,,,pending
+scientific-7.83,7.83,scientific,Schumann Resonance,nature,Nature & Earth,traditional,Earth Resonance,Inspired by the Earth's natural resonance near 7.83 Hz.,"Try it for: grounding breaks, time outdoors, a quiet evening reset.",10 to 20 minutes,Afternoon or early evening,optional,schumann; 7.83 hz; earth; grounding; nature; resonance,reviewed
+scientific-40,40,scientific,40 Hz Gamma Pure,focus,Focus & Energy,early-research,40 Hz Gamma Focus,A 40 Hz tone for focused work and attentive listening.,"Try it for: deep work, study sessions, reading, a focused morning.",15 to 20 minutes,Morning or afternoon,recommended,40 hz; gamma; focus; study; deep work; concentration; attention,reviewed
+scientific-110,110,scientific,110 Hz Resonance Pure,nature,Nature & Earth,early-research,Ancient Chamber Tone,A low resonance inspired by archaeoacoustic research.,"Try it for: reflective listening, reading, a slow evening.",10 to 20 minutes,Evening,optional,110 hz; ancient; resonance; archaeoacoustic; low tone; reflection,reviewed
+scientific-432,432,scientific,432 Hz Natural Tuning,calm,Calm & Stress Relief,early-research,Natural Tuning,An alternative tuning for a calmer listening backdrop.,"Try it for: evening wind-down, background listening, a slow start to the day.",15 to 30 minutes,Evening or background listening,optional,432 hz; natural tuning; alternative tuning; calm; relax; background,reviewed
