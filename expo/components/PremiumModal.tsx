@@ -54,12 +54,30 @@ import {
   formatPrice,
   getPlanBillingNote,
   getYearlyMonthlyPrice,
+  getWeeklyEquivalent,
   getSavingsPercentForOfferings,
 } from '@/lib/pricing';
 import { PREMIUM_BENEFITS } from '@/lib/premium-benefits';
+import { buildTrialReminder } from '@/lib/notifications/trial-reminder';
 import { CANONICAL_PREMIUM_POLICY } from '@/lib/usage/PremiumPolicy';
 import { PREMIUM_FREQUENCY_COUNT } from '@/lib/usage/PremiumPolicy';
 import { COLORS, GRADIENTS, FONTS, TEXT_PRESETS } from '@/constants/theme';
+
+async function scheduleTrialReminderNotification(): Promise<void> {
+  try {
+    const Notifications = require('expo-notifications') as typeof import('expo-notifications');
+    const permissions = await Notifications.getPermissionsAsync();
+    if (!permissions.granted) return;
+    const reminder = buildTrialReminder();
+    if (reminder.fireAt.getTime() <= Date.now()) return;
+    await Notifications.scheduleNotificationAsync({
+      content: { title: reminder.title, body: reminder.body },
+      trigger: { date: reminder.fireAt } as any,
+    });
+  } catch {
+    // A missing reminder must never block a completed purchase.
+  }
+}
 
 export type PremiumTrigger =
   | 'premium_content'
@@ -165,6 +183,14 @@ export const PremiumModal: React.FC<PremiumModalProps> = ({
     ? `Billed annually at ${storeOfferings.yearly.priceString}`
     : getPlanBillingNote('yearly');
   const savings = getSavingsPercentForOfferings(storeOfferings);
+  const yearlyWeeklyLabel = formatPrice(
+    getWeeklyEquivalent('yearly', storeOfferings?.yearly?.price ?? PREMIUM_PLANS.yearly.price),
+    storeOfferings?.yearly?.currencyCode ?? PREMIUM_PLANS.yearly.currency
+  );
+  const monthlyWeeklyLabel = formatPrice(
+    getWeeklyEquivalent('monthly', storeOfferings?.monthly?.price ?? PREMIUM_PLANS.monthly.price),
+    storeOfferings?.monthly?.currencyCode ?? PREMIUM_PLANS.monthly.currency
+  );
 
   const initiatePurchase = useCallback(async (plan: Plan, trialEnabled: boolean) => {
     setError(null);
@@ -178,6 +204,9 @@ export const PremiumModal: React.FC<PremiumModalProps> = ({
       if (result?.success === false) {
         // User dismissed the store purchase sheet — stay on the paywall.
         return;
+      }
+      if (trialEnabled) {
+        await scheduleTrialReminderNotification();
       }
       if (refreshSubscriptionStatus) {
         await refreshSubscriptionStatus();
@@ -618,6 +647,13 @@ const { contentWidth } = useResponsive();
                     <Text style={styles.trialDesc}>
                       Try everything for {PREMIUM_TRIAL_DAYS} days. Cancel before it ends and you won't be charged.
                     </Text>
+                    <View style={styles.trialTimeline}>
+                      <Text style={styles.trialTimelineItem}>Today: full access</Text>
+                      <Text style={styles.trialTimelineDot}>·</Text>
+                      <Text style={styles.trialTimelineItem}>Day 5: reminder</Text>
+                      <Text style={styles.trialTimelineDot}>·</Text>
+                      <Text style={styles.trialTimelineItem}>Day 7: first payment unless you cancel</Text>
+                    </View>
 
                     <TouchableOpacity
                       style={styles.acceptRow}
@@ -696,6 +732,7 @@ const { contentWidth } = useResponsive();
                     <View style={styles.planPriceCol}>
                       <Text style={styles.planPrice}>{yearlyMonthlyLabel}</Text>
                       <Text style={styles.planPeriod}>/month</Text>
+                      <Text style={styles.planWeekly}>About {yearlyWeeklyLabel} a week</Text>
                     </View>
                   </View>
                   <Text style={styles.planBilling}>{yearlyBillingNote}</Text>
@@ -724,6 +761,7 @@ const { contentWidth } = useResponsive();
                     <View style={styles.planPriceCol}>
                       <Text style={styles.planPrice}>{monthlyPriceLabel}</Text>
                       <Text style={styles.planPeriod}>/month</Text>
+                      <Text style={styles.planWeekly}>About {monthlyWeeklyLabel} a week</Text>
                     </View>
                   </View>
                   <Text style={styles.planBilling}>{getPlanBillingNote('monthly')}</Text>
@@ -846,7 +884,10 @@ const styles = StyleSheet.create({
   trialCard: { padding: 18, borderRadius: 20, borderWidth: 1, borderColor: 'rgba(167,139,250,0.2)' },
   trialHeader: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 8 },
   trialTitle: { ...TEXT_PRESETS.headingSmall, color: COLORS.textPrimary, fontWeight: '600' as const },
-  trialDesc: { ...TEXT_PRESETS.bodySmall, color: COLORS.textSecondary, lineHeight: 18, marginBottom: 14 },
+  trialDesc: { ...TEXT_PRESETS.bodySmall, color: COLORS.textSecondary, lineHeight: 18, marginBottom: 8 },
+  trialTimeline: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', marginBottom: 14, gap: 4 },
+  trialTimelineItem: { fontSize: 10, color: COLORS.textMuted },
+  trialTimelineDot: { fontSize: 10, color: COLORS.textMuted },
   acceptRow: { flexDirection: 'row', alignItems: 'flex-start', marginBottom: 14, gap: 10 },
   checkbox: {
     width: 20, height: 20, borderRadius: 6, marginTop: 2,
@@ -898,6 +939,7 @@ const styles = StyleSheet.create({
   savingsText: { fontSize: 11, fontWeight: '700' as const, color: COLORS.gold, letterSpacing: 0.3 },
   planPriceCol: { alignItems: 'flex-end' },
   planPrice: { fontFamily: FONTS.heading, fontSize: 26, color: COLORS.textPrimary, lineHeight: 30 },
+  planWeekly: { fontSize: 10, color: COLORS.textMuted, marginTop: 2 },
   planPeriod: { ...TEXT_PRESETS.caption, color: COLORS.textMuted },
   planBilling: { ...TEXT_PRESETS.caption, color: COLORS.textMuted, marginTop: 2 },
   planCheck: {

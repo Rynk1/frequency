@@ -58,6 +58,15 @@ export function getYearlyMonthlyPrice(): number {
   return PREMIUM_PLANS.yearly.price / 12;
 }
 
+/**
+ * Weekly equivalent of what the listener actually pays. Monthly plans are
+ * annualised first so the two cards are comparable at a glance.
+ */
+export function getWeeklyEquivalent(plan: BillingPlanId, price: number = PREMIUM_PLANS[plan].price): number {
+  const annual = plan === 'yearly' ? price : price * 12;
+  return annual / 52;
+}
+
 /** Billing cadence note for a plan card, derived from the canonical price. */
 export function getPlanBillingNote(plan: BillingPlanId): string {
   if (plan === 'yearly') {
