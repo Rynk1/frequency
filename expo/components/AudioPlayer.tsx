@@ -51,10 +51,12 @@ import { useReducedMotion } from '@/hooks/useReducedMotion';
 import { PlayerVisualizer, VISUALIZER_LABELS, VisualizerStyle, nextVisualizerStyle } from './PlayerVisualizer';
 import { ImmersiveStage } from './ImmersiveStage';
 import { Share } from 'react-native';
-import { DEFAULT_PREMIUM_POLICY } from '@/lib/subscription-service';
 import { PremiumModal, PremiumTrigger } from './PremiumModal';
 import { usePremiumUsage } from '@/hooks/usePremiumUsage';
 import { getPreviewDurationSeconds, getPreviewLabel } from '@/lib/usage/preview-config';
+import { isSleepFrequency } from '@/lib/catalogue/frequency-intent';
+import { scheduleSleepCheckIn } from '@/lib/notifications/sleep-checkin';
+import { track } from '@/lib/telemetry';
 import { AffirmationStreamCard } from './AffirmationStreamCard';
 import { AffirmationVideoStage } from './AffirmationVideoStage';
 import { Affirmation, AffirmationMode } from '@/types/affirmation';
@@ -70,8 +72,10 @@ interface Frequency {
   hz: number;
   name: string;
   duration: number;
+  id?: string;
   isPremium?: boolean;
   category?: string;
+  categoryId?: string;
 }
 
 interface AudioPlayerProps {
@@ -156,7 +160,7 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({
   const { isPlaying, isPaused, currentFrequency, playFrequency, stopFrequency, pauseFrequency, resumeFrequency, setVolume: setAudioVolume } = useAudioPlayer();
   const { resumeFor, saveResume, recordPlay, history } = usePlayer();
   const { isPremium, capabilities, trackUsage } = useAuth();
-  const { attemptStartSession } = usePremiumUsage();
+  const { attemptStartSession, getMaxSessionDuration } = usePremiumUsage();
   const { toggleFavorite: toggleFavoriteStore, isFavorite: isFavoriteInStore } = useFavorites();
   const { settings, updateSetting } = useSettings();
   const { colors, gradients, isDark } = useTheme();
@@ -220,11 +224,14 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({
   }, [isSessionMode, sessionFrequencies, currentFrequencyIndex, frequency, flushHistory]);
 
   // Quick duration presets for easy selection
-  const durationPresets = isPremium ?
-    [5, 10, 15, 20, 30, 45, 60, 90, 120, 180, 240] :
-    [5, 10, 15]; // Free users limited to policy free max duration
-
-  const maxFreeDuration = Math.floor(DEFAULT_PREMIUM_POLICY.freeSessionMaxDuration / 60); // 15 minutes
+  const activeFrequency = isSessionMode ? sessionFrequencies[currentFrequencyIndex] : frequency;
+  const isSleepTrack = isSleepFrequency(activeFrequency);
+  const maxFreeDuration = getMaxSessionDuration(isSleepTrack);
+  const durationPresets = isPremium
+    ? [5, 10, 15, 20, 30, 45, 60, 90, 120, 180, 240]
+    : isSleepTrack
+      ? [5, 10, 15, 30]
+      : [5, 10, 15];
 
   // Popover Volume Controller states
   const [showVolumeSlider, setShowVolumeSlider] = useState<boolean>(false);
@@ -480,11 +487,20 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({
             setIsSessionActive(false);
             setSessionProgress(100);
             const totalMinutes = st.sessionFrequencies.reduce((sum, f) => sum + f.duration, 0);
+            const completedTrack = st.sessionFrequencies[st.currentFrequencyIndex];
+            const completedIsSleep = st.sessionFrequencies.some((track) => isSleepFrequency(track));
             if (sessionId && onSessionComplete) {
               onSessionComplete(sessionId, totalMinutes * 60).catch(() => {});
             } else {
-              trackUsage(totalMinutes, st.sessionFrequencies[st.currentFrequencyIndex]?.name || 'session').catch(() => {});
+              trackUsage(totalMinutes, completedTrack?.name || 'session', { isSleep: completedIsSleep }).catch(() => {});
             }
+            track('listening_session_completed', {
+              minutes: totalMinutes,
+              endedByTimer: true,
+              isSleep: completedIsSleep,
+              premium: Boolean(isPremium),
+            });
+            if (completedIsSleep) scheduleSleepCheckIn().catch(() => {});
 
             if (st.autoRepeat) {
               // Restart the same session from the top without re-asking the user.
@@ -530,7 +546,16 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({
               setPremiumModalTrigger('preview_complete');
               setShowPremiumModal(true);
             } else if (frequency) {
-              trackUsage(st.duration, frequency.name || `${frequency.hz} Hz`).catch(() => {});
+              trackUsage(st.duration, frequency.name || `${frequency.hz} Hz`, {
+                isSleep: isSleepFrequency(frequency),
+              }).catch(() => {});
+              track('listening_session_completed', {
+                minutes: st.duration,
+                endedByTimer: true,
+                isSleep: isSleepFrequency(frequency),
+                premium: Boolean(isPremium),
+              });
+              if (isSleepFrequency(frequency)) scheduleSleepCheckIn().catch(() => {});
             }
             return 0;
           }
@@ -653,18 +678,22 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({
       // A locked track is authorised for a short preview, so the free-tier
       // duration cap must not block the preview before it can start.
       const authorisedMinutes = isLockedForUser
-        ? Math.min(requestedMinutes, maxFreeDuration)
+        ? Math.min(requestedMinutes, getMaxSessionDuration(false))
         : requestedMinutes;
       const auth = await attemptStartSession(
         String(targetFreq?.name || 'session'),
         authorisedMinutes,
+        {
+          isSleep: !isLockedForUser && isSleepFrequency(targetFreq),
+          isPreview: isLockedForUser,
+        },
       );
       if (!auth.allowed) {
         if (auth.reason === 'session_limit') {
           setPremiumModalTrigger('session_limit');
           setShowPremiumModal(true);
         } else if (auth.reason === 'duration_limit') {
-          setPremiumModalTrigger('duration_limit');
+          setPremiumModalTrigger(isSleepFrequency(targetFreq) ? 'sleep_duration_limit' : 'duration_limit');
           setShowPremiumModal(true);
         }
         return;

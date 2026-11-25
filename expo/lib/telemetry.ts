@@ -7,7 +7,16 @@ export type TelemetryEventName =
   | 'purchase_completed'
   | 'purchase_failed'
   | 'free_today_played'
-  | 'trial_reminder_scheduled';
+  | 'trial_reminder_scheduled'
+  | 'first_session_offer_viewed'
+  | 'first_session_offer_dismissed'
+  | 'first_session_offer_trial'
+  | 'listening_session_completed'
+  | 'sleep_checkin_prompted'
+  | 'sleep_checkin_positive'
+  | 'sleep_checkin_negative'
+  | 'program_day_one_started'
+  | 'program_full_locked';
 
 export type TelemetryProps = Record<string, string | number | boolean | null | undefined>;
 

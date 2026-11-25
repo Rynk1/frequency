@@ -46,6 +46,7 @@ describe('premium benefit claims', () => {
     expect(benefit).toBeDefined();
     // 15 min and 3/day come from CANONICAL_PREMIUM_POLICY.
     expect(benefit!.text).toContain('15 min');
+    expect(benefit!.text).toContain('30 min');
     expect(benefit!.text).toContain('3/day');
   });
 

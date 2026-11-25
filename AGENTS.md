@@ -96,3 +96,27 @@ Repository-specific knowledge for the Harmony Frequency mobile app.
   check it before stopping.
 - Background audio is a user preference (`settings.backgroundAudio`) applied per
   `play()` through `setAudioModeAsync`; it does not take effect mid-track.
+
+## Monetization and free tier
+
+- Free listening: 15 minutes per session, or one 30-minute sleep session per
+  day, with 3 session starts per day. The long sleep allowance lives in
+  `SessionLedger.sleepLongStarts` and resets with the local day.
+- Previews do not consume a free start. Locked-track previews pass
+  `isPreview` to `attemptStartSession`.
+- All 15 original programs are premium. `session-16` is the free starter and
+  uses only free tones. Free listeners get the first track of every premium
+  program, then the paywall. Seed flags override a stale local program cache.
+- The first-session offer is `components/FirstSessionOffer.tsx`. It appears
+  once after the first authenticated session, with "Continue free" and the
+  trial button at equal width. Guest-first is still deferred; authentication
+  remains first.
+- Background audio defaults on. Fade stays free. Bedtime reminders default to
+  9.30pm for sleep intent and are cancelled when notifications are turned off.
+  The morning check-in is scheduled only after a sleep session and opens the
+  trial only after a positive answer.
+- Streaks are shown as "Nights this week". A night is 6pm to 4am, or a sleep
+  session. Two streak freezes per week are available to free and premium
+  listeners. Night alerts default off.
+- Price display: the billed yearly amount is the main price. Monthly and
+  weekly equivalents are secondary. Lifetime and win-back are not built.

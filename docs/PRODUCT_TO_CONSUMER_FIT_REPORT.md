@@ -192,7 +192,7 @@ The matrix below establishes a structured mapping between consumer segments, pri
 ┌────────────────────────────────────────────────────────────────────────────────────────┐
 │                                CANONICAL CONTENT LAYER                                 │
 │ ┌──────────────────────┐  ┌──────────────────────┐  ┌────────────────────────────────┐ │
-│ │ 46 FREQUENCIES       │  │ 15 CURATED PROGRAMMES│  │ 8 EDUCATIONAL ARTICLES         │ │
+│ │ 46 FREQUENCIES       │  │ 16 CURATED PROGRAMMES│  │ 8 EDUCATIONAL ARTICLES         │ │
 │ │ (Solfeggio, Chakra,  │  │ (Multi-track guided  │  │ (Pedagogical sound therapy     │ │
 │ │ Binaural, Sleep, etc)│  │ journeys)            │  │ research)                      │ │
 │ └──────────────────────┘  └──────────────────────┘  └────────────────────────────────┘ │

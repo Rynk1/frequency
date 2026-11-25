@@ -60,7 +60,7 @@ describe('paywall intent copy', () => {
 });
 
 describe('paywall trigger copy', () => {
-  const limits = { freeMinutes: 15, freeSessions: 3 };
+  const limits = { freeMinutes: 15, freeSessions: 3, sleepMinutes: 30 };
 
   it('names the exact free limit in the duration trigger', () => {
     const copy = paywallCopyForTrigger('duration_limit', limits);
@@ -71,6 +71,21 @@ describe('paywall trigger copy', () => {
   it('names the daily session cap in the session-limit trigger', () => {
     const copy = paywallCopyForTrigger('session_limit', limits);
     expect(copy?.body).toContain('3 sessions');
+  });
+
+  it('names the one longer sleep session without promising an outcome', () => {
+    const copy = paywallCopyForTrigger('sleep_duration_limit', limits);
+    expect(copy?.headline).toContain('30 minutes');
+    expect(copy?.body).toContain('30 minutes');
+    expect(copy?.body).toContain('once a day');
+    expect(`${copy?.headline} ${copy?.body}`).not.toMatch(/sleep better|insomnia|cure/i);
+  });
+
+  it('keeps the first-session offer soft and free of pressure', () => {
+    const copy = paywallCopyForTrigger('first_session', limits);
+    expect(copy?.headline).toContain('first session');
+    expect(copy?.body).toContain('Continue free');
+    expect(`${copy?.headline} ${copy?.body}`).not.toContain('!');
   });
 
   it('returns null for a generic trigger so intent copy can lead', () => {

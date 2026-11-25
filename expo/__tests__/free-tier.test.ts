@@ -19,6 +19,7 @@ describe('free tier', () => {
 
   it('states the free limits the app enforces', () => {
     expect(CANONICAL_PREMIUM_POLICY.freeSessionMaxDuration).toBe(15 * 60);
+    expect(CANONICAL_PREMIUM_POLICY.freeSleepSessionMaxDuration).toBe(30 * 60);
     expect(CANONICAL_PREMIUM_POLICY.dailyFreeSessionsLimit).toBe(3);
   });
 });

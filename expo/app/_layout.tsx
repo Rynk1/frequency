@@ -18,6 +18,7 @@ import { router } from 'expo-router';
 import { ThemeProvider, useTheme } from '@/hooks/useTheme';
 import { PlayerProvider } from '@/lib/player/PlayerContext';
 import { PlayerHost } from '@/lib/player/PlayerHost';
+import { FirstSessionOffer } from '@/components/FirstSessionOffer';
 import { useFonts } from 'expo-font';
 import {
   DMSerifDisplay_400Regular,
@@ -112,7 +113,9 @@ export default function RootLayout() {
 
     const route = (response: any) => {
       const type = response?.notification?.request?.content?.data?.type;
-      if (type === 'session-reminder') router.push('/(tabs)/sessions');
+      if (type === 'session-reminder' || type === 'sleep-checkin') {
+        router.push('/(tabs)/sessions');
+      }
     };
 
     // Cold start: the response that launched the app is not replayed by the
@@ -159,6 +162,7 @@ export default function RootLayout() {
                           <ThemedStatusBar />
                           <RootLayoutNav />
                           <PlayerHost />
+                          <FirstSessionOffer />
                         </GestureHandlerRootView>
                       </PlayerProvider>
                     </SessionManagerProvider>

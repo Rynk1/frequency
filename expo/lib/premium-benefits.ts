@@ -21,6 +21,7 @@ export interface PremiumBenefit {
 }
 
 const freeMinutes = Math.round(CANONICAL_PREMIUM_POLICY.freeSessionMaxDuration / 60);
+const freeSleepMinutes = Math.round(CANONICAL_PREMIUM_POLICY.freeSleepSessionMaxDuration / 60);
 const freeSessions = CANONICAL_PREMIUM_POLICY.dailyFreeSessionsLimit;
 
 export const PREMIUM_BENEFITS: PremiumBenefit[] = [
@@ -31,7 +32,7 @@ export const PREMIUM_BENEFITS: PremiumBenefit[] = [
   },
   {
     id: 'unlimited-duration',
-    text: `Full-length sessions (free: ${freeMinutes} min, ${freeSessions}/day)`,
+    text: `Full-length sessions (free: ${freeMinutes} min, or ${freeSleepMinutes} min for one sleep session, ${freeSessions}/day)`,
     evidence: 'usePremiumUsage.getMaxSessionDuration returns Infinity for premium',
   },
   {

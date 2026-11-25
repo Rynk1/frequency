@@ -875,7 +875,7 @@ export const [SessionManagerProvider, useSessionManager] = createContextHook(() 
 
     // Route stats completion through unified useAuth pathway
     if (trackUsage) {
-      await trackUsage(minsToAdd, firstFreq);
+      await trackUsage(minsToAdd, firstFreq, { isSleep: session.category === 'sleep' });
     }
 
     const completedDates = updatedSessions.flatMap(session => session.completedDates || []);

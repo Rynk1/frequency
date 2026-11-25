@@ -5,6 +5,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { useSettings } from '@/hooks/useSettings';
 import { auth } from '@/lib/firebase';
 import { ONBOARDING_INTENTS, defaultOnboardingIntent, onboardingIntentById } from '@/lib/onboarding/intents';
+import { scheduleBedtimeReminder } from '@/lib/notifications/bedtime';
 
 const SESSION_LENGTHS = [10, 20, 30];
 
@@ -50,6 +51,9 @@ export default function OnboardingPage() {
       updateSetting('defaultSessionLength', sessionLength);
       updateSetting('notifications', notifications);
       await updateProfile(payloadUpdates);
+      if (notifications && selectedIntent.id === 'sleep') {
+        scheduleBedtimeReminder().catch(() => {});
+      }
       // Navigate ONLY when profile update succeeds
       router.replace('/(tabs)/sessions' as any);
     } catch (err: any) {

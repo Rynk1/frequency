@@ -12,6 +12,8 @@ export interface SessionLedger {
   date: string;
   /** Sessions started on that date. */
   starts: number;
+  /** Long sleep sessions started on that date. One is allowed per day. */
+  sleepLongStarts: number;
 }
 
 const LEDGER_KEY = 'hf:premium:session-ledger';
@@ -26,9 +28,13 @@ export function localDateKey(now: Date = new Date()): string {
 export function normalizeLedger(ledger: SessionLedger | null, now: Date = new Date()): SessionLedger {
   const today = localDateKey(now);
   if (!ledger || ledger.date !== today) {
-    return { date: today, starts: 0 };
+    return { date: today, starts: 0, sleepLongStarts: 0 };
   }
-  return { date: today, starts: Math.max(0, ledger.starts) };
+  return {
+    date: today,
+    starts: Math.max(0, ledger.starts),
+    sleepLongStarts: Math.max(0, ledger.sleepLongStarts || 0),
+  };
 }
 
 export async function readSessionLedger(now: Date = new Date()): Promise<SessionLedger> {

@@ -87,7 +87,10 @@ export type PremiumTrigger =
   | 'duration_limit'
   | 'session_limit'
   | 'advanced_analytics'
-  | 'engagement_milestone';
+  | 'engagement_milestone'
+  | 'first_session'
+  | 'sleep_duration_limit'
+  | 'sleep_checkin_positive';
 
 type PremiumModalProps = {
   visible: boolean;
@@ -100,6 +103,7 @@ type PremiumModalProps = {
 type ManagementAction = 'none' | 'cancel' | 'resume' | 'restore';
 
 const FREE_SESSION_MINUTES = Math.round(CANONICAL_PREMIUM_POLICY.freeSessionMaxDuration / 60);
+const FREE_SLEEP_MINUTES = Math.round(CANONICAL_PREMIUM_POLICY.freeSleepSessionMaxDuration / 60);
 const FREE_SESSIONS_PER_DAY = CANONICAL_PREMIUM_POLICY.dailyFreeSessionsLimit;
 
 export const PremiumModal: React.FC<PremiumModalProps> = ({
@@ -114,6 +118,7 @@ export const PremiumModal: React.FC<PremiumModalProps> = ({
   const heroCopy = paywallCopyForTrigger(trigger, {
     freeMinutes: FREE_SESSION_MINUTES,
     freeSessions: FREE_SESSIONS_PER_DAY,
+    sleepMinutes: FREE_SLEEP_MINUTES,
   }) ?? intentPaywallCopy;
   const [selectedPlan, setSelectedPlan] = useState<'monthly' | 'yearly'>('yearly');
   const [hasAcceptedAutoRenew, setHasAcceptedAutoRenew] = useState<boolean>(false);
@@ -749,9 +754,11 @@ const { contentWidth } = useResponsive();
                       </View>
                     </View>
                     <View style={styles.planPriceCol}>
-                      <Text style={styles.planPrice}>{yearlyMonthlyLabel}</Text>
-                      <Text style={styles.planPeriod}>/month</Text>
-                      <Text style={styles.planWeekly}>About {yearlyWeeklyLabel} a week</Text>
+                      <Text style={styles.planPrice}>{yearlyPriceLabel}</Text>
+                      <Text style={styles.planPeriod}>/year</Text>
+                      <Text style={styles.planWeekly}>
+                        About {yearlyMonthlyLabel} a month · {yearlyWeeklyLabel} a week
+                      </Text>
                     </View>
                   </View>
                   <Text style={styles.planBilling}>{yearlyBillingNote}</Text>

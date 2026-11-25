@@ -14,12 +14,12 @@ interface Settings {
 const SETTINGS_KEY = 'app_settings';
 
 const defaultSettings: Settings = {
-  backgroundAudio: false,
+  backgroundAudio: true,
   volume: 0.5,
   autoStop: true,
   defaultSessionLength: 20,
   notifications: true,
-  streakAlerts: true,
+  streakAlerts: false,
 };
 
 /**

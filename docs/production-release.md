@@ -40,7 +40,7 @@ This document details the exact pre-requisites, configuration steps, and release
 
 ## 3. Database & Content Seeding
 
-To seed or restore all 46 frequencies, 15 curated audio programs, and 8 educational articles to Cloud Firestore:
+To seed or restore all 46 frequencies, 16 curated audio programs, and 8 educational articles to Cloud Firestore:
 
 ```bash
 cd expo

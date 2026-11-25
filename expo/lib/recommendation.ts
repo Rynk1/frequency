@@ -10,6 +10,7 @@ import {
 export interface DailyAlignment {
   dateStr: string; // YYYY-MM-DD
   frequencies: Array<{
+    id?: string;
     hz: number;
     name: string;
     duration: number;
@@ -108,6 +109,7 @@ export function getDailyAlignment(
     const index = Math.floor(rand * pool.length);
     const item = pool[index];
     selectedFreqs.push({
+      id: (item as any).id,
       hz: item.hz,
       name: item.name,
       duration: sessionLength,

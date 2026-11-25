@@ -1,5 +1,6 @@
 export interface CommercialPolicy {
   freeSessionMaxDuration: number; // 15 minutes (900 seconds)
+  freeSleepSessionMaxDuration: number; // 30 minutes (1800 seconds), one per day
   dailyFreeSessionsLimit: number; // 3 sessions per day
   premiumPreviewDuration: number; // 3 minutes (180 seconds)
   offlineGracePeriodHours: number; // 72 hours
@@ -7,6 +8,7 @@ export interface CommercialPolicy {
 
 export const CANONICAL_PREMIUM_POLICY: CommercialPolicy = {
   freeSessionMaxDuration: 15 * 60,
+  freeSleepSessionMaxDuration: 30 * 60,
   dailyFreeSessionsLimit: 3,
   premiumPreviewDuration: 180,
   offlineGracePeriodHours: 72,
