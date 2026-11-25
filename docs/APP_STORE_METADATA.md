@@ -116,7 +116,8 @@ We do not invent studies and we do not promise outcomes.
 FREE AND PREMIUM
 
 Start free with a selection of full tracks. Free listening includes sessions
-of up to 15 minutes, 3 sessions a day.
+of up to 15 minutes, or one 30-minute sleep session a day, with 3 sessions a
+day in total.
 
 Premium opens the full library and removes the session length and daily
 limits. Try Premium free for 7 days. Cancel before the trial ends and you
@@ -208,7 +209,8 @@ We do not invent studies and we do not promise outcomes.
 FREE AND PREMIUM
 
 Start free with a selection of full tracks. Free listening includes sessions
-of up to 15 minutes, 3 sessions a day.
+of up to 15 minutes, or one 30-minute sleep session a day, with 3 sessions a
+day in total.
 
 Premium opens the full library and removes the session length and daily
 limits. Try Premium free for 7 days. Cancel before the trial ends and you
@@ -301,7 +303,8 @@ We do not invent studies and we do not promise outcomes.
 FREE AND PREMIUM
 
 Start free with a selection of full tracks. Free listening includes sessions
-of up to 15 minutes, 3 sessions a day.
+of up to 15 minutes, or one 30-minute sleep session a day, with 3 sessions a
+day in total.
 
 Premium opens the full library and removes the session length and daily
 limits. Try Premium free for 7 days. Cancel before the trial ends and you

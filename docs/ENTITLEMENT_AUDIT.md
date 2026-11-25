@@ -38,10 +38,10 @@ record is a trust-triangle frequency.
 
 Free listening limits:
 
-- 15 minutes per session
+- 15 minutes per session, or one 30-minute sleep session per day
 - 3 session starts per calendar day
 - counted in a local ledger (`lib/usage/SessionLedger.ts`)
-- a preview consumes one of the 3 starts
+- previews do not consume one of the 3 starts
 
 ## What was broken
 
