@@ -197,6 +197,12 @@ export default function SettingsScreen() {
   const handleToggleNotifications = async (enabled: boolean) => {
     if (!enabled) {
       updateSetting('notifications', false);
+      try {
+        const Notifications = require('expo-notifications');
+        await Notifications.cancelAllScheduledNotificationsAsync();
+      } catch {
+        // The setting still turns off; a stale OS notification is best effort.
+      }
       return;
     }
     const granted = await requestNotificationPermission();
@@ -501,8 +507,8 @@ export default function SettingsScreen() {
                 <Sparkles color={colors.accent} size={18} />
               </View>
               <View style={styles.islandText}>
-                <Text style={[styles.islandRowTitle, { color: colors.textPrimary }]}>Streak Alerts</Text>
-                <Text style={[styles.islandRowSub, { color: colors.textMuted }]}>Notify when streak is at risk</Text>
+                <Text style={[styles.islandRowTitle, { color: colors.textPrimary }]}>Nights reminder</Text>
+                <Text style={[styles.islandRowSub, { color: colors.textMuted }]}>A gentle nudge if you have not listened at night</Text>
               </View>
               <Switch
                 value={settings.streakAlerts}

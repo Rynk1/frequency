@@ -16,9 +16,9 @@ describe('Seed Content Dataset Integrity', () => {
     });
   });
 
-  it('contains 15 curated audio programs with non-empty frequency sequences', () => {
+  it('contains 16 curated audio programs with non-empty frequency sequences', () => {
     const programs = getProgramsSeed();
-    expect(programs.length).toBe(15);
+    expect(programs.length).toBe(16);
 
     programs.forEach((prog) => {
       expect(prog.id).toBeDefined();

@@ -12,6 +12,8 @@ import {
 import { globalEntitlementEngine } from '@/lib/entitlements/entitlement-service';
 import { getTrialDaysLeft } from '@/lib/pricing';
 import { getLocalDateString } from '@/lib/recommendation';
+import { isNightTime, weekKey } from '@/lib/streak/nights';
+import { resolveStreakWithFreezes } from '@/lib/streak/freeze';
 import { USAGE_EVENTS_STORAGE_KEY } from './useUsageAnalytics';
 import { sanitizeForFirestore } from '@/lib/validation';
 import {
@@ -69,6 +71,12 @@ export interface UserProfile {
     streakDays: number;
     lastSessionDate?: Date;
     sessionHistory: string[];
+    /** Dates with a session after 6pm, or a sleep session. */
+    nightHistory?: string[];
+    /** Freeze days used in the current week. */
+    streakFreezesUsed?: number;
+    /** Monday date for the freeze counter. */
+    streakFreezeWeek?: string;
   };
 }
 
@@ -97,7 +105,7 @@ interface AuthContextType {
   refreshSubscriptionStatus: () => Promise<void>;
   startTrial: (options?: { hasAcceptedAutoRenew: boolean }) => Promise<void>;
   upgradeToPremium: (type: 'monthly' | 'yearly') => Promise<void>;
-  trackUsage: (sessionDuration: number, frequency: string) => Promise<void>;
+  trackUsage: (sessionDuration: number, frequency: string, options?: { isSleep?: boolean }) => Promise<void>;
 }
 
 const getUserProfileStorageKey = (uid: string) => `hf:user:${uid}:profile`;
@@ -161,6 +169,9 @@ export const [AuthProvider, useAuth] = createContextHook((): AuthContextType => 
         favoriteFrequencies: [],
         streakDays: 0,
         sessionHistory: [],
+        nightHistory: [],
+        streakFreezesUsed: 0,
+        streakFreezeWeek: weekKey(),
       },
     };
   }, []);
@@ -208,6 +219,9 @@ export const [AuthProvider, useAuth] = createContextHook((): AuthContextType => 
           streakDays: data.usageStats?.streakDays || 0,
           lastSessionDate: data.usageStats?.lastSessionDate ? new Date(data.usageStats.lastSessionDate) : undefined,
           sessionHistory: data.usageStats?.sessionHistory || [],
+          nightHistory: data.usageStats?.nightHistory || [],
+          streakFreezesUsed: data.usageStats?.streakFreezesUsed || 0,
+          streakFreezeWeek: data.usageStats?.streakFreezeWeek || weekKey(),
         },
       } as UserProfile;
     } catch {
@@ -258,6 +272,9 @@ export const [AuthProvider, useAuth] = createContextHook((): AuthContextType => 
         streakDays: data.usageStats?.streakDays || 0,
         lastSessionDate: data.usageStats?.lastSessionDate?.toDate ? data.usageStats.lastSessionDate.toDate() : undefined,
         sessionHistory: data.usageStats?.sessionHistory || [],
+        nightHistory: data.usageStats?.nightHistory || [],
+        streakFreezesUsed: data.usageStats?.streakFreezesUsed || 0,
+        streakFreezeWeek: data.usageStats?.streakFreezeWeek || weekKey(),
       },
     };
   }, []);
@@ -718,7 +735,11 @@ export const [AuthProvider, useAuth] = createContextHook((): AuthContextType => 
     throw new Error('Upgrades must go through checkout.');
   }, []);
 
-  const trackUsage = useCallback(async (sessionDuration: number, frequency: string) => {
+  const trackUsage = useCallback(async (
+    sessionDuration: number,
+    frequency: string,
+    options: { isSleep?: boolean } = {}
+  ) => {
     const currentProfile = userProfileRef.current;
     if (!currentProfile || !frequency?.trim()) return;
 
@@ -726,19 +747,35 @@ export const [AuthProvider, useAuth] = createContextHook((): AuthContextType => 
     const now = new Date();
     const todayISO = getLocalDateString(now);
     const lastSessionDate = currentProfile.usageStats.lastSessionDate;
+    const currentWeek = weekKey(now);
+    const freezesUsedThisWeek =
+      currentProfile.usageStats.streakFreezeWeek === currentWeek
+        ? currentProfile.usageStats.streakFreezesUsed || 0
+        : 0;
 
     let streakDays = currentProfile.usageStats.streakDays;
+    let streakFreezesUsed = freezesUsedThisWeek;
     if (lastSessionDate) {
       const daysDiff = Math.floor((now.getTime() - lastSessionDate.getTime()) / (1000 * 60 * 60 * 24));
-      if (daysDiff === 0) {
-        streakDays = Math.max(1, streakDays);
-      } else if (daysDiff === 1) {
-        streakDays += 1;
-      } else if (daysDiff > 1) {
-        streakDays = 1;
-      }
+      const resolved = resolveStreakWithFreezes({
+        streakDays,
+        daysSinceLastSession: daysDiff,
+        freezesUsed: freezesUsedThisWeek,
+      });
+      streakDays = resolved.streakDays;
+      streakFreezesUsed = resolved.freezesUsed;
     } else {
       streakDays = 1;
+    }
+
+    const nightHistory = [...(currentProfile.usageStats.nightHistory || [])]
+      .filter((date, idx, arr) => arr.indexOf(date) === idx)
+      .filter((date) => {
+        const d = new Date(`${date}T00:00:00`);
+        return (now.getTime() - d.getTime()) / (1000 * 60 * 60 * 24) <= 60;
+      });
+    if (options.isSleep || isNightTime(now)) {
+      if (!nightHistory.includes(todayISO)) nightHistory.push(todayISO);
     }
 
     const favoriteFrequencies = [...currentProfile.usageStats.favoriteFrequencies];
@@ -779,6 +816,9 @@ export const [AuthProvider, useAuth] = createContextHook((): AuthContextType => 
         streakDays,
         lastSessionDate: now,
         sessionHistory,
+        nightHistory,
+        streakFreezesUsed,
+        streakFreezeWeek: currentWeek,
       },
     });
   }, [shouldUseFirestore, updateProfile]);

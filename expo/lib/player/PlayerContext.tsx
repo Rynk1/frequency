@@ -32,7 +32,15 @@ export interface PlayerFrequency {
 }
 
 export interface PlayerSessionTrack {
-  frequencies: { hz: number; name: string; duration: number }[];
+  frequencies: {
+    id?: string;
+    hz: number;
+    name: string;
+    duration: number;
+    isPremium?: boolean;
+    category?: string;
+    categoryId?: string;
+  }[];
   name: string;
   sessionId?: string;
 }

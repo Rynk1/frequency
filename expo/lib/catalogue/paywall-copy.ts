@@ -63,7 +63,7 @@ export function paywallCopyForIntent(intent?: string | null): PaywallCopy {
 
 export function paywallCopyForTrigger(
   trigger: string | null | undefined,
-  limits: { freeMinutes: number; freeSessions: number }
+  limits: { freeMinutes: number; freeSessions: number; sleepMinutes?: number }
 ): PaywallCopy | null {
   switch (trigger) {
     case 'preview_complete':
@@ -75,6 +75,23 @@ export function paywallCopyForTrigger(
       return {
         headline: `Keep listening past ${limits.freeMinutes} minutes`,
         body: `Free sessions stop at ${limits.freeMinutes} minutes. Premium plays the full length.`,
+      };
+    case 'sleep_duration_limit': {
+      const sleepMinutes = limits.sleepMinutes ?? 30;
+      return {
+        headline: `Keep listening past ${sleepMinutes} minutes`,
+        body: `Free sleep sessions run up to ${sleepMinutes} minutes once a day. Premium plays the full night.`,
+      };
+    }
+    case 'first_session':
+      return {
+        headline: 'Your first session is done',
+        body: 'Full-length sessions and the full library are here when you want them. Continue free whenever you like.',
+      };
+    case 'sleep_checkin_positive':
+      return {
+        headline: 'Keep the evening routine going',
+        body: 'Full-length sleep sessions and the full library are here when you want them. No pressure either way.',
       };
     case 'session_limit':
       return {

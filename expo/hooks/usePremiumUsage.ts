@@ -9,22 +9,23 @@ import {
   remainingStarts,
   type SessionLedger,
 } from '@/lib/usage/SessionLedger';
+import { canUseLongSleepSession, freeDurationLimitMinutes } from '@/lib/usage/free-tier';
 
 interface PremiumUsageConfig {
   freeSessionsPerDay: number;
   freeSessionDuration: number; // in minutes
+  freeSleepSessionDuration: number; // in minutes, one per day
   premiumFeatures: string[];
 }
 
 const DEFAULT_CONFIG: PremiumUsageConfig = {
   freeSessionsPerDay: DEFAULT_PREMIUM_POLICY.dailyFreeSessionsLimit,
   freeSessionDuration: Math.floor(DEFAULT_PREMIUM_POLICY.freeSessionMaxDuration / 60),
+  freeSleepSessionDuration: Math.floor(DEFAULT_PREMIUM_POLICY.freeSleepSessionMaxDuration / 60),
   premiumFeatures: [
     'Extended Sessions',
     'Premium Frequencies',
     'Binaural Beats',
-    'Custom Mixing',
-    'Offline Downloads',
     'Progress Analytics',
   ],
 };
@@ -75,15 +76,16 @@ export const usePremiumUsage = (config: Partial<PremiumUsageConfig> = {}) => {
     const next: SessionLedger = {
       date: localDateKey(),
       starts: current.starts + 1,
+      sleepLongStarts: current.sleepLongStarts || 0,
     };
     await writeSessionLedger(next);
     setLedger(next);
   }, [isPremium, isTrialActive]);
 
-  const getMaxSessionDuration = useCallback(() => {
+  const getMaxSessionDuration = useCallback((isSleep = false) => {
     if (isPremium || isTrialActive) return Infinity;
-    return finalConfig.freeSessionDuration;
-  }, [isPremium, isTrialActive, finalConfig.freeSessionDuration]);
+    return freeDurationLimitMinutes({ isSleep, sleepLongUsed: false });
+  }, [isPremium, isTrialActive]);
 
   const checkFeatureAccess = useCallback((feature: string): boolean => {
     if (!feature?.trim()) return false;
@@ -122,7 +124,8 @@ export const usePremiumUsage = (config: Partial<PremiumUsageConfig> = {}) => {
    */
   const attemptStartSession = useCallback(async (
     frequency: string,
-    durationMinutes: number
+    durationMinutes: number,
+    options: { isSleep?: boolean; isPreview?: boolean } = {}
   ): Promise<{ allowed: boolean; reason?: 'invalid_frequency' | 'session_limit' | 'duration_limit'; maxDurationMinutes?: number }> => {
     if (!frequency?.trim()) {
       return { allowed: false, reason: 'invalid_frequency' };
@@ -130,27 +133,44 @@ export const usePremiumUsage = (config: Partial<PremiumUsageConfig> = {}) => {
 
     if (!isPremium && !isTrialActive) {
       const current = await readSessionLedger();
+      const normalized = normalizeLedger(current);
+      const longSleep = canUseLongSleepSession({
+        isSleep: Boolean(options.isSleep),
+        sleepLongUsed: normalized.sleepLongStarts > 0,
+      });
+      const maxDuration = freeDurationLimitMinutes({
+        isSleep: Boolean(options.isSleep),
+        sleepLongUsed: normalized.sleepLongStarts > 0,
+      });
 
-      if (current.starts >= finalConfig.freeSessionsPerDay) {
-        setLedger(current);
+      if (normalized.starts >= finalConfig.freeSessionsPerDay) {
+        setLedger(normalized);
         return {
           allowed: false,
           reason: 'session_limit',
-          maxDurationMinutes: finalConfig.freeSessionDuration,
+          maxDurationMinutes: maxDuration,
         };
       }
 
-      if (durationMinutes > finalConfig.freeSessionDuration) {
+      if (durationMinutes > maxDuration) {
         return {
           allowed: false,
           reason: 'duration_limit',
-          maxDurationMinutes: finalConfig.freeSessionDuration,
+          maxDurationMinutes: maxDuration,
         };
       }
 
-      const next: SessionLedger = { date: localDateKey(), starts: current.starts + 1 };
-      await writeSessionLedger(next);
-      setLedger(next);
+      if (!options.isPreview) {
+        const next: SessionLedger = {
+          date: localDateKey(),
+          starts: normalized.starts + 1,
+          sleepLongStarts:
+            normalized.sleepLongStarts +
+            (longSleep && durationMinutes > finalConfig.freeSessionDuration ? 1 : 0),
+        };
+        await writeSessionLedger(next);
+        setLedger(next);
+      }
     }
 
     return { allowed: true };

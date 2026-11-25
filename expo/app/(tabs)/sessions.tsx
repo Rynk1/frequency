@@ -63,6 +63,13 @@ import { ResponsiveGrid } from '@/components/ResponsiveGrid';
 import { useResponsive } from '@/lib/ui/responsive';
 import { PremiumModal } from '@/components/PremiumModal';
 import { isProgramLocked } from '@/lib/catalogue/program-access';
+import { primaryIntentForFrequency } from '@/lib/catalogue/intent-taxonomy';
+import { getFrequenciesSeed } from '@/seed/frequencies';
+import { getProgramsSeed } from '@/seed/programs';
+import { SleepCheckInCard } from '@/components/SleepCheckInCard';
+import { nightsThisWeek, weekKey } from '@/lib/streak/nights';
+import { freezesLeft } from '@/lib/streak/freeze';
+import { track } from '@/lib/telemetry';
 import { showAlert } from '../../lib/ui/alert';
 
 
@@ -83,111 +90,37 @@ interface Session {
   intensity: 'gentle' | 'moderate' | 'intense';
 }
 
-type StarterSession = Omit<Session, 'id' | 'createdAt'> & { isPremium?: boolean; id?: string };
+type StarterSessionFrequency = Session['frequencies'][number] & {
+  id?: string;
+  isPremium?: boolean;
+  category?: string;
+  categoryId?: string;
+};
+type StarterSession = Omit<Session, 'id' | 'createdAt' | 'frequencies'> & {
+  frequencies: StarterSessionFrequency[];
+  isPremium?: boolean;
+  id?: string;
+};
 
 const STARTER_SESSIONS: StarterSession[] = [
   {
-    name: "Morning Energy Boost",
+    id: 'session-16',
+    isPremium: false,
+    name: 'First Night Wind-Down',
     frequencies: [
-      { hz: 528, name: "Love Frequency", duration: 10 },
-      { hz: 40, name: "Gamma Focus", duration: 10 },
-      { hz: 432, name: "Natural Harmony", duration: 10 }
+      { id: 'sleep-8', hz: 8, name: 'Drift Off', duration: 10, category: 'sleep', categoryId: 'sleep', isPremium: false },
+      { id: 'scientific-7.83', hz: 7.83, name: 'Earth Resonance', duration: 10, category: 'scientific', categoryId: 'nature', isPremium: false },
+      { id: 'solfeggio-528', hz: 528, name: 'Heart Calm', duration: 10, category: 'solfeggio', categoryId: 'calm', isPremium: false },
     ],
     totalDuration: 30,
-    goal: "Start your day with vitality and positive energy",
-    schedule: ["Mon", "Tue", "Wed", "Thu", "Fri"],
-    progress: 0,
-    totalSessions: 0,
-    streak: 0,
-    category: 'focus' as const,
-    intensity: 'moderate' as const,
-    notes: "Perfect for morning routine."
-  },
-  {
-    name: "Deep Relaxation Session",
-    frequencies: [
-      { hz: 174, name: "Foundation Pure", duration: 15 },
-      { hz: 285, name: "Transformation Pure", duration: 15 },
-      { hz: 528, name: "Love & Miracles", duration: 15 }
-    ],
-    totalDuration: 45,
-    goal: "A longer, quieter session for rest and reflection",
-    schedule: ["Sun", "Wed", "Sat"],
-    progress: 0,
-    totalSessions: 0,
-    streak: 0,
-    category: 'healing' as const,
-    intensity: 'intense' as const,
-    notes: "A calm blend of low and mid-range tones."
-  },
-  {
-    name: "Complete Chakra Alignment",
-    frequencies: [
-      { hz: 194.18, name: "Root Chakra", duration: 8 },
-      { hz: 210.42, name: "Sacral Chakra", duration: 8 },
-      { hz: 341.3, name: "Heart Chakra", duration: 8 },
-      { hz: 963, name: "Crown Chakra", duration: 8 }
-    ],
-    totalDuration: 56,
-    goal: "Balance all chakras for optimal energy flow",
-    schedule: ["Sun", "Thu"],
-    progress: 0,
-    totalSessions: 0,
-    streak: 0,
-    category: 'healing' as const,
-    intensity: 'intense' as const,
-    notes: "Complete chakra alignment."
-  },
-  {
-    name: "Deep Meditation Journey",
-    frequencies: [
-      { hz: 7.83, name: "Schumann Resonance", duration: 10 },
-      { hz: 6, name: "Theta Waves", duration: 20 },
-      { hz: 852, name: "Spiritual Order", duration: 10 }
-    ],
-    totalDuration: 40,
-    goal: "Achieve profound meditative states",
-    schedule: ["Daily"],
-    progress: 0,
-    totalSessions: 0,
-    streak: 0,
-    category: 'meditation' as const,
-    intensity: 'moderate' as const,
-    notes: "Earth frequency grounding."
-  },
-  {
-    name: "Sleep & Dream Enhancement",
-    frequencies: [
-      { hz: 8, name: "Sleep Transition", duration: 10 },
-      { hz: 4.5, name: "REM Sleep", duration: 20 },
-      { hz: 1.5, name: "Deep Sleep", duration: 30 }
-    ],
-    totalDuration: 60,
-    goal: "Optimize sleep quality and dream recall",
-    schedule: ["Daily"],
+    goal: 'A free starter path using three free tones for a quiet evening.',
+    schedule: ['Daily'],
     progress: 0,
     totalSessions: 0,
     streak: 0,
     category: 'sleep' as const,
     intensity: 'gentle' as const,
-    notes: "Progressive sleep induction."
-  },
-  {
-    name: "Manifestation & Abundance",
-    frequencies: [
-      { hz: 888, name: "Abundance Frequency", duration: 15 },
-      { hz: 528, name: "Manifestation Power", duration: 15 },
-      { hz: 10, name: "Alpha Success", duration: 15 }
-    ],
-    totalDuration: 45,
-    goal: "Attract wealth, abundance and manifest desires",
-    schedule: ["Mon", "Wed", "Fri"],
-    progress: 0,
-    totalSessions: 0,
-    streak: 0,
-    category: 'manifestation' as const,
-    intensity: 'moderate' as const,
-    notes: "Abundance and success."
+    notes: 'First track free. Full paths are part of Premium.',
   },
 ];
 
@@ -306,7 +239,7 @@ export default function SessionsScreen() {
   } = useSessionManager();
 
   const { curatedPrograms: localPrograms } = useCuratedPrograms();
-  const { userProfile, isPremium } = useAuth();
+  const { userProfile, isPremium, trackUsage } = useAuth();
 
   const handleClaimReward = async (achievement: any) => {
     if (achievement.rewardKind === 'premium' && !isPremium) {
@@ -318,19 +251,47 @@ export default function SessionsScreen() {
     setSelectedAchievement(null);
   };
 
+  const frequencyById = React.useMemo(
+    () => new Map(getFrequenciesSeed().map((frequency) => [frequency.id, frequency])),
+    []
+  );
+
+  // Seed flags are authoritative for gating. A stale local cache previously
+  // kept premium tones inside free programs, so merge the canonical tier and
+  // sequence while keeping any custom program metadata.
+  const canonicalPrograms = React.useMemo(() => {
+    const seed = getProgramsSeed();
+    const stored = new Map(localPrograms.map((program) => [program.id, program]));
+    const merged = seed.map((program) => {
+      const existing = stored.get(program.id);
+      return existing
+        ? { ...existing, isPremium: program.isPremium, frequencies: program.frequencies }
+        : program;
+    });
+    const custom = localPrograms.filter(
+      (program) => !seed.some((item) => item.id === program.id)
+    );
+    return [...merged, ...custom];
+  }, [localPrograms]);
+
   const displayStarterSessions = React.useMemo(() => {
-    if (!localPrograms || localPrograms.length === 0) return STARTER_SESSIONS;
-    return localPrograms.map((s) => ({
+    if (!canonicalPrograms || canonicalPrograms.length === 0) return STARTER_SESSIONS;
+    return canonicalPrograms.map((s) => ({
       id: s.id,
       isPremium: s.isPremium,
       name: s.name,
       frequencies: s.frequencies.map((f: string) => {
+        const record = frequencyById.get(f);
         const hzMatch = f.match(/-(\d+(\.\d+)?)$/);
-        const hz = hzMatch ? parseFloat(hzMatch[1]) : 528;
+        const hz = record?.hz ?? (hzMatch ? parseFloat(hzMatch[1]) : 528);
         return {
+          id: f,
           hz,
-          name: f.replace(/-(\d+(\.\d+)?)$/, '').replace(/-/g, ' '),
+          name: record?.name ?? f.replace(/-(\d+(\.\d+)?)$/, '').replace(/-/g, ' '),
           duration: Math.max(1, Math.floor(s.duration / Math.max(1, s.frequencies.length))),
+          isPremium: record?.isPremium ?? false,
+          category: record?.category,
+          categoryId: primaryIntentForFrequency(f),
         };
       }),
       totalDuration: s.duration,
@@ -343,7 +304,7 @@ export default function SessionsScreen() {
       intensity: 'moderate' as const,
       notes: s.description,
     }));
-  }, [localPrograms]);
+  }, [canonicalPrograms, frequencyById]);
 
   const dailyAlignment = useMemo(
     () => getDailyAlignment(userProfile?.uid || 'guest', undefined, userProfile?.onboardingPreferences),
@@ -352,27 +313,49 @@ export default function SessionsScreen() {
 
   const handleStartDailyAlignment = () => {
     openPlayer({
-      frequency: { hz: dailyAlignment.frequencies[0]?.hz || 528, name: 'Daily Alignment', description: 'Your dynamic daily alignment session' },
+      frequency: {
+        id: dailyAlignment.frequencies[0]?.id,
+        hz: dailyAlignment.frequencies[0]?.hz || 528,
+        name: 'Daily Alignment',
+        description: 'Your dynamic daily alignment session',
+        category: dailyAlignment.frequencies[0]?.category,
+      },
       session: { frequencies: dailyAlignment.frequencies, name: 'Daily Alignment' },
     });
   };
 
   const handleStartStarterSession = (session: StarterSession) => {
-    if (isProgramLocked(session.isPremium, isPremium)) {
-      setShowStarterDetails(false);
-      setShowProgramPaywall(true);
-      return;
+    const dayOneOnly = isProgramLocked(session.isPremium, isPremium);
+    const tracks = dayOneOnly ? session.frequencies.slice(0, 1) : session.frequencies;
+    const first = tracks[0];
+    if (dayOneOnly) {
+      track('program_day_one_started', { program: session.id ?? session.name });
     }
     openPlayer({
       frequency: {
-        hz: session.frequencies[0]?.hz || 528,
-        name: session.name,
+        id: first?.id,
+        hz: first?.hz || 528,
+        name: dayOneOnly ? `Day 1 · ${session.name}` : session.name,
         description: session.goal,
+        category: first?.category,
+        categoryId: first?.categoryId,
+        isPremium: first?.isPremium,
       },
       session: {
-        frequencies: session.frequencies,
-        name: session.name,
+        frequencies: tracks,
+        name: dayOneOnly ? `Day 1 · ${session.name}` : session.name,
+        sessionId: dayOneOnly ? session.id || session.name : undefined,
       },
+      onSessionComplete: dayOneOnly
+        ? async (_id, seconds) => {
+            await trackUsage(
+              Math.max(1, Math.round(seconds / 60)),
+              first?.name || session.name
+            ).catch(() => {});
+            track('program_full_locked', { program: session.id ?? session.name });
+            setShowProgramPaywall(true);
+          }
+        : undefined,
     });
     setShowStarterDetails(false);
   };
@@ -407,6 +390,16 @@ export default function SessionsScreen() {
 
   const totalMinutes = stats?.totalMinutes || userProfile?.usageStats?.totalListeningTime || 0;
   const streakDays = stats?.currentStreak || userProfile?.usageStats?.streakDays || 0;
+  const now = new Date();
+  const nightDates = userProfile?.usageStats?.nightHistory?.length
+    ? userProfile.usageStats.nightHistory
+    : userProfile?.usageStats?.sessionHistory || [];
+  const nights = nightsThisWeek(nightDates, now);
+  const usedFreezes =
+    userProfile?.usageStats?.streakFreezeWeek === weekKey(now)
+      ? userProfile.usageStats.streakFreezesUsed || 0
+      : 0;
+  const freezesRemaining = freezesLeft(usedFreezes);
   const sessionsCompleted = stats?.totalSessions || userProfile?.usageStats?.sessionsCompleted || 0;
   const currentLevel = stats?.level || Math.floor(sessionsCompleted / 10) + 1;
 
@@ -587,6 +580,8 @@ export default function SessionsScreen() {
         </TouchableOpacity>
       </View>
 
+      <SleepCheckInCard />
+
       {/* Stats Bar */}
       <GlassCard style={styles.statsBar} depth="light">
         <View style={styles.statItem}>
@@ -600,9 +595,9 @@ export default function SessionsScreen() {
         <View style={styles.statItem}>
           <View style={styles.statIconRow}>
             <Zap color={colors.accent} size={13} />
-            <Text style={[styles.statValue, { color: colors.accent }]}>{streakDays}</Text>
+            <Text style={[styles.statValue, { color: colors.accent }]}>{nights}</Text>
           </View>
-          <Text style={styles.statLabel}>Day Streak</Text>
+          <Text style={styles.statLabel}>Nights this week</Text>
         </View>
         <View style={styles.statDivider} />
         <View style={styles.statItem}>
@@ -621,6 +616,9 @@ export default function SessionsScreen() {
           <Text style={styles.statLabel}>Sessions</Text>
         </View>
       </GlassCard>
+      <Text style={[styles.statHint, { color: colors.textMuted }]}>
+        {freezesRemaining} streak {freezesRemaining === 1 ? 'freeze' : 'freezes'} left this week
+      </Text>
 
       {/* Daily Challenge */}
       {dailyChallenge && (
@@ -1017,7 +1015,9 @@ export default function SessionsScreen() {
                   {isProgramLocked(session.isPremium, isPremium) && (
                     <View style={styles.programPremiumRow}>
                       <Crown color={colors.gold} size={11} />
-                      <Text style={styles.programPremiumText}>Premium program</Text>
+                      <Text style={styles.programPremiumText}>
+                        {isProgramLocked(session.isPremium, isPremium) ? 'First track free' : 'Premium program'}
+                      </Text>
                     </View>
                   )}
                 </View>
@@ -1057,7 +1057,7 @@ export default function SessionsScreen() {
                 >
                   <Play color={meta.color} size={13} fill={meta.color} />
                   <Text style={[styles.programStartBtnText, { color: meta.color }]}>
-                    {isProgramLocked(session.isPremium, isPremium) ? 'Unlock' : 'Start'}
+                    {isProgramLocked(session.isPremium, isPremium) ? 'Day 1 free' : 'Start'}
                   </Text>
                 </TouchableOpacity>
               </View>
@@ -1216,7 +1216,7 @@ export default function SessionsScreen() {
                       >
                         <Play color="#fff" size={16} fill="#fff" />
                         <Text style={styles.startProgramBtnText}>
-                          {isProgramLocked(selectedStarterSession?.isPremium, isPremium) ? 'Unlock with Premium' : 'Start Now'}
+                          {isProgramLocked(selectedStarterSession?.isPremium, isPremium) ? 'Start Day 1' : 'Start Now'}
                         </Text>
                       </TouchableOpacity>
                     </View>
@@ -1774,6 +1774,12 @@ const createStyles = (colors: any, gradients: any, isDark: boolean) => StyleShee
     fontWeight: '500' as const,
     letterSpacing: 0.3,
     textTransform: 'uppercase' as const,
+  },
+  statHint: {
+    fontSize: 10,
+    textAlign: 'center',
+    marginTop: 6,
+    marginBottom: 4,
   },
   statDivider: {
     width: 1,

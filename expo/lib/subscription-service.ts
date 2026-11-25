@@ -15,6 +15,7 @@ export type Plan = 'monthly' | 'yearly';
 
 export interface PremiumPolicyConfig {
   freeSessionMaxDuration: number; // in seconds (e.g. 15 * 60)
+  freeSleepSessionMaxDuration: number; // in seconds, one sleep session per day
   dailyFreeSessionsLimit: number; // e.g. 3
   premiumPreviewDuration: number; // in seconds (e.g. 180 = 3 minutes)
   offlineGracePeriodHours: number; // e.g. 72
@@ -22,6 +23,7 @@ export interface PremiumPolicyConfig {
 
 export const DEFAULT_PREMIUM_POLICY: PremiumPolicyConfig = {
   freeSessionMaxDuration: 15 * 60, // 15 minutes in seconds
+  freeSleepSessionMaxDuration: 30 * 60, // one 30-minute sleep session per day
   dailyFreeSessionsLimit: 3,
   premiumPreviewDuration: 180, // 3 minutes
   offlineGracePeriodHours: 72,
